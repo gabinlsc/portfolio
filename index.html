@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gabin Lescoat · GLSC.fr</title>
+  <meta name="description" content="Hub de Gabin Lescoat, étudiant en Bachelor Développement Informatique à Rennes : Studio GLSC, CV, Share, archives et projets." />
+  <meta name="theme-color" content="#FFFDF0" />
+  <meta property="og:title" content="Gabin Lescoat · GLSC.fr" />
+  <meta property="og:description" content="Étudiant en Bachelor Dev Informatique à Rennes. Studio, CV, projets & outils." />
+  <meta property="og:url" content="https://glsc.fr" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Fredoka', 'system-ui', 'sans-serif'],
+            body: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            cream: '#FFFDF0',
+            ink: '#111111',
+            banana: '#FFD84D',
+            mint: '#7BE0AD',
+            lilac: '#C3A6FF',
+            sky: '#8FD3FF',
+            coral: '#FF9478',
+            peach: '#FFC9A8',
+          },
+          borderWidth: { 3: '3px' },
+          boxShadow: {
+            pop: '4px 4px 0 #000',
+            'pop-sm': '2px 2px 0 #000',
+            'pop-lg': '6px 6px 0 #000',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #FFFDF0;
+      background-image: radial-gradient(#00000014 1.2px, transparent 1.2px);
+      background-size: 22px 22px;
+    }
+
+    /* Press-down : l'élément glisse vers son ombre */
+    .press {
+      transition: transform 150ms cubic-bezier(.34, 1.56, .64, 1), box-shadow 150ms ease-out;
+      box-shadow: 6px 6px 0 #000;
+    }
+    .press:hover,
+    .press:focus-visible {
+      transform: translate(4px, 4px);
+      box-shadow: 2px 2px 0 #000;
+    }
+    .press:active {
+      transform: translate(6px, 6px);
+      box-shadow: 0 0 0 #000;
+    }
+    .press-sm { box-shadow: 4px 4px 0 #000; }
+    .press-sm:hover,
+    .press-sm:focus-visible { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+    .press-sm:active { transform: translate(4px, 4px); box-shadow: 0 0 0 #000; }
+
+    :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
+
+    /* Wiggle */
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(0deg); }
+      20% { transform: rotate(-9deg) scale(1.06); }
+      40% { transform: rotate(7deg) scale(1.06); }
+      60% { transform: rotate(-5deg); }
+      80% { transform: rotate(3deg); }
+    }
+    .group:hover .wiggle-on-hover,
+    .wiggle-self:hover,
+    .wiggle-self:focus-visible { animation: wiggle 450ms ease-in-out; }
+
+    /* Sticker pop au clic */
+    @keyframes pop {
+      0% { transform: scale(1) rotate(var(--r, 0deg)); }
+      40% { transform: scale(1.18) rotate(calc(var(--r, 0deg) * -1)); }
+      100% { transform: scale(1) rotate(var(--r, 0deg)); }
+    }
+    .sticker { transform: rotate(var(--r, 0deg)); transition: transform 150ms ease-out, box-shadow 150ms ease-out; }
+    .sticker:hover { box-shadow: 1px 1px 0 #000; transform: translate(2px, 2px) rotate(var(--r, 0deg)); }
+    .sticker.is-pop { animation: pop 380ms cubic-bezier(.34, 1.56, .64, 1); }
+    .sticker[aria-pressed="true"] { outline: 3px solid #000; outline-offset: 3px; }
+
+    /* Bulle BD */
+    .bubble {
+      opacity: 0;
+      transform: translate(-50%, 8px) scale(.6) rotate(-3deg);
+      transition: opacity 150ms ease-out, transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+      pointer-events: none;
+    }
+    .bubble.is-visible { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(-3deg); }
+    .bubble::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -11px;
+      width: 18px;
+      height: 18px;
+      background: inherit;
+      border-right: 3px solid #000;
+      border-bottom: 3px solid #000;
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    /* Point "en ligne" */
+    @keyframes ping { 75%, 100% { transform: scale(2.2); opacity: 0; } }
+    .ping::before {
+      content: ''; position: absolute; inset: 0; border-radius: 9999px;
+      background: #22c55e; animation: ping 1.4s cubic-bezier(0, 0, .2, 1) infinite;
+    }
+
+    /* Entrée en cascade */
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise 500ms cubic-bezier(.34, 1.56, .64, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+
+<body class="font-body text-ink antialiased min-h-screen selection:bg-banana">
+  <a href="#hub" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 bg-banana border-3 border-black rounded-xl px-4 py-2 font-bold">Aller au contenu</a>
+
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 py-10 sm:py-16">
+
+    <!-- ============ HEADER PROFIL ============ -->
+    <header class="rise flex flex-col sm:flex-row items-center sm:items-end gap-6 sm:gap-8 text-center sm:text-left" style="--i:0">
+      <div class="relative shrink-0">
+        <div class="wiggle-self grid place-items-center w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-banana border-4 border-black shadow-pop-lg -rotate-3 font-display font-bold text-5xl select-none" aria-hidden="true">
+          GL
+        </div>
+        <span class="absolute -bottom-3 -right-4 rotate-6 bg-white border-3 border-black rounded-full px-2 py-0.5 text-lg shadow-pop-sm" aria-hidden="true">👋</span>
+      </div>
+
+      <div class="flex-1">
+        <p class="inline-block mb-3 rotate-2 bg-sky border-3 border-black rounded-full px-3 py-1 text-xs font-bold uppercase tracking-widest shadow-pop-sm">Salut, moi c'est</p>
+        <h1 class="font-display font-bold text-5xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight">
+          GABIN <span class="relative inline-block">
+            <span class="relative z-10">LESCOAT</span>
+            <span class="absolute left-0 right-0 bottom-1 h-4 sm:h-5 bg-coral -z-0 -rotate-1 rounded" aria-hidden="true"></span>
+          </span>
+        </h1>
+        <p class="mt-4 text-lg sm:text-xl font-medium">Étudiant en Bachelor Dev Informatique à Rennes 🎓</p>
+
+        <div class="mt-5 inline-flex items-center gap-2 -rotate-2 bg-white border-3 border-black rounded-2xl px-4 py-2 shadow-pop font-bold wiggle-self" role="status">
+          <span>📍 Rennes</span>
+          <span aria-hidden="true">•</span>
+          <span class="relative inline-block w-3 h-3 rounded-full bg-green-500 border-2 border-black ping" aria-hidden="true"></span>
+          <span>En alternance</span>
+        </div>
+      </div>
+    </header>
+
+    <main id="hub" class="mt-14 sm:mt-20 space-y-16 sm:space-y-20">
+
+      <!-- ============ GRILLE DE SERVICES ============ -->
+      <section aria-labelledby="hub-title">
+        <h2 id="hub-title" class="font-display font-bold text-3xl sm:text-4xl mb-6 flex items-center gap-3">
+          <span class="inline-grid place-items-center w-10 h-10 bg-mint border-3 border-black rounded-xl shadow-pop-sm rotate-3" aria-hidden="true">🧭</span>
+          Le Hub
+        </h2>
+
+        <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+
+          <!-- Studio GLSC (vedette) -->
+          <li class="rise sm:col-span-2 lg:col-span-2 lg:row-span-2" style="--i:1">
+            <a href="https://studio.glsc.fr" class="press group relative flex flex-col justify-between h-full min-h-[220px] bg-lilac border-4 border-black rounded-2xl p-6 sm:p-8 overflow-hidden">
+              <span class="absolute top-4 right-4 rotate-6 bg-coral border-3 border-black rounded-full px-3 py-1 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-pop-sm wiggle-on-hover">🔥 Nouveau · Créa Lab</span>
+              <svg class="absolute -right-8 -bottom-8 w-48 h-48 opacity-90 rotate-12" viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M50 5 L61 38 L95 38 L67 58 L78 92 L50 71 L22 92 L33 58 L5 38 L39 38 Z" fill="#FFD84D" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+              </svg>
+
+              <div class="relative">
+                <span class="inline-grid place-items-center w-16 h-16 bg-white border-3 border-black rounded-2xl shadow-pop-sm wiggle-on-hover">
+                  <i data-lucide="sparkles" class="w-8 h-8"></i>
+                </span>
+              </div>
+              <div class="relative mt-10 max-w-md">
+                <h3 class="font-display font-bold text-4xl sm:text-5xl">Studio GLSC</h3>
+                <p class="mt-2 text-base sm:text-lg font-medium">Mon labo créatif : design, outils web et expérimentations fraîches qui sortent du four.</p>
+                <span class="mt-5 inline-flex items-center gap-2 bg-black text-white rounded-xl px-4 py-2 font-bold">
+                  studio.glsc.fr
+                  <i data-lucide="arrow-up-right" class="w-5 h-5 transition-transform duration-150 group-hover:translate-x-1 group-hover:-translate-y-1"></i>
+                </span>
+              </div>
+            </a>
+          </li>
+
+          <!-- Mon CV -->
+          <li class="rise" style="--i:2">
+            <a href="/cv" class="press group flex flex-col h-full bg-banana border-4 border-black rounded-2xl p-6">
+              <div class="flex items-start justify-between">
+                <span class="inline-grid place-items-center w-14 h-14 bg-white border-3 border-black rounded-xl shadow-pop-sm wiggle-on-hover">
+                  <i data-lucide="file-user" class="w-7 h-7"></i>
+                </span>
+                <i data-lucide="arrow-up-right" class="w-6 h-6 transition-transform duration-150 group-hover:translate-x-1 group-hover:-translate-y-1"></i>
+              </div>
+              <h3 class="mt-5 font-display font-bold text-2xl">Mon CV</h3>
+              <p class="mt-1 font-medium">Parcours, compétences et téléchargement.</p>
+            </a>
+          </li>
+
+          <!-- Share -->
+          <li class="rise" style="--i:3">
+            <a href="https://share.glsc.fr" class="press group flex flex-col h-full bg-mint border-4 border-black rounded-2xl p-6">
+              <div class="flex items-start justify-between">
+                <span class="inline-grid place-items-center w-14 h-14 bg-white border-3 border-black rounded-xl shadow-pop-sm wiggle-on-hover">
+                  <i data-lucide="send" class="w-7 h-7"></i>
+                </span>
+                <i data-lucide="arrow-up-right" class="w-6 h-6 transition-transform duration-150 group-hover:translate-x-1 group-hover:-translate-y-1"></i>
+              </div>
+              <h3 class="mt-5 font-display font-bold text-2xl">Share</h3>
+              <p class="mt-1 font-medium">Transfert de fichiers éphémère &amp; sécurisé.</p>
+            </a>
+          </li>
+
+          <!-- Espace privé -->
+          <li class="rise" style="--i:4">
+            <a href="/admin" class="press group flex flex-col h-full bg-sky border-4 border-black rounded-2xl p-6">
+              <div class="flex items-start justify-between">
+                <span class="inline-grid place-items-center w-14 h-14 bg-white border-3 border-black rounded-xl shadow-pop-sm wiggle-on-hover">
+                  <i data-lucide="lock-keyhole" class="w-7 h-7"></i>
+                </span>
+                <span class="-rotate-3 bg-white border-2 border-black rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider">Privé</span>
+              </div>
+              <h3 class="mt-5 font-display font-bold text-2xl">Espace privé</h3>
+              <p class="mt-1 font-medium">Kanban &amp; console admin.</p>
+            </a>
+          </li>
+
+          <!-- Archives -->
+          <li class="rise" style="--i:5">
+            <a href="/archives" class="press group flex flex-col h-full bg-peach border-4 border-black rounded-2xl p-6">
+              <div class="flex items-start justify-between">
+                <span class="inline-grid place-items-center w-14 h-14 bg-white border-3 border-black rounded-xl shadow-pop-sm wiggle-on-hover">
+                  <i data-lucide="archive" class="w-7 h-7"></i>
+                </span>
+                <i data-lucide="arrow-up-right" class="w-6 h-6 transition-transform duration-150 group-hover:translate-x-1 group-hover:-translate-y-1"></i>
+              </div>
+              <h3 class="mt-5 font-display font-bold text-2xl">Archives</h3>
+              <p class="mt-1 font-medium">Anciens projets &amp; expérimentations.</p>
+            </a>
+          </li>
+
+          <!-- GitHub -->
+          <li class="rise" style="--i:6">
+            <a href="https://github.com/gabinlsc" target="_blank" rel="noopener noreferrer" class="press group flex flex-col h-full bg-white border-4 border-black rounded-2xl p-6">
+              <div class="flex items-start justify-between">
+                <span class="inline-grid place-items-center w-14 h-14 bg-black text-white border-3 border-black rounded-xl shadow-pop-sm wiggle-on-hover">
+                  <svg viewBox="0 0 24 24" class="w-7 h-7" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+                </span>
+                <i data-lucide="arrow-up-right" class="w-6 h-6 transition-transform duration-150 group-hover:translate-x-1 group-hover:-translate-y-1"></i>
+              </div>
+              <h3 class="mt-5 font-display font-bold text-2xl">GitHub</h3>
+              <p class="mt-1 font-medium">Mes dépôts &amp; code source.</p>
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <!-- ============ TECH STACK ============ -->
+      <section aria-labelledby="stack-title">
+        <h2 id="stack-title" class="font-display font-bold text-3xl sm:text-4xl mb-2 flex items-center gap-3">
+          <span class="inline-grid place-items-center w-10 h-10 bg-coral border-3 border-black rounded-xl shadow-pop-sm -rotate-3" aria-hidden="true">🛠️</span>
+          Ma boîte à outils
+        </h2>
+        <p class="mb-6 font-medium">Clique sur un sticker pour en savoir plus.</p>
+
+        <div class="bg-white border-4 border-black rounded-2xl shadow-pop-lg p-5 sm:p-8">
+          <div id="stack" class="flex flex-wrap gap-3 sm:gap-4">
+            <button type="button" class="sticker wiggle-self bg-coral border-3 border-black rounded-xl px-4 py-2 font-display font-bold text-lg shadow-pop" style="--r:-3deg" aria-pressed="false" data-note="☕ Java — POO, structures de données et applis solides.">Java</button>
+            <button type="button" class="sticker wiggle-self bg-sky border-3 border-black rounded-xl px-4 py-2 font-display font-bold text-lg shadow-pop" style="--r:2deg" aria-pressed="false" data-note="🗄️ SQL / MariaDB — modélisation, requêtes et bases propres.">SQL / MariaDB</button>
+            <button type="button" class="sticker wiggle-self bg-banana border-3 border-black rounded-xl px-4 py-2 font-display font-bold text-lg shadow-pop" style="--r:-1deg" aria-pressed="false" data-note="🐍 Python — scripts, automatisation et petits outils malins.">Python</button>
+            <button type="button" class="sticker wiggle-self bg-mint border-3 border-black rounded-xl px-4 py-2 font-display font-bold text-lg shadow-pop" style="--r:3deg" aria-pressed="false" data-note="🐧 Linux — mon terrain de jeu au quotidien, du shell au serveur.">Linux</button>
+            <button type="button" class="sticker wiggle-self bg-lilac border-3 border-black rounded-xl px-4 py-2 font-display font-bold text-lg shadow-pop" style="--r:-2deg" aria-pressed="false" data-note="🌐 Nginx — reverse proxy, TLS et hébergement de mes services.">Nginx</button>
+            <button type="button" class="sticker wiggle-self bg-peach border-3 border-black rounded-xl px-4 py-2 font-display font-bold text-lg shadow-pop" style="--r:2deg" aria-pressed="false" data-note="📦 Docker / Podman — tout est conteneurisé, reproductible et isolé.">Docker / Podman</button>
+            <button type="button" class="sticker wiggle-self bg-white border-3 border-black rounded-xl px-4 py-2 font-display font-bold text-lg shadow-pop" style="--r:-3deg" aria-pressed="false" data-note="🌿 Git — branches, PR et historique propre, toujours.">Git</button>
+          </div>
+
+          <p id="stack-note" class="mt-6 min-h-[3.5rem] flex items-center bg-cream border-3 border-dashed border-black rounded-xl px-4 py-3 font-medium" aria-live="polite">
+            👆 Choisis un sticker !
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ CONTACT ============ -->
+      <section aria-labelledby="contact-title" class="rise" style="--i:7">
+        <div class="relative bg-banana border-4 border-black rounded-2xl shadow-pop-lg p-6 sm:p-10 overflow-hidden">
+          <span class="absolute -top-1 right-6 sm:right-10 rotate-3 bg-white border-3 border-black rounded-b-xl px-3 py-1 text-xs font-bold uppercase tracking-widest" aria-hidden="true">Réponse rapide ⚡</span>
+          <h2 id="contact-title" class="font-display font-bold text-3xl sm:text-5xl">On discute ?</h2>
+          <p class="mt-2 text-lg font-medium max-w-xl">Une alternance, un projet ou juste une idée à partager : ma boîte mail est grande ouverte.</p>
+
+          <div class="mt-8 flex flex-col sm:flex-row gap-4 sm:gap-5">
+            <a id="mail-link" href="mailto:contact@glsc.fr" class="press group inline-flex items-center justify-center gap-2 bg-black text-white border-4 border-black rounded-2xl px-6 py-4 font-display font-bold text-xl">
+              <i data-lucide="mail" class="w-6 h-6 wiggle-on-hover"></i>
+              M'écrire
+            </a>
+
+            <div class="relative">
+              <button id="copy-btn" type="button" class="press group w-full inline-flex items-center justify-center gap-2 bg-white border-4 border-black rounded-2xl px-6 py-4 font-display font-bold text-xl">
+                <i data-lucide="copy" class="w-6 h-6 wiggle-on-hover"></i>
+                <span>Copier l'e-mail</span>
+              </button>
+              <div id="copy-bubble" class="bubble absolute left-1/2 bottom-full mb-5 whitespace-nowrap bg-mint border-3 border-black rounded-2xl px-4 py-2 font-bold shadow-pop-sm z-10" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+          <p class="mt-5 font-mono text-sm sm:text-base"><span class="font-bold">✉️</span> <span id="email-text">contact@glsc.fr</span></p>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============ FOOTER ============ -->
+    <footer class="mt-16 sm:mt-20 pt-8 border-t-4 border-dashed border-black flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left font-medium">
+      <p>© <span id="year">2026</span> GLSC.fr • Fait avec <span class="inline-block wiggle-self" aria-label="amour">❤️</span> par <a href="https://studio.glsc.fr" class="font-bold underline decoration-4 decoration-coral underline-offset-4 hover:bg-banana rounded px-1 transition-colors duration-150">studio.glsc.fr</a></p>
+      <a href="#" class="press press-sm inline-flex items-center gap-2 bg-white border-3 border-black rounded-xl px-3 py-1.5 font-bold text-sm" aria-label="Remonter en haut de la page">
+        <i data-lucide="arrow-up" class="w-4 h-4"></i> Haut
+      </a>
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      // ⚙️ Adresse de contact (un seul endroit à modifier)
+      var EMAIL = 'contact@glsc.fr';
+
+      document.getElementById('mail-link').href = 'mailto:' + EMAIL;
+      document.getElementById('email-text').textContent = EMAIL;
+      document.getElementById('year').textContent = new Date().getFullYear();
+
+      if (window.lucide) {
+        window.lucide.createIcons({ attrs: { 'stroke-width': 2.5, 'aria-hidden': 'true' } });
+      }
+
+      // ---------- Copie de l'e-mail + bulle BD ----------
+      var copyBtn = document.getElementById('copy-btn');
+      var bubble = document.getElementById('copy-bubble');
+      var bubbleTimer;
+
+      function showBubble(text, ok) {
+        bubble.textContent = text;
+        bubble.classList.toggle('bg-mint', ok);
+        bubble.classList.toggle('bg-coral', !ok);
+        bubble.classList.remove('is-visible');
+        void bubble.offsetWidth; // relance l'animation
+        bubble.classList.add('is-visible');
+        clearTimeout(bubbleTimer);
+        bubbleTimer = setTimeout(function () { bubble.classList.remove('is-visible'); }, 2200);
+      }
+
+      function fallbackCopy(text) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+        return ok;
+      }
+
+      copyBtn.addEventListener('click', function () {
+        var done = function () { showBubble('Copié dans le presse-papier ! ✨', true); };
+        var fail = function () { showBubble('Oups, copie impossible 😅', false); };
+
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(EMAIL).then(done, function () {
+            fallbackCopy(EMAIL) ? done() : fail();
+          });
+        } else {
+          fallbackCopy(EMAIL) ? done() : fail();
+        }
+      });
+
+      // ---------- Stickers de la tech stack ----------
+      var stickers = document.querySelectorAll('#stack .sticker');
+      var note = document.getElementById('stack-note');
+
+      stickers.forEach(function (s) {
+        s.addEventListener('click', function () {
+          var wasActive = s.getAttribute('aria-pressed') === 'true';
+          stickers.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+
+          if (wasActive) {
+            note.textContent = '👆 Choisis un sticker !';
+            return;
+          }
+          s.setAttribute('aria-pressed', 'true');
+          note.textContent = s.dataset.note;
+
+          s.classList.remove('is-pop');
+          void s.offsetWidth;
+          s.classList.add('is-pop');
+        });
+        s.addEventListener('animationend', function () { s.classList.remove('is-pop'); });
+      });
+    })();
+  </script>
+</body>
+</html>
