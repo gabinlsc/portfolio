@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Projets · Gabin Lescoat</title>
+  <meta name="description" content="Les projets de Gabin Lescoat : jeux multijoueur dans le navigateur, applications web full-stack, outils système et réseau, émulateur et CLI en Rust." />
+  <meta name="theme-color" content="#FFFDF0" />
+  <meta property="og:title" content="Projets · Gabin Lescoat" />
+  <meta property="og:description" content="Jeux multijoueur, applications web, outils système et bas niveau : tous mes projets, avec le code." />
+  <meta property="og:url" content="https://share.glsc.fr/" />
+  <link rel="canonical" href="https://share.glsc.fr/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="GLSC.fr" />
+  <meta property="og:locale" content="fr_FR" />
+  <meta property="og:image" content="https://glsc.fr/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Gabin Lescoat, alternant développeur informatique à Rennes — glsc.fr" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://glsc.fr/og.png" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://glsc.fr/#site",
+        "url": "https://glsc.fr/",
+        "name": "GLSC.fr",
+        "inLanguage": "fr-FR",
+        "publisher": {
+          "@id": "https://glsc.fr/#gabin"
+        }
+      },
+      {
+        "@type": "CollectionPage",
+        "@id": "https://share.glsc.fr/#page",
+        "url": "https://share.glsc.fr/",
+        "name": "Projets · Gabin Lescoat",
+        "description": "Projets de développement de Gabin Lescoat : jeux multijoueur, applications web, outils système et bas niveau.",
+        "isPartOf": {
+          "@id": "https://glsc.fr/#site"
+        },
+        "author": {
+          "@id": "https://glsc.fr/#gabin"
+        },
+        "inLanguage": "fr-FR",
+        "mainEntity": {
+          "@type": "ItemList",
+          "numberOfItems": 14,
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Vortex · Rift Outpost",
+                "description": "FPS multijoueur jouable directement dans le navigateur, sur une carte canyon avec grottes, toits et galeries.",
+                "programmingLanguage": [
+                  "TypeScript",
+                  "Three.js",
+                  "Rapier",
+                  "NestJS",
+                  "WebSocket",
+                  "Prisma"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/vortex-fps"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Sticker Finder",
+                "description": "Réseau social cartographique pour collectionneurs de stickers : chacun photographie un sticker dans la rue et le place sur la carte.",
+                "programmingLanguage": [
+                  "Vue 3",
+                  "Pinia",
+                  "Express",
+                  "MariaDB",
+                  "Leaflet",
+                  "JWT"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/sticker-finder"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "UNO multijoueur",
+                "description": "Plateforme de UNO en temps réel : solo contre des bots ou jusqu'à 6 joueurs dans des salons privés.",
+                "programmingLanguage": [
+                  "React",
+                  "TypeScript",
+                  "Socket.IO",
+                  "Node.js",
+                  "Docker"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/uno"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 4,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Le Président",
+                "description": "Le jeu de cartes du Président en ligne, de 2 à 8 joueurs, avec bots et échanges de cartes entre les manches.",
+                "programmingLanguage": [
+                  "Vue 3",
+                  "Pinia",
+                  "TypeScript",
+                  "Socket.IO",
+                  "Zod"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/president"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 5,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "SDVB3",
+                "description": "Site vitrine et maquette d'espace collaborateurs réalisés à quatre, en cours à Sup de Vinci.",
+                "programmingLanguage": [
+                  "HTML",
+                  "CSS",
+                  "JavaScript",
+                  "GitHub Actions"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/sdvb3"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 6,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Carte API",
+                "description": "Refonte en TypeScript d'une application PHP historique de saisie de mesures géolocalisées enrichies par la météo.",
+                "programmingLanguage": [
+                  "TypeScript",
+                  "Express",
+                  "SQLite",
+                  "Zod",
+                  "Leaflet",
+                  "Playwright"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/carte-api"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 7,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "QR-Vault",
+                "description": "Générateur de QR codes 100 % côté navigateur, pour du texte, du Wi-Fi ou des données chiffrées.",
+                "programmingLanguage": [
+                  "Vue 3",
+                  "Vite",
+                  "Tailwind CSS",
+                  "Web Crypto"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/qr-vault"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 8,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Serv-Pulse",
+                "description": "Moniteur réseau en ligne de commande qui surveille en parallèle des dizaines de services TCP et HTTP.",
+                "programmingLanguage": [
+                  "Python",
+                  "asyncio",
+                  "Discord Webhook"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/serv-pulse"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 9,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "PRA · sauvegardes chiffrées",
+                "description": "Scripts de plan de reprise d'activité : sauvegarde, versioning et restauration chiffrés d'un site web.",
+                "programmingLanguage": [
+                  "Bash",
+                  "Python",
+                  "OpenSSL",
+                  "Linux"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/PRA"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 10,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Émulateur CHIP-8",
+                "description": "Émulateur de la machine virtuelle CHIP-8 des années 70, capable de faire tourner les ROM d'origine.",
+                "programmingLanguage": [
+                  "C++20",
+                  "Raylib",
+                  "CMake"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/chip-8"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 11,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "img-modifier",
+                "description": "Outil en ligne de commande pour retoucher des images en lot et les compiler dans un PDF.",
+                "programmingLanguage": [
+                  "Rust",
+                  "Rayon",
+                  "Clap",
+                  "printpdf"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/img-modifier"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 12,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Gestionnaire d'étudiants",
+                "description": "Application console en Java pour gérer les notes d'une promo, réalisée pour pratiquer la POO.",
+                "programmingLanguage": [
+                  "Java",
+                  "POO",
+                  "Eclipse"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                },
+                "codeRepository": "https://github.com/gabinlsc/gestion-etudiants"
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 13,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "Infra VPS & portail web",
+                "description": "Mon serveur perso : il héberge glsc.fr et tous ses sous-domaines, dont cette page.",
+                "programmingLanguage": [
+                  "Linux",
+                  "Nginx",
+                  "Ubuntu",
+                  "HTTPS"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                }
+              }
+            },
+            {
+              "@type": "ListItem",
+              "position": 14,
+              "item": {
+                "@type": "SoftwareSourceCode",
+                "name": "HoneyBoard",
+                "description": "Projet de BTS : déploiement d'un honeypot réseau et d'un tableau de bord des tentatives d'intrusion.",
+                "programmingLanguage": [
+                  "Python",
+                  "C++",
+                  "MariaDB",
+                  "Mosquitto",
+                  "API REST"
+                ],
+                "author": {
+                  "@id": "https://glsc.fr/#gabin"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ================= TOKENS ================= */
+    :root {
+      --cream: #FFFDF0;
+      --ink: #111111;
+      --banana: #FFD84D;
+      --mint: #7BE0AD;
+      --lilac: #C3A6FF;
+      --sky: #8FD3FF;
+      --coral: #FF9478;
+      --peach: #FFC9A8;
+
+      --font-display: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif;
+      --font-body: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+      --bd: 3px solid #000;
+      --bd-lg: 4px solid #000;
+      --sh-sm: 2px 2px 0 #000;
+      --sh: 4px 4px 0 #000;
+      --sh-lg: 6px 6px 0 #000;
+      --spring: cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background-color: var(--cream);
+      background-image: radial-gradient(#00000014 1.2px, transparent 1.2px);
+      background-size: 22px 22px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, p, ul { margin: 0; }
+    ul { padding: 0; list-style: none; }
+    a { color: inherit; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
+    .icon { width: 1.15em; height: 1.15em; flex-shrink: 0; stroke-width: 2.5; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+    /* ================= DÉCOR ================= */
+    .deco { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .deco svg { position: absolute; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+      50% { transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 6deg)); }
+    }
+    .doodle { transform: rotate(var(--r, 0deg)); animation: float var(--d, 7s) ease-in-out infinite; }
+    @media (max-width: 767px) {
+      .deco .md-only { display: none; }
+      .deco .blob-top { width: 9rem !important; height: 9rem !important; top: -4.5rem !important; right: -4.5rem !important; }
+      .deco .blob-bottom { width: 12rem !important; height: 12rem !important; bottom: -7rem !important; left: -7rem !important; }
+    }
+
+    /* ================= LAYOUT ================= */
+    .page { position: relative; z-index: 1; max-width: 72rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    @media (min-width: 640px) { .page { padding: 2.5rem 1.5rem 4rem; } }
+
+    .press { box-shadow: var(--sh); transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .press:hover, .press:focus-visible { transform: translate(2px, 2px); box-shadow: var(--sh-sm); }
+    .press:active { transform: translate(4px, 4px); box-shadow: 0 0 0 #000; }
+
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(var(--r, 0deg)); }
+      20% { transform: rotate(calc(var(--r, 0deg) - 9deg)) scale(1.06); }
+      40% { transform: rotate(calc(var(--r, 0deg) + 7deg)) scale(1.06); }
+      60% { transform: rotate(calc(var(--r, 0deg) - 5deg)); }
+      80% { transform: rotate(calc(var(--r, 0deg) + 3deg)); }
+    }
+    .wiggle:hover, .group:hover .wiggle-in { animation: wiggle 450ms ease-in-out; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font: 700 1rem/1 var(--font-display);
+      padding: .8rem 1.1rem;
+      border: var(--bd); border-radius: .9rem;
+      background: #fff; color: var(--ink); text-decoration: none; cursor: pointer;
+    }
+    .btn-dark { background: #000; color: #fff; }
+
+    /* ---------- En-tête ---------- */
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .hero { margin-top: 2rem; display: grid; gap: 1.75rem; align-items: end; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr) auto; } }
+    .eyebrow { display: inline-block; transform: rotate(-2deg); background: var(--sky); border: var(--bd); border-radius: 999px; padding: .2rem .8rem; box-shadow: var(--sh-sm); font-weight: 700; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; }
+    .title { margin-top: .9rem; font: 700 clamp(2.6rem, 8vw, 5rem)/.95 var(--font-display); letter-spacing: -.01em; text-wrap: balance; }
+    .hl { position: relative; display: inline-block; z-index: 0; }
+    .hl::after { content: ''; position: absolute; left: -.05em; right: -.05em; bottom: .06em; height: .34em; background: var(--coral); border-radius: 4px; transform: rotate(-1deg); z-index: -1; }
+    .lead { margin-top: .9rem; font-size: 1.1rem; font-weight: 500; max-width: 40rem; }
+
+    .stats { display: flex; gap: .9rem; flex-wrap: wrap; }
+    .stat { display: flex; flex-direction: column; align-items: center; min-width: 6.5rem; background: #fff; border: var(--bd-lg); border-radius: 1.1rem; box-shadow: var(--sh); padding: .7rem .9rem; transform: rotate(var(--r, 0deg)); }
+    .stat strong { font: 700 2.3rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+    .stat span { margin-top: .2rem; font-weight: 700; font-size: .85rem; }
+
+    /* ---------- Filtres ---------- */
+    .tools { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: .6rem; }
+    .chip {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font: 700 .95rem/1 var(--font-body); color: var(--ink);
+      padding: .55rem .85rem; background: #fff; border: var(--bd); border-radius: 999px;
+      box-shadow: var(--sh-sm); cursor: pointer;
+      transition: transform 150ms var(--spring), box-shadow 150ms ease-out, background-color 150ms ease-out;
+    }
+    .chip:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
+    .chip.is-on { background: var(--banana); transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+    .chip .n { background: #000; color: #fff; border-radius: 999px; padding: .1rem .45rem; font-size: .75rem; }
+    .search { position: relative; max-width: 26rem; }
+    .search .icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 1.25rem; height: 1.25rem; pointer-events: none; }
+    .search input {
+      width: 100%; font: 600 1rem/1.2 var(--font-body); color: var(--ink);
+      padding: .8rem 1rem .8rem 2.9rem;
+      background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh);
+      transition: box-shadow 150ms ease-out, transform 150ms var(--spring);
+    }
+    .search input::placeholder { color: #6b6b6b; }
+    .search input:focus { outline: none; transform: translate(2px, 2px); box-shadow: var(--sh-sm); background: #FFFBE0; }
+
+    /* ---------- Grille ---------- */
+    .grid { margin-top: 2rem; display: grid; gap: 1.75rem; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 700px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (min-width: 1100px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+    .proj { display: flex; flex-direction: column; background: #fff; border: var(--bd-lg); border-radius: 1.25rem; overflow: hidden; min-width: 0; }
+    .press-lg { box-shadow: var(--sh-lg); transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .press-lg:hover { transform: translate(3px, 3px); box-shadow: 3px 3px 0 #000; }
+
+    .cover {
+      position: relative; height: 8.5rem; border-bottom: var(--bd-lg);
+      background-image: radial-gradient(#00000026 1.4px, transparent 1.4px);
+      background-size: 16px 16px;
+      display: grid; place-items: center;
+    }
+    .cover-icon { display: grid; place-items: center; width: 4.5rem; height: 4.5rem; background: #fff; border: var(--bd-lg); border-radius: 1.1rem; box-shadow: var(--sh); transform: rotate(var(--r, 0deg)); }
+    .cover-icon .icon { width: 2.2rem; height: 2.2rem; }
+    .proj:hover .cover-icon { animation: wiggle 450ms ease-in-out; }
+    .cat-badge { position: absolute; left: .9rem; bottom: -.95rem; background: #fff; border: var(--bd); border-radius: 999px; padding: .15rem .7rem; font-weight: 700; font-size: .8rem; box-shadow: var(--sh-sm); }
+    .star-badge { position: absolute; right: .8rem; top: .8rem; transform: rotate(4deg); background: var(--banana); border: var(--bd); border-radius: .6rem; padding: .1rem .55rem; font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; box-shadow: var(--sh-sm); }
+
+    .proj-body { display: flex; flex-direction: column; gap: .75rem; flex: 1; padding: 1.6rem 1.25rem 1.25rem; }
+    .proj-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+    .proj h3 { font: 700 1.4rem/1.15 var(--font-display); }
+    .when { flex-shrink: 0; background: var(--cream); border: 2px solid #000; border-radius: .5rem; padding: 0 .45rem; font-weight: 700; font-size: .8rem; white-space: nowrap; }
+    .desc { font-weight: 500; }
+    .points { display: flex; flex-direction: column; gap: .3rem; font-size: .93rem; }
+    .points li { position: relative; padding-left: 1.1rem; }
+    .points li::before { content: ''; position: absolute; left: 0; top: .5em; width: .5rem; height: .5rem; background: #000; border-radius: 2px; transform: rotate(45deg); }
+    .stack { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: auto; padding-top: .25rem; }
+    .stack span { background: var(--cream); border: 2px solid #000; border-radius: .45rem; padding: 0 .45rem; font-size: .8rem; font-weight: 700; }
+    .actions { display: flex; flex-wrap: wrap; gap: .6rem; padding-top: .35rem; }
+    .act {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: #000; color: #fff; border: 2px solid #000; border-radius: .7rem;
+      padding: .45rem .8rem; font-weight: 700; font-size: .9rem; text-decoration: none;
+      box-shadow: 2px 2px 0 var(--cream), 4px 4px 0 #000;
+      transition: transform 150ms var(--spring), box-shadow 150ms ease-out;
+    }
+    .act:hover, .act:focus-visible { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--cream), 2px 2px 0 #000; }
+    .act-play { background: var(--mint); color: var(--ink); box-shadow: 4px 4px 0 #000; }
+    .act-play:hover, .act-play:focus-visible { box-shadow: 2px 2px 0 #000; }
+    .act-off { background: #fff; color: #555; border-style: dashed; box-shadow: none; cursor: default; }
+    .act-off:hover { transform: none; box-shadow: none; }
+
+    .empty { margin-top: 2rem; display: flex; align-items: center; gap: 1rem; background: #fff; border: var(--bd-lg); border-radius: 1rem; box-shadow: var(--sh-lg); padding: 1.25rem 1.5rem; font-weight: 600; }
+    .empty-emoji { font-size: 2rem; line-height: 1; }
+
+    /* ---------- Bandeau final ---------- */
+    .more { margin-top: 3.5rem; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 800px) { .more { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    .more a { display: flex; align-items: center; gap: .9rem; padding: 1.1rem 1.2rem; border: var(--bd-lg); border-radius: 1.1rem; text-decoration: none; }
+    .more .item-icon { display: grid; place-items: center; width: 3rem; height: 3rem; flex-shrink: 0; background: #fff; border: var(--bd); border-radius: .8rem; box-shadow: var(--sh-sm); }
+    .more .item-icon .icon { width: 1.5rem; height: 1.5rem; }
+    .more h2 { font: 700 1.2rem/1.2 var(--font-display); }
+    .more p { font-weight: 500; font-size: .95rem; }
+
+    .foot { margin-top: 4rem; padding-top: 1.5rem; border-top: 4px dashed #000; display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; font-weight: 500; }
+    .foot a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 4px; text-decoration-color: var(--coral); text-underline-offset: 4px; }
+
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise 500ms var(--spring) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ============ DÉCOR DE FOND ============ -->
+  <div class="deco" aria-hidden="true">
+    <svg class="blob-top" style="top:-6rem;right:-6rem;width:22rem;height:22rem" viewBox="0 0 200 200"><path d="M150 40c30 25 35 75 10 110s-80 45-115 20S0 90 25 55 120 15 150 40Z" fill="#7BE0AD" stroke="#000" stroke-width="4"/></svg>
+    <svg class="blob-bottom" style="bottom:-13rem;left:-13rem;width:24rem;height:24rem" viewBox="0 0 200 200"><path d="M160 50c25 30 25 80-5 110s-85 30-115 0-25-90 10-120 85-20 110 10Z" fill="#C3A6FF" stroke="#000" stroke-width="4"/></svg>
+    <!-- fusée -->
+    <svg class="doodle md-only" style="top:44%;left:1.5%;width:4rem;height:5rem;--r:-12deg;--d:7s" viewBox="0 0 80 100"><path d="M40 4c18 14 24 34 20 58H20C16 38 22 18 40 4Z" fill="#fff" stroke="#000" stroke-width="5" stroke-linejoin="round"/><circle cx="40" cy="36" r="9" fill="#8FD3FF" stroke="#000" stroke-width="5"/><path d="M20 50 6 68l16-2M60 50l14 18-16-2" fill="#FF9478" stroke="#000" stroke-width="5" stroke-linejoin="round"/><path d="M30 64q10 26 20 0" fill="#FFD84D" stroke="#000" stroke-width="5" stroke-linejoin="round"/></svg>
+    <!-- accolades -->
+    <svg class="doodle md-only" style="top:58%;right:2%;width:4.4rem;height:3.6rem;--r:8deg;--d:8s" viewBox="0 0 110 90"><rect x="4" y="4" width="102" height="82" rx="16" fill="#FFD84D" stroke="#000" stroke-width="5"/><path d="M40 26 26 45l14 19M70 26l14 19-14 19" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <!-- étoile -->
+    <svg class="doodle" style="top:9%;right:9%;width:3.6rem;height:3.6rem;--r:12deg;--d:6s" viewBox="0 0 100 100"><path d="M50 5 61 38h34L67 58l11 34-28-21-28 21 11-34L5 38h34Z" fill="#FF9478" stroke="#000" stroke-width="5" stroke-linejoin="round"/></svg>
+    <!-- étincelle -->
+    <svg class="doodle" style="top:88%;right:7%;width:2.6rem;height:2.6rem;--r:0deg;--d:5s" viewBox="0 0 60 60"><path d="M30 2c3 18 10 25 28 28-18 3-25 10-28 28-3-18-10-25-28-28 18-3 25-10 28-28Z" fill="#8FD3FF" stroke="#000" stroke-width="3.5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <div class="page">
+
+    <div class="topbar rise" style="--i:0">
+      <a href="https://glsc.fr" class="btn press group"><i data-lucide="arrow-left" class="icon wiggle-in"></i> Retour au Hub</a>
+      <a href="https://github.com/gabinlsc" target="_blank" rel="noopener noreferrer" class="btn btn-dark press group"><i data-lucide="github" class="icon wiggle-in"></i> github.com/gabinlsc</a>
+    </div>
+
+    <header class="hero rise" style="--i:1">
+      <div>
+        <span class="eyebrow">Le labo de Gabin</span>
+        <h1 class="title">MES <span class="hl">PROJETS</span></h1>
+        <p class="lead">Des jeux multijoueur qui tournent dans le navigateur, des applis web full-stack, des outils pour mon serveur et un peu de bas niveau. Tout le code est sur GitHub.</p>
+      </div>
+      <div class="stats" aria-label="En chiffres">
+        <div class="stat wiggle" style="--r:-3deg"><strong>14</strong><span>projets</span></div>
+        <div class="stat wiggle" style="--r:2deg;background:var(--banana)"><strong>48</strong><span>technos</span></div>
+        <div class="stat wiggle" style="--r:-1deg;background:var(--mint)"><strong>3</strong><span>jeux jouables</span></div>
+      </div>
+    </header>
+
+    <div class="tools rise" style="--i:2">
+      <div class="chips" role="group" aria-label="Filtrer par catégorie">
+          <button type="button" class="chip is-on" data-filter="all" aria-pressed="true">✨ Tous <span class="n">14</span></button>
+          <button type="button" class="chip" data-filter="jeux" aria-pressed="false">🎮 Jeux <span class="n">3</span></button>
+          <button type="button" class="chip" data-filter="web" aria-pressed="false">🌐 Web &amp; full-stack <span class="n">4</span></button>
+          <button type="button" class="chip" data-filter="sys" aria-pressed="false">🖥️ Système &amp; réseau <span class="n">4</span></button>
+          <button type="button" class="chip" data-filter="low" aria-pressed="false">⚙️ Bas niveau &amp; outils <span class="n">2</span></button>
+          <button type="button" class="chip" data-filter="learn" aria-pressed="false">🎓 Apprentissage <span class="n">1</span></button>
+      </div>
+      <div class="search">
+        <label for="q" class="sr-only">Rechercher un projet ou une techno</label>
+        <i data-lucide="search" class="icon"></i>
+        <input id="q" type="search" placeholder="Rechercher un projet, une techno…" autocomplete="off" />
+      </div>
+    </div>
+
+    <main>
+      <h2 class="sr-only">Liste des projets</h2>
+      <div class="grid rise" style="--i:3" id="grid">
+        <article class="proj press-lg featured" data-cat="jeux" data-sort="2026-10" data-search="Vortex · Rift Outpost Jeux FPS multijoueur jouable directement dans le navigateur, sur une carte canyon avec grottes, toits et galeries. Serveur autoritaire à 128 Hz (NestJS + WebSocket) Physique Rapier compilée en WebAssembly, rendu Three.js Modes FFA et Team Deathmatch, bunny hop et slide TypeScript Three.js Rapier NestJS WebSocket Prisma">
+          <div class="cover" style="background:var(--lilac)">
+            <span class="cover-icon" style="--r:-2deg"><i data-lucide="crosshair" class="icon"></i></span>
+            <span class="cat-badge">Jeux</span>
+            <span class="star-badge">⭐ Projet phare</span>
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Vortex · Rift Outpost</h3>
+              <span class="when">Oct. 2026</span>
+            </div>
+            <p class="desc">FPS multijoueur jouable directement dans le navigateur, sur une carte canyon avec grottes, toits et galeries.</p>
+            <ul class="points"><li>Serveur autoritaire à 128 Hz (NestJS + WebSocket)</li><li>Physique Rapier compilée en WebAssembly, rendu Three.js</li><li>Modes FFA et Team Deathmatch, bunny hop et slide</li></ul>
+            <div class="stack"><span>TypeScript</span><span>Three.js</span><span>Rapier</span><span>NestJS</span><span>WebSocket</span><span>Prisma</span></div>
+            <div class="actions"><a class="act act-play" href="https://games.glsc.fr" target="_blank" rel="noopener noreferrer"><i data-lucide="gamepad-2" class="icon"></i> Jouer</a><a class="act" href="https://github.com/gabinlsc/vortex-fps" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg featured" data-cat="web" data-sort="2026-09" data-search="Sticker Finder Web &amp; full-stack Réseau social cartographique pour collectionneurs de stickers : chacun photographie un sticker dans la rue et le place sur la carte. Carte Leaflet, upload photo et géolocalisation Comptes JWT, XP, likes, classement et profils publics Back-office admin : comptes, rôles et modération Vue 3 Pinia Express MariaDB Leaflet JWT">
+          <div class="cover" style="background:var(--mint)">
+            <span class="cover-icon" style="--r:2deg"><i data-lucide="sticker" class="icon"></i></span>
+            <span class="cat-badge">Web &amp; full-stack</span>
+            <span class="star-badge">⭐ Projet phare</span>
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Sticker Finder</h3>
+              <span class="when">Sept. 2026</span>
+            </div>
+            <p class="desc">Réseau social cartographique pour collectionneurs de stickers : chacun photographie un sticker dans la rue et le place sur la carte.</p>
+            <ul class="points"><li>Carte Leaflet, upload photo et géolocalisation</li><li>Comptes JWT, XP, likes, classement et profils publics</li><li>Back-office admin : comptes, rôles et modération</li></ul>
+            <div class="stack"><span>Vue 3</span><span>Pinia</span><span>Express</span><span>MariaDB</span><span>Leaflet</span><span>JWT</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/sticker-finder" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="jeux" data-sort="2026-10" data-search="UNO multijoueur Jeux Plateforme de UNO en temps réel : solo contre des bots ou jusqu&#x27;à 6 joueurs dans des salons privés. Règles maison configurables (empilement +2/+4, 7 et 0…) Moteur pur et déterministe développé en TDD Cartes SVG animées avec Framer Motion, image Docker React TypeScript Socket.IO Node.js Docker">
+          <div class="cover" style="background:var(--coral)">
+            <span class="cover-icon" style="--r:-1deg"><i data-lucide="layers" class="icon"></i></span>
+            <span class="cat-badge">Jeux</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>UNO multijoueur</h3>
+              <span class="when">Oct. 2026</span>
+            </div>
+            <p class="desc">Plateforme de UNO en temps réel : solo contre des bots ou jusqu&#x27;à 6 joueurs dans des salons privés.</p>
+            <ul class="points"><li>Règles maison configurables (empilement +2/+4, 7 et 0…)</li><li>Moteur pur et déterministe développé en TDD</li><li>Cartes SVG animées avec Framer Motion, image Docker</li></ul>
+            <div class="stack"><span>React</span><span>TypeScript</span><span>Socket.IO</span><span>Node.js</span><span>Docker</span></div>
+            <div class="actions"><a class="act act-play" href="https://games.glsc.fr" target="_blank" rel="noopener noreferrer"><i data-lucide="gamepad-2" class="icon"></i> Jouer</a><a class="act" href="https://github.com/gabinlsc/uno" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="jeux" data-sort="2026-10" data-search="Le Président Jeux Le jeu de cartes du Président en ligne, de 2 à 8 joueurs, avec bots et échanges de cartes entre les manches. Moteur en machine à états pure, sans mutation Serveur seule source de vérité, client sans règles Monorepo : moteur, serveur et client séparés Vue 3 Pinia TypeScript Socket.IO Zod">
+          <div class="cover" style="background:var(--banana)">
+            <span class="cover-icon" style="--r:3deg"><i data-lucide="crown" class="icon"></i></span>
+            <span class="cat-badge">Jeux</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Le Président</h3>
+              <span class="when">Oct. 2026</span>
+            </div>
+            <p class="desc">Le jeu de cartes du Président en ligne, de 2 à 8 joueurs, avec bots et échanges de cartes entre les manches.</p>
+            <ul class="points"><li>Moteur en machine à états pure, sans mutation</li><li>Serveur seule source de vérité, client sans règles</li><li>Monorepo : moteur, serveur et client séparés</li></ul>
+            <div class="stack"><span>Vue 3</span><span>Pinia</span><span>TypeScript</span><span>Socket.IO</span><span>Zod</span></div>
+            <div class="actions"><a class="act act-play" href="https://games.glsc.fr" target="_blank" rel="noopener noreferrer"><i data-lucide="gamepad-2" class="icon"></i> Jouer</a><a class="act" href="https://github.com/gabinlsc/president" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="web" data-sort="2026-10" data-search="SDVB3 Web &amp; full-stack Site vitrine et maquette d&#x27;espace collaborateurs réalisés à quatre, en cours à Sup de Vinci. Ma partie : la page Contact et ses tests navigateur Workflow Git en équipe : branches, PR relues Branches protégées et contrôles automatiques HTML CSS JavaScript GitHub Actions">
+          <div class="cover" style="background:var(--peach)">
+            <span class="cover-icon" style="--r:-3deg"><i data-lucide="users" class="icon"></i></span>
+            <span class="cat-badge">Web &amp; full-stack</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>SDVB3</h3>
+              <span class="when">Oct. 2026</span>
+            </div>
+            <p class="desc">Site vitrine et maquette d&#x27;espace collaborateurs réalisés à quatre, en cours à Sup de Vinci.</p>
+            <ul class="points"><li>Ma partie : la page Contact et ses tests navigateur</li><li>Workflow Git en équipe : branches, PR relues</li><li>Branches protégées et contrôles automatiques</li></ul>
+            <div class="stack"><span>HTML</span><span>CSS</span><span>JavaScript</span><span>GitHub Actions</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/sdvb3" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="web" data-sort="2026-10" data-search="Carte API Web &amp; full-stack Refonte en TypeScript d&#x27;une application PHP historique de saisie de mesures géolocalisées enrichies par la météo. API authentifiée : bcrypt, limitation de débit, Helmet Validation des données avec Zod, stockage SQLite Explorateur Leaflet testé avec Playwright TypeScript Express SQLite Zod Leaflet Playwright">
+          <div class="cover" style="background:var(--sky)">
+            <span class="cover-icon" style="--r:1deg"><i data-lucide="map" class="icon"></i></span>
+            <span class="cat-badge">Web &amp; full-stack</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Carte API</h3>
+              <span class="when">Févr. – oct. 2026</span>
+            </div>
+            <p class="desc">Refonte en TypeScript d&#x27;une application PHP historique de saisie de mesures géolocalisées enrichies par la météo.</p>
+            <ul class="points"><li>API authentifiée : bcrypt, limitation de débit, Helmet</li><li>Validation des données avec Zod, stockage SQLite</li><li>Explorateur Leaflet testé avec Playwright</li></ul>
+            <div class="stack"><span>TypeScript</span><span>Express</span><span>SQLite</span><span>Zod</span><span>Leaflet</span><span>Playwright</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/carte-api" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="web" data-sort="2026-09" data-search="QR-Vault Web &amp; full-stack Générateur de QR codes 100 % côté navigateur, pour du texte, du Wi-Fi ou des données chiffrées. Chiffrement AES-GCM 256 bits avec l&#x27;API Web Crypto Clé dérivée par PBKDF2 (100 000 itérations) Aucun envoi serveur, export PNG haute résolution Vue 3 Vite Tailwind CSS Web Crypto">
+          <div class="cover" style="background:var(--lilac)">
+            <span class="cover-icon" style="--r:-2deg"><i data-lucide="qr-code" class="icon"></i></span>
+            <span class="cat-badge">Web &amp; full-stack</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>QR-Vault</h3>
+              <span class="when">Sept. 2026</span>
+            </div>
+            <p class="desc">Générateur de QR codes 100 % côté navigateur, pour du texte, du Wi-Fi ou des données chiffrées.</p>
+            <ul class="points"><li>Chiffrement AES-GCM 256 bits avec l&#x27;API Web Crypto</li><li>Clé dérivée par PBKDF2 (100 000 itérations)</li><li>Aucun envoi serveur, export PNG haute résolution</li></ul>
+            <div class="stack"><span>Vue 3</span><span>Vite</span><span>Tailwind CSS</span><span>Web Crypto</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/qr-vault" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="sys" data-sort="2026-09" data-search="Serv-Pulse Système &amp; réseau Moniteur réseau en ligne de commande qui surveille en parallèle des dizaines de services TCP et HTTP. Sondes asynchrones avec asyncio, sans temps mort Taux de disponibilité et historique en sparkline Alertes Discord et mode audit pour la CI Python asyncio Discord Webhook">
+          <div class="cover" style="background:var(--mint)">
+            <span class="cover-icon" style="--r:2deg"><i data-lucide="activity" class="icon"></i></span>
+            <span class="cat-badge">Système &amp; réseau</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Serv-Pulse</h3>
+              <span class="when">Sept. 2026</span>
+            </div>
+            <p class="desc">Moniteur réseau en ligne de commande qui surveille en parallèle des dizaines de services TCP et HTTP.</p>
+            <ul class="points"><li>Sondes asynchrones avec asyncio, sans temps mort</li><li>Taux de disponibilité et historique en sparkline</li><li>Alertes Discord et mode audit pour la CI</li></ul>
+            <div class="stack"><span>Python</span><span>asyncio</span><span>Discord Webhook</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/serv-pulse" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="sys" data-sort="2026-09" data-search="PRA · sauvegardes chiffrées Système &amp; réseau Scripts de plan de reprise d&#x27;activité : sauvegarde, versioning et restauration chiffrés d&#x27;un site web. Version Bash native avec tar et OpenSSL Version Python avec Fernet (AES + HMAC) Restauration à chaud de /var/www/html Bash Python OpenSSL Linux">
+          <div class="cover" style="background:var(--sky)">
+            <span class="cover-icon" style="--r:-1deg"><i data-lucide="shield-check" class="icon"></i></span>
+            <span class="cat-badge">Système &amp; réseau</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>PRA · sauvegardes chiffrées</h3>
+              <span class="when">Sept. 2026</span>
+            </div>
+            <p class="desc">Scripts de plan de reprise d&#x27;activité : sauvegarde, versioning et restauration chiffrés d&#x27;un site web.</p>
+            <ul class="points"><li>Version Bash native avec tar et OpenSSL</li><li>Version Python avec Fernet (AES + HMAC)</li><li>Restauration à chaud de /var/www/html</li></ul>
+            <div class="stack"><span>Bash</span><span>Python</span><span>OpenSSL</span><span>Linux</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/PRA" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="low" data-sort="2026-09" data-search="Émulateur CHIP-8 Bas niveau &amp; outils Émulateur de la machine virtuelle CHIP-8 des années 70, capable de faire tourner les ROM d&#x27;origine. CPU, 4 Ko de mémoire, 16 registres et pile d&#x27;appels Timers 60 Hz, CPU à ~600 Hz découplé de l&#x27;affichage Rendu Raylib, clavier AZERTY et QWERTY C++20 Raylib CMake">
+          <div class="cover" style="background:var(--coral)">
+            <span class="cover-icon" style="--r:3deg"><i data-lucide="cpu" class="icon"></i></span>
+            <span class="cat-badge">Bas niveau &amp; outils</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Émulateur CHIP-8</h3>
+              <span class="when">Sept. 2026</span>
+            </div>
+            <p class="desc">Émulateur de la machine virtuelle CHIP-8 des années 70, capable de faire tourner les ROM d&#x27;origine.</p>
+            <ul class="points"><li>CPU, 4 Ko de mémoire, 16 registres et pile d&#x27;appels</li><li>Timers 60 Hz, CPU à ~600 Hz découplé de l&#x27;affichage</li><li>Rendu Raylib, clavier AZERTY et QWERTY</li></ul>
+            <div class="stack"><span>C++20</span><span>Raylib</span><span>CMake</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/chip-8" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="low" data-sort="2026-09" data-search="img-modifier Bas niveau &amp; outils Outil en ligne de commande pour retoucher des images en lot et les compiler dans un PDF. Recadrage carré, noir et blanc, négatif, luminosité Traitement parallèle sur tous les cœurs avec Rayon Barre de progression et export PDF A4 Rust Rayon Clap printpdf">
+          <div class="cover" style="background:var(--peach)">
+            <span class="cover-icon" style="--r:-3deg"><i data-lucide="image" class="icon"></i></span>
+            <span class="cat-badge">Bas niveau &amp; outils</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>img-modifier</h3>
+              <span class="when">Sept. 2026</span>
+            </div>
+            <p class="desc">Outil en ligne de commande pour retoucher des images en lot et les compiler dans un PDF.</p>
+            <ul class="points"><li>Recadrage carré, noir et blanc, négatif, luminosité</li><li>Traitement parallèle sur tous les cœurs avec Rayon</li><li>Barre de progression et export PDF A4</li></ul>
+            <div class="stack"><span>Rust</span><span>Rayon</span><span>Clap</span><span>printpdf</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/img-modifier" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="learn" data-sort="2026-02" data-search="Gestionnaire d&#x27;étudiants Apprentissage Application console en Java pour gérer les notes d&#x27;une promo, réalisée pour pratiquer la POO. Classe Etudiant encapsulée, getters et setters Moyennes, mentions et major de promo Sauvegarde automatique en CSV Java POO Eclipse">
+          <div class="cover" style="background:var(--sky)">
+            <span class="cover-icon" style="--r:1deg"><i data-lucide="graduation-cap" class="icon"></i></span>
+            <span class="cat-badge">Apprentissage</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Gestionnaire d&#x27;étudiants</h3>
+              <span class="when">Févr. 2026</span>
+            </div>
+            <p class="desc">Application console en Java pour gérer les notes d&#x27;une promo, réalisée pour pratiquer la POO.</p>
+            <ul class="points"><li>Classe Etudiant encapsulée, getters et setters</li><li>Moyennes, mentions et major de promo</li><li>Sauvegarde automatique en CSV</li></ul>
+            <div class="stack"><span>Java</span><span>POO</span><span>Eclipse</span></div>
+            <div class="actions"><a class="act" href="https://github.com/gabinlsc/gestion-etudiants" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="sys" data-sort="2025-12" data-search="Infra VPS &amp; portail web Système &amp; réseau Mon serveur perso : il héberge glsc.fr et tous ses sous-domaines, dont cette page. VPS Ubuntu chez IONOS Reverse proxy Nginx et HTTPS Sous-domaines cv, share, studio, old, games… Linux Nginx Ubuntu HTTPS">
+          <div class="cover" style="background:var(--banana)">
+            <span class="cover-icon" style="--r:-2deg"><i data-lucide="server" class="icon"></i></span>
+            <span class="cat-badge">Système &amp; réseau</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>Infra VPS &amp; portail web</h3>
+              <span class="when">Déc. 2025</span>
+            </div>
+            <p class="desc">Mon serveur perso : il héberge glsc.fr et tous ses sous-domaines, dont cette page.</p>
+            <ul class="points"><li>VPS Ubuntu chez IONOS</li><li>Reverse proxy Nginx et HTTPS</li><li>Sous-domaines cv, share, studio, old, games…</li></ul>
+            <div class="stack"><span>Linux</span><span>Nginx</span><span>Ubuntu</span><span>HTTPS</span></div>
+            <div class="actions"><span class="act act-off"><i data-lucide="lock" class="icon"></i> Pas de dépôt public</span></div>
+          </div>
+        </article>
+        <article class="proj press-lg" data-cat="sys" data-sort="2025-06" data-search="HoneyBoard Système &amp; réseau Projet de BTS : déploiement d&#x27;un honeypot réseau et d&#x27;un tableau de bord des tentatives d&#x27;intrusion. Backend Python qui enregistre les attaques dans MariaDB Remontée des événements en MQTT avec Mosquitto API REST pour le tableau de bord Python C++ MariaDB Mosquitto API REST">
+          <div class="cover" style="background:var(--mint)">
+            <span class="cover-icon" style="--r:2deg"><i data-lucide="radar" class="icon"></i></span>
+            <span class="cat-badge">Système &amp; réseau</span>
+            
+          </div>
+          <div class="proj-body">
+            <div class="proj-head">
+              <h3>HoneyBoard</h3>
+              <span class="when">BTS CIEL</span>
+            </div>
+            <p class="desc">Projet de BTS : déploiement d&#x27;un honeypot réseau et d&#x27;un tableau de bord des tentatives d&#x27;intrusion.</p>
+            <ul class="points"><li>Backend Python qui enregistre les attaques dans MariaDB</li><li>Remontée des événements en MQTT avec Mosquitto</li><li>API REST pour le tableau de bord</li></ul>
+            <div class="stack"><span>Python</span><span>C++</span><span>MariaDB</span><span>Mosquitto</span><span>API REST</span></div>
+            <div class="actions"><span class="act act-off"><i data-lucide="lock" class="icon"></i> Pas de dépôt public</span></div>
+          </div>
+        </article>
+      </div>
+      <p class="empty" id="empty" hidden><span class="empty-emoji" aria-hidden="true">🕵️</span> <span>Aucun projet ne correspond. Essaie « React », « Rust » ou « jeu ».</span></p>
+
+      <section class="more" aria-label="Aller plus loin">
+        <a href="https://games.glsc.fr" class="press-lg group" style="background:var(--mint)">
+          <span class="item-icon wiggle-in"><i data-lucide="gamepad-2" class="icon"></i></span>
+          <div><h2>Salle de jeux</h2><p>UNO, Le Président, Vortex… sur games.glsc.fr</p></div>
+        </a>
+        <a href="https://github.com/gabinlsc?tab=repositories" target="_blank" rel="noopener noreferrer" class="press-lg group" style="background:#fff">
+          <span class="item-icon wiggle-in"><i data-lucide="github" class="icon"></i></span>
+          <div><h2>Tous mes dépôts</h2><p>Le code source, les commits, les README.</p></div>
+        </a>
+        <a href="https://old.glsc.fr" class="press-lg group" style="background:var(--peach)">
+          <span class="item-icon wiggle-in"><i data-lucide="archive" class="icon"></i></span>
+          <div><h2>Les archives</h2><p>Mes tout premiers projets, sur old.glsc.fr</p></div>
+        </a>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>© <span id="year">2026</span> GLSC.fr • Fait avec ❤️ par <a href="https://studio.glsc.fr">studio.glsc.fr</a></p>
+      <p><a href="https://cv.glsc.fr">Voir mon CV</a></p>
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      document.getElementById('year').textContent = new Date().getFullYear();
+      if (window.lucide) {
+        window.lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
+      }
+
+      // ---------- Filtres + recherche ----------
+      var cards = Array.prototype.slice.call(document.querySelectorAll('.proj'));
+      var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+      var input = document.getElementById('q');
+      var empty = document.getElementById('empty');
+      var current = 'all';
+
+      function norm(s) {
+        return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      }
+
+      function update() {
+        var q = norm(input.value.trim());
+        var shown = 0;
+        cards.forEach(function (c) {
+          var okCat = current === 'all' || c.dataset.cat === current;
+          var okQ = !q || norm(c.dataset.search).indexOf(q) !== -1;
+          c.hidden = !(okCat && okQ);
+          if (!c.hidden) shown++;
+        });
+        empty.hidden = shown !== 0;
+      }
+
+      chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          current = chip.dataset.filter;
+          chips.forEach(function (o) {
+            var on = o === chip;
+            o.classList.toggle('is-on', on);
+            o.setAttribute('aria-pressed', on ? 'true' : 'false');
+          });
+          update();
+        });
+      });
+      input.addEventListener('input', update);
+    })();
+  </script>
+</body>
+</html>
