@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cv.glsc.fr; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <title>Projets · Gabin Lescoat</title>
   <meta name="description" content="Les projets de Gabin Lescoat : jeux multijoueur dans le navigateur, applications web full-stack, outils système et réseau, émulateur et CLI en Rust." />
   <meta name="theme-color" content="#FFFDF0" />
@@ -328,9 +329,7 @@
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
 
   <style>
     /* ================= TOKENS ================= */
@@ -840,51 +839,7 @@
     </footer>
   </div>
 
-  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script>
-    (function () {
-      'use strict';
-      document.getElementById('year').textContent = new Date().getFullYear();
-      if (window.lucide) {
-        window.lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
-      }
-
-      // ---------- Filtres + recherche ----------
-      var cards = Array.prototype.slice.call(document.querySelectorAll('.proj'));
-      var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
-      var input = document.getElementById('q');
-      var empty = document.getElementById('empty');
-      var current = 'all';
-
-      function norm(s) {
-        return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      }
-
-      function update() {
-        var q = norm(input.value.trim());
-        var shown = 0;
-        cards.forEach(function (c) {
-          var okCat = current === 'all' || c.dataset.cat === current;
-          var okQ = !q || norm(c.dataset.search).indexOf(q) !== -1;
-          c.hidden = !(okCat && okQ);
-          if (!c.hidden) shown++;
-        });
-        empty.hidden = shown !== 0;
-      }
-
-      chips.forEach(function (chip) {
-        chip.addEventListener('click', function () {
-          current = chip.dataset.filter;
-          chips.forEach(function (o) {
-            var on = o === chip;
-            o.classList.toggle('is-on', on);
-            o.setAttribute('aria-pressed', on ? 'true' : 'false');
-          });
-          update();
-        });
-      });
-      input.addEventListener('input', update);
-    })();
-  </script>
+  <script src="/_glsc/icons.js"></script>
+  <script src="/_glsc/projets.js"></script>
 </body>
 </html>

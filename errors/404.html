@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <title>Page introuvable · GLSC.fr</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#FFFDF0" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
+  <style>
+    :root {
+      --cream: #FFFDF0; --ink: #111111; --banana: #FFD84D; --mint: #7BE0AD; --lilac: #C3A6FF; --sky: #8FD3FF; --coral: #FF9478; --peach: #FFC9A8;
+      --font-display: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif;
+      --font-body: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --spring: cubic-bezier(.34, 1.56, .64, 1);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      font-family: var(--font-body); color: var(--ink); line-height: 1.5;
+      background-color: var(--cream);
+      background-image: radial-gradient(#00000014 1.2px, transparent 1.2px); background-size: 22px 22px;
+      padding: 2rem 1rem;
+    }
+    :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
+    .card {
+      position: relative; width: 100%; max-width: 40rem; text-align: center;
+      background: var(--lilac); border: 4px solid #000; border-radius: 1.5rem; box-shadow: 8px 8px 0 #000;
+      padding: 2.5rem 1.5rem 2rem;
+    }
+    .code { display: flex; justify-content: center; gap: .6rem; }
+    .code span {
+      display: grid; place-items: center; width: 5.5rem; height: 6.5rem;
+      font: 700 4.5rem/1 var(--font-display);
+      background: #fff; border: 4px solid #000; border-radius: 1.1rem; box-shadow: 5px 5px 0 #000;
+    }
+    .code span:nth-child(1) { background: var(--banana); transform: rotate(-6deg); }
+    .code span:nth-child(2) { background: var(--mint); transform: translateY(-.6rem) rotate(3deg); }
+    .code span:nth-child(3) { background: var(--coral); transform: rotate(7deg); }
+    @keyframes wobble { 0%, 100% { rotate: 0deg; } 25% { rotate: -5deg; } 75% { rotate: 5deg; } }
+    .code span:hover { animation: wobble 400ms ease-in-out; }
+    h1 { margin: 1.75rem 0 .5rem; font: 700 clamp(1.8rem, 6vw, 2.6rem)/1.1 var(--font-display); }
+    p { margin: 0 auto; max-width: 28rem; font-weight: 500; font-size: 1.05rem; }
+    .links { margin-top: 1.75rem; display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
+    .links a {
+      display: inline-flex; align-items: center; gap: .45rem;
+      font: 700 1rem/1 var(--font-display); text-decoration: none; color: var(--ink);
+      padding: .8rem 1.1rem; background: #fff; border: 3px solid #000; border-radius: .9rem; box-shadow: 4px 4px 0 #000;
+      transition: transform 150ms var(--spring), box-shadow 150ms ease-out;
+    }
+    .links a:first-child { background: var(--banana); }
+    .links a:hover, .links a:focus-visible { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+    .icon { width: 1.15em; height: 1.15em; }
+    @media (max-width: 420px) { .code span { width: 4.4rem; height: 5.4rem; font-size: 3.6rem; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="code" aria-hidden="true"><span>4</span><span>0</span><span>4</span></div>
+    <h1>Cette page s'est perdue</h1>
+    <p>Elle a peut-être déménagé, ou elle n'a jamais existé. Voici de quoi retrouver ton chemin.</p>
+    <nav class="links" aria-label="Pages principales">
+      <a href="https://glsc.fr"><i data-lucide="house" class="icon"></i> Le Hub</a>
+      <a href="https://share.glsc.fr"><i data-lucide="folder-git-2" class="icon"></i> Projets</a>
+      <a href="https://cv.glsc.fr"><i data-lucide="file-user" class="icon"></i> CV</a>
+      <a href="https://old.glsc.fr"><i data-lucide="archive" class="icon"></i> Archives</a>
+    </nav>
+  </main>
+  <script src="/_glsc/icons.js"></script>
+</body>
+</html>

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cv.glsc.fr; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <title>Gabin Lescoat · GLSC.fr</title>
   <meta name="description" content="Hub de Gabin Lescoat, étudiant en Bachelor Développement Informatique à Rennes : Studio GLSC, CV, projets, salle de jeux et archives." />
   <meta name="theme-color" content="#FFFDF0" />
@@ -151,39 +152,9 @@
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
 
-  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            display: ['Fredoka', 'system-ui', 'sans-serif'],
-            body: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
-          },
-          colors: {
-            cream: '#FFFDF0',
-            ink: '#111111',
-            banana: '#FFD84D',
-            mint: '#7BE0AD',
-            lilac: '#C3A6FF',
-            sky: '#8FD3FF',
-            coral: '#FF9478',
-            peach: '#FFC9A8',
-          },
-          borderWidth: { 3: '3px' },
-          boxShadow: {
-            pop: '4px 4px 0 #000',
-            'pop-sm': '2px 2px 0 #000',
-            'pop-lg': '6px 6px 0 #000',
-          },
-        },
-      },
-    };
-  </script>
+  <link rel="stylesheet" href="/_glsc/hub.css" />
 
   <style>
     body {
@@ -297,7 +268,7 @@
     <!-- gribouillis -->
     <svg class="doodle w-24 h-12 sm:w-32 sm:h-16" style="top:30%;left:2%;--r:-8deg;--d:8s" viewBox="0 0 160 60"><path d="M8 40c14-30 28-30 36 0s22 30 36 0 22-30 36 0 22 30 36 0" fill="none" stroke="#FF9478" stroke-width="9" stroke-linecap="round"/><path d="M8 40c14-30 28-30 36 0s22 30 36 0 22-30 36 0 22 30 36 0" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" transform="translate(3 3)" opacity=".9"/></svg>
     <!-- éclair -->
-    <svg class="doodle w-12 h-16 sm:w-16 sm:h-20 hidden sm:block" style="top:18%;left:44%;--r:10deg;--d:7s" viewBox="0 0 60 90"><path d="M36 4 8 50h20l-8 36 34-50H32Z" fill="#C3A6FF" stroke="#000" stroke-width="4" stroke-linejoin="round"/></svg>
+    <svg class="doodle w-12 h-16 sm:w-16 sm:h-20 hidden sm:block" style="top:2.5%;left:58%;--r:10deg;--d:7s" viewBox="0 0 60 90"><path d="M36 4 8 50h20l-8 36 34-50H32Z" fill="#C3A6FF" stroke="#000" stroke-width="4" stroke-linejoin="round"/></svg>
     <!-- coeur -->
     <svg class="doodle w-12 h-12 sm:w-16 sm:h-16" style="top:52%;right:4%;--r:-10deg;--d:6.5s" viewBox="0 0 100 100"><path d="M50 88S8 62 8 34a21 21 0 0 1 42-6 21 21 0 0 1 42 6c0 28-42 54-42 54Z" fill="#FF9478" stroke="#000" stroke-width="5" stroke-linejoin="round"/></svg>
     <!-- nuage -->
@@ -321,7 +292,7 @@
       <div class="relative shrink-0">
         <div class="wiggle-self relative grid place-items-center w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-banana border-4 border-black shadow-pop-lg -rotate-3 overflow-hidden font-display font-bold text-5xl select-none">
           <span aria-hidden="true">GL</span>
-          <img src="https://cv.glsc.fr/photocv.jpg" alt="Photo de Gabin Lescoat" width="128" height="128" class="absolute inset-0 w-full h-full object-cover" onerror="this.remove()" />
+          <img src="https://cv.glsc.fr/photocv.jpg" alt="Photo de Gabin Lescoat" width="128" height="128" class="absolute inset-0 w-full h-full object-cover" data-fallback />
         </div>
         <span class="absolute -bottom-3 -right-4 rotate-6 bg-white border-3 border-black rounded-full px-2 py-0.5 text-lg shadow-pop-sm" aria-hidden="true">👋</span>
       </div>
@@ -548,88 +519,7 @@
     </footer>
   </div>
 
-  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script>
-    (function () {
-      'use strict';
-
-      // ⚙️ Adresse de contact (un seul endroit à modifier)
-      var EMAIL = 'pro@glsc.fr';
-
-      document.getElementById('mail-link').href = 'mailto:' + EMAIL;
-      document.getElementById('email-text').textContent = EMAIL;
-      document.getElementById('year').textContent = new Date().getFullYear();
-
-      if (window.lucide) {
-        window.lucide.createIcons({ attrs: { 'stroke-width': 2.5, 'aria-hidden': 'true' } });
-      }
-
-      // ---------- Copie de l'e-mail + bulle BD ----------
-      var copyBtn = document.getElementById('copy-btn');
-      var bubble = document.getElementById('copy-bubble');
-      var bubbleTimer;
-
-      function showBubble(text, ok) {
-        bubble.textContent = text;
-        bubble.classList.toggle('bg-mint', ok);
-        bubble.classList.toggle('bg-coral', !ok);
-        bubble.classList.remove('is-visible');
-        void bubble.offsetWidth; // relance l'animation
-        bubble.classList.add('is-visible');
-        clearTimeout(bubbleTimer);
-        bubbleTimer = setTimeout(function () { bubble.classList.remove('is-visible'); }, 2200);
-      }
-
-      function fallbackCopy(text) {
-        var ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        var ok = false;
-        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-        document.body.removeChild(ta);
-        return ok;
-      }
-
-      copyBtn.addEventListener('click', function () {
-        var done = function () { showBubble('Copié dans le presse-papier ! ✨', true); };
-        var fail = function () { showBubble('Oups, copie impossible 😅', false); };
-
-        if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(EMAIL).then(done, function () {
-            fallbackCopy(EMAIL) ? done() : fail();
-          });
-        } else {
-          fallbackCopy(EMAIL) ? done() : fail();
-        }
-      });
-
-      // ---------- Stickers de la tech stack ----------
-      var stickers = document.querySelectorAll('#stack .sticker');
-      var note = document.getElementById('stack-note');
-
-      stickers.forEach(function (s) {
-        s.addEventListener('click', function () {
-          var wasActive = s.getAttribute('aria-pressed') === 'true';
-          stickers.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
-
-          if (wasActive) {
-            note.textContent = '👆 Choisis un sticker !';
-            return;
-          }
-          s.setAttribute('aria-pressed', 'true');
-          note.textContent = s.dataset.note;
-
-          s.classList.remove('is-pop');
-          void s.offsetWidth;
-          s.classList.add('is-pop');
-        });
-        s.addEventListener('animationend', function () { s.classList.remove('is-pop'); });
-      });
-    })();
-  </script>
+  <script src="/_glsc/icons.js"></script>
+  <script src="/_glsc/hub.js"></script>
 </body>
 </html>
