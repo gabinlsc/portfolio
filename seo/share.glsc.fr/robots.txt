@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://share.glsc.fr/sitemap.xml

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cv.glsc.fr; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <title>CV · Gabin Lescoat</title>
   <meta name="description" content="CV de Gabin Lescoat, alternant développeur informatique, étudiant en Bachelor à Sup de Vinci Rennes." />
   <meta name="theme-color" content="#FFFDF0" />
@@ -151,9 +152,7 @@
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
 
   <style>
     /* ================= TOKENS ================= */
@@ -513,7 +512,7 @@
       <div class="photo-wrap">
         <div class="photo wiggle">
           <span aria-hidden="true">GL</span>
-          <img src="photocv.jpg" alt="Photo de Gabin Lescoat" width="144" height="144" onerror="this.remove()" />
+          <img src="photocv.jpg" alt="Photo de Gabin Lescoat" width="144" height="144" data-fallback />
         </div>
         <span class="photo-sticker" aria-hidden="true">👋</span>
       </div>
@@ -539,9 +538,9 @@
 
         <!-- Coordonnées : uniquement sur la version imprimée -->
         <ul class="contact print-only" aria-label="Coordonnées">
-          <li><i data-lucide="calendar" class="icon"></i> 29/11/2006 (19 ans)</li>
-          <li><i data-lucide="phone" class="icon"></i> 07 67 20 44 24</li>
-          <li><i data-lucide="mail" class="icon"></i> lescoatgabin@gmail.com</li>
+          <li><i data-lucide="calendar" class="icon"></i> <span data-p="birth"></span></li>
+          <li><i data-lucide="phone" class="icon"></i> <span data-p="phone"></span></li>
+          <li><i data-lucide="mail" class="icon"></i> <span data-p="mail"></span></li>
           <li><i data-lucide="map-pin" class="icon"></i> Ploemeur (56) · Mobile</li>
           <li><i data-lucide="globe" class="icon"></i> glsc.fr</li>
           <li><i data-lucide="github" class="icon"></i> github.com/gabinlsc</li>
@@ -816,16 +815,7 @@
     </footer>
   </div>
 
-  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script>
-    (function () {
-      'use strict';
-      document.getElementById('year').textContent = new Date().getFullYear();
-      if (window.lucide) {
-        window.lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
-      }
-      document.getElementById('print-btn').addEventListener('click', function () { window.print(); });
-    })();
-  </script>
+  <script src="/_glsc/icons.js"></script>
+  <script src="/_glsc/cv.js"></script>
 </body>
 </html>

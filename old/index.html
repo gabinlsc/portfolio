@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cv.glsc.fr; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <title>Archives · GLSC.fr</title>
   <meta name="description" content="Les archives de glsc.fr : anciens projets, jeux et expérimentations de Gabin Lescoat." />
   <meta name="theme-color" content="#FFFDF0" />
@@ -118,9 +119,7 @@
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
 
   <style>
     /* ================= TOKENS ================= */
@@ -442,50 +441,7 @@
     </footer>
   </div>
 
-  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script>
-    (function () {
-      'use strict';
-      document.getElementById('year').textContent = new Date().getFullYear();
-      if (window.lucide) {
-        window.lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
-      }
-
-      // ---------- Recherche instantanée ----------
-      var input = document.getElementById('q');
-      var sections = Array.prototype.slice.call(document.querySelectorAll('[data-section]'));
-      var empty = document.getElementById('empty');
-      var emptyQ = document.getElementById('empty-q');
-      var count = document.getElementById('count');
-
-      function norm(s) {
-        return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-      }
-
-      function update() {
-        var q = norm(input.value.trim());
-        var total = 0;
-        sections.forEach(function (sec) {
-          var title = norm(sec.querySelector('h2').textContent);
-          var items = sec.querySelectorAll('[data-item]');
-          var shown = 0;
-          items.forEach(function (it) {
-            var match = !q || norm(it.textContent).indexOf(q) !== -1 || title.indexOf(q) !== -1;
-            it.hidden = !match;
-            if (match) shown++;
-          });
-          sec.hidden = shown === 0;
-          sec.querySelector('[data-count]').textContent = shown;
-          total += shown;
-        });
-        count.textContent = total;
-        empty.hidden = total !== 0;
-        emptyQ.textContent = input.value.trim();
-      }
-
-      input.addEventListener('input', update);
-      update();
-    })();
-  </script>
+  <script src="/_glsc/icons.js"></script>
+  <script src="/_glsc/old.js"></script>
 </body>
 </html>
