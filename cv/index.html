@@ -200,6 +200,8 @@
     .badge { flex-shrink: 0; transform: rotate(3deg); background: #fff; border: 2px solid #000; border-radius: .5rem; padding: .05rem .5rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
     .proj-date { font-size: .85rem; font-weight: 700; }
     .mini-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: auto; padding-top: .25rem; }
+    .proj-link { align-self: flex-start; display: inline-flex; align-items: center; gap: .35rem; margin-top: .35rem; background: #000; color: #fff; border: 2px solid #000; border-radius: .6rem; padding: .3rem .7rem; font-weight: 700; font-size: .85rem; text-decoration: none; box-shadow: 2px 2px 0 #fff, 4px 4px 0 #000; transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .proj-link:hover, .proj-link:focus-visible { transform: translate(2px, 2px); box-shadow: 0 0 0 #fff, 2px 2px 0 #000; }
     .mini-tags span { background: #fff; border: 2px solid #000; border-radius: .4rem; padding: 0 .4rem; font-size: .78rem; font-weight: 700; }
 
     /* Formations */
@@ -317,10 +319,12 @@
       .exp-note { margin-top: .8mm; }
 
       /* Projets */
-      .projects { grid-template-columns: minmax(0, 1fr); gap: 3.2mm; }
+      .projects { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm 5mm; }
+      .proj-link { display: none; }
+      .proj-desc { font-size: 8.8pt; line-height: 1.35; }
       .projects .wide { grid-column: auto; }
       .proj, .proj[style] { background: transparent !important; border: 0; border-radius: 0; padding: 0; gap: .5mm; break-inside: avoid; }
-      .proj h3 { font-family: var(--font-body); font-size: 10pt; }
+      .proj h3 { font-family: var(--font-body); font-size: 9.8pt; }
       .badge { display: none; }
       .proj-date { font-size: 8.8pt; font-weight: 500; color: #444; }
       .mini-tags { gap: 1mm; padding-top: .3mm; }
@@ -411,6 +415,7 @@
               <span class="tag t-coral">Java (POO)</span>
               <span class="tag t-banana">Python</span>
               <span class="tag t-sky">SQL</span>
+              <span class="tag t-lilac">Node.js</span>
             </div>
           </div>
           <div class="skill-group">
@@ -418,7 +423,16 @@
             <div class="tags">
               <span class="tag t-peach">HTML / CSS</span>
               <span class="tag t-lilac">PHP</span>
-              <span class="tag t-mint">JS (React)</span>
+              <span class="tag t-mint">JavaScript / TypeScript</span>
+              <span class="tag t-sky">React</span>
+              <span class="tag t-banana">Vue.js</span>
+            </div>
+          </div>
+          <div class="skill-group">
+            <p class="skill-label"><i data-lucide="cpu" class="icon"></i> Bas niveau</p>
+            <div class="tags">
+              <span class="tag t-coral">C++</span>
+              <span class="tag t-peach">Rust</span>
             </div>
           </div>
           <div class="skill-group">
@@ -522,34 +536,103 @@
           <h2 id="t-proj" class="sec-title"><span class="sec-icon" style="background:var(--lilac)" aria-hidden="true">🚀</span>Projets réalisés</h2>
 
           <div class="projects">
+            <article class="proj" style="background:var(--mint)">
+              <div class="proj-head">
+                <h3>Sticker Finder</h3>
+                <span class="badge">Full-stack</span>
+              </div>
+              <p class="proj-date">Sept. 2026</p>
+              <p class="proj-desc">Réseau social cartographique pour collectionneurs de stickers : comptes JWT, upload photo, likes, XP et back-office admin.</p>
+              <div class="mini-tags"><span>Vue 3</span><span>Express</span><span>MariaDB</span><span>Leaflet</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/sticker-finder" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
+            </article>
+            <article class="proj" style="background:var(--lilac)">
+              <div class="proj-head">
+                <h3>Vortex · FPS multijoueur</h3>
+                <span class="badge">Jeu 3D</span>
+              </div>
+              <p class="proj-date">Oct. 2026</p>
+              <p class="proj-desc">FPS jouable dans le navigateur : rendu Three.js, physique Rapier (WASM) et serveur autoritaire à 128 Hz.</p>
+              <div class="mini-tags"><span>TypeScript</span><span>Three.js</span><span>NestJS</span><span>WebSocket</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/vortex-fps" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
+            </article>
             <article class="proj" style="background:var(--banana)">
               <div class="proj-head">
-                <h3>Gestionnaire d'étudiants</h3>
-                <span class="badge">Java</span>
+                <h3>UNO &amp; Le Président</h3>
+                <span class="badge">Temps réel</span>
               </div>
-              <p class="proj-date">Févr. 2026</p>
-              <p>Application console respectant la POO (encapsulation, persistance).</p>
-              <div class="mini-tags"><span>Java SE</span><span>Eclipse</span><span>Git</span></div>
+              <p class="proj-date">Oct. 2026</p>
+              <p class="proj-desc">Jeux de cartes multijoueur avec bots et salons privés : serveur autoritaire, moteur de règles testé en TDD.</p>
+              <div class="mini-tags"><span>React</span><span>Vue 3</span><span>Socket.IO</span><span>TypeScript</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/uno" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
             </article>
-
+            <article class="proj" style="background:var(--coral)">
+              <div class="proj-head">
+                <h3>Émulateur CHIP-8</h3>
+                <span class="badge">Bas niveau</span>
+              </div>
+              <p class="proj-date">Sept. 2026</p>
+              <p class="proj-desc">Émulation complète de la machine CHIP-8 : CPU, mémoire, pile, timers 60 Hz et affichage Raylib.</p>
+              <div class="mini-tags"><span>C++20</span><span>Raylib</span><span>CMake</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/chip-8" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
+            </article>
+            <article class="proj screen-only" style="background:var(--sky)">
+              <div class="proj-head">
+                <h3>Carte API</h3>
+                <span class="badge">API</span>
+              </div>
+              <p class="proj-date">Févr. – oct. 2026</p>
+              <p class="proj-desc">Refonte en TypeScript d'une application PHP de mesures géolocalisées : API authentifiée, carte Leaflet, données météo.</p>
+              <div class="mini-tags"><span>TypeScript</span><span>Express</span><span>SQLite</span><span>Zod</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/carte-api" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
+            </article>
+            <article class="proj screen-only" style="background:var(--peach)">
+              <div class="proj-head">
+                <h3>img-modifier</h3>
+                <span class="badge">CLI</span>
+              </div>
+              <p class="proj-date">Sept. 2026</p>
+              <p class="proj-desc">Outil en ligne de commande de retouche d'images en lot, multithread, avec export PDF.</p>
+              <div class="mini-tags"><span>Rust</span><span>Rayon</span><span>Clap</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/img-modifier" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
+            </article>
+            <article class="proj screen-only" style="background:var(--mint)">
+              <div class="proj-head">
+                <h3>Serv-Pulse</h3>
+                <span class="badge">Monitoring</span>
+              </div>
+              <p class="proj-date">Sept. 2026</p>
+              <p class="proj-desc">Moniteur réseau asynchrone : sondes TCP/HTTP en parallèle, taux de disponibilité et alertes Discord.</p>
+              <div class="mini-tags"><span>Python</span><span>asyncio</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/serv-pulse" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
+            </article>
             <article class="proj" style="background:var(--coral)">
               <div class="proj-head">
                 <h3>HoneyBoard</h3>
                 <span class="badge">Cybersécu</span>
               </div>
               <p class="proj-date">Projet scolaire</p>
-              <p>Déploiement d'un honeypot réseau, développement du backend en Python vers MariaDB.</p>
+              <p class="proj-desc">Déploiement d'un honeypot réseau, développement du backend en Python vers MariaDB.</p>
               <div class="mini-tags"><span>Python / C++</span><span>Mosquitto</span><span>API REST</span></div>
             </article>
-
-            <article class="proj wide" style="background:var(--sky)">
+            <article class="proj" style="background:var(--sky)">
               <div class="proj-head">
                 <h3>Gestion VPS &amp; portail web</h3>
                 <span class="badge">SysAdmin</span>
               </div>
               <p class="proj-date">Déc. 2025</p>
-              <p>Infra Ubuntu, routage sécurisé via le reverse proxy Nginx et gestion des sous-domaines.</p>
+              <p class="proj-desc">Infra Ubuntu, routage sécurisé via le reverse proxy Nginx et gestion des sous-domaines.</p>
               <div class="mini-tags"><span>Linux</span><span>Nginx</span><span>Web</span></div>
+            </article>
+            <article class="proj screen-only" style="background:var(--banana)">
+              <div class="proj-head">
+                <h3>Gestionnaire d'étudiants</h3>
+                <span class="badge">Java</span>
+              </div>
+              <p class="proj-date">Févr. 2026</p>
+              <p class="proj-desc">Application console en POO : saisie des notes, moyennes, mentions et sauvegarde CSV.</p>
+              <div class="mini-tags"><span>Java SE</span><span>Eclipse</span><span>Git</span></div>
+              <a class="proj-link" href="https://github.com/gabinlsc/gestion-etudiants" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
             </article>
           </div>
         </section>
