@@ -344,6 +344,8 @@
     .proj-link:hover, .proj-link:focus-visible { transform: translate(2px, 2px); box-shadow: 0 0 0 #fff, 2px 2px 0 #000; }
     .mini-tags span { background: #fff; border: 2px solid #000; border-radius: .4rem; padding: 0 .4rem; font-size: .78rem; font-weight: 700; }
 
+    .all-proj { margin-top: 1.5rem; display: inline-flex; align-items: center; gap: .4rem; background: var(--banana); border: var(--bd); border-radius: .9rem; padding: .7rem 1rem; font: 700 1rem/1 var(--font-display); text-decoration: none; box-shadow: var(--sh); transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .all-proj:hover, .all-proj:focus-visible { transform: translate(2px, 2px); box-shadow: var(--sh-sm); }
     /* Formations */
     .edu { display: flex; flex-direction: column; gap: 1rem; }
     .edu-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; border-bottom: 3px dashed #000; }
@@ -775,6 +777,7 @@
               <a class="proj-link" href="https://github.com/gabinlsc/gestion-etudiants" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a>
             </article>
           </div>
+          <a class="all-proj screen-only" href="https://share.glsc.fr">🚀 Voir tous mes projets <i data-lucide="arrow-up-right" class="icon"></i></a>
         </section>
 
         <section class="card block rise" style="--i:4" aria-labelledby="t-edu">
