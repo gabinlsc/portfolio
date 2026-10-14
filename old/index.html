@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Archives · GLSC.fr</title>
+  <meta name="description" content="Les archives de glsc.fr : anciens projets, jeux et expérimentations de Gabin Lescoat." />
+  <meta name="theme-color" content="#FFFDF0" />
+  <meta property="og:title" content="Archives · GLSC.fr" />
+  <meta property="og:description" content="Anciens projets, jeux et expérimentations." />
+  <meta property="og:url" content="https://old.glsc.fr" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ================= TOKENS ================= */
+    :root {
+      --cream: #FFFDF0;
+      --ink: #111111;
+      --banana: #FFD84D;
+      --mint: #7BE0AD;
+      --lilac: #C3A6FF;
+      --sky: #8FD3FF;
+      --coral: #FF9478;
+      --peach: #FFC9A8;
+      --pink: #FFB3D9;
+
+      --font-display: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif;
+      --font-body: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+      --bd: 3px solid #000;
+      --bd-lg: 4px solid #000;
+      --sh-sm: 2px 2px 0 #000;
+      --sh: 4px 4px 0 #000;
+      --sh-lg: 6px 6px 0 #000;
+      --spring: cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background-color: var(--cream);
+      background-image: radial-gradient(#00000014 1.2px, transparent 1.2px);
+      background-size: 22px 22px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, p { margin: 0; }
+    a { color: inherit; }
+    :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
+    .icon { width: 1.15em; height: 1.15em; flex-shrink: 0; stroke-width: 2.5; }
+    [hidden] { display: none !important; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+    /* ================= DÉCOR ================= */
+    .deco { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .deco svg { position: absolute; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+      50% { transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 6deg)); }
+    }
+    .doodle { transform: rotate(var(--r, 0deg)); animation: float var(--d, 7s) ease-in-out infinite; }
+    @media (max-width: 767px) { .deco .md-only { display: none; } }
+
+    /* ================= LAYOUT ================= */
+    .page { position: relative; z-index: 1; max-width: 68rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    @media (min-width: 640px) { .page { padding: 2.5rem 1.5rem 4rem; } }
+
+    .press { box-shadow: var(--sh); transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .press:hover, .press:focus-visible { transform: translate(2px, 2px); box-shadow: var(--sh-sm); }
+    .press:active { transform: translate(4px, 4px); box-shadow: 0 0 0 #000; }
+    .press-lg { box-shadow: var(--sh-lg); }
+    .press-lg:hover, .press-lg:focus-visible { transform: translate(4px, 4px); box-shadow: var(--sh-sm); }
+    .press-lg:active { transform: translate(6px, 6px); box-shadow: 0 0 0 #000; }
+
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(0); }
+      20% { transform: rotate(-9deg) scale(1.06); }
+      40% { transform: rotate(7deg) scale(1.06); }
+      60% { transform: rotate(-5deg); }
+      80% { transform: rotate(3deg); }
+    }
+    .wiggle:hover, .group:hover .wiggle-in, .group:focus-visible .wiggle-in { animation: wiggle 450ms ease-in-out; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font: 700 1rem/1 var(--font-display);
+      padding: .8rem 1.1rem;
+      border: var(--bd); border-radius: .9rem;
+      background: #fff; color: var(--ink); text-decoration: none; cursor: pointer;
+    }
+
+    /* ---------- En-tête ---------- */
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .version { display: inline-flex; align-items: center; gap: .45rem; transform: rotate(3deg); background: var(--banana); border: var(--bd); border-radius: 999px; padding: .3rem .85rem; box-shadow: var(--sh-sm); font-weight: 700; font-size: .9rem; }
+    .version-dot { width: .65rem; height: .65rem; border-radius: 999px; background: #f59e0b; border: 2px solid #000; }
+
+    .hero { margin-top: 2rem; display: grid; gap: 1.5rem; align-items: end; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 900px) { .hero { grid-template-columns: minmax(0, 1fr) auto; } }
+    .eyebrow { display: inline-block; transform: rotate(-2deg); background: var(--sky); border: var(--bd); border-radius: 999px; padding: .2rem .8rem; box-shadow: var(--sh-sm); font-weight: 700; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; }
+    .title { margin-top: .9rem; font: 700 clamp(2.6rem, 8vw, 5rem)/.95 var(--font-display); letter-spacing: -.01em; }
+    .hl { position: relative; display: inline-block; z-index: 0; }
+    .hl::after { content: ''; position: absolute; left: -.05em; right: -.05em; bottom: .06em; height: .34em; background: var(--mint); border-radius: 4px; transform: rotate(-1deg); z-index: -1; }
+    .lead { margin-top: .9rem; font-size: 1.1rem; font-weight: 500; max-width: 38rem; }
+
+    .counter { display: flex; align-items: center; gap: .9rem; background: #fff; border: var(--bd-lg); border-radius: 1.25rem; box-shadow: var(--sh-lg); padding: .9rem 1.2rem; transform: rotate(-2deg); justify-self: start; }
+    .counter strong { font: 700 2.6rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+    .counter span { font-weight: 700; line-height: 1.2; }
+
+    /* ---------- Recherche ---------- */
+    .search { margin-top: 2.25rem; position: relative; max-width: 30rem; }
+    .search .icon { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 1.3rem; height: 1.3rem; pointer-events: none; }
+    .search input {
+      width: 100%; font: 600 1.05rem/1.2 var(--font-body); color: var(--ink);
+      padding: .9rem 1rem .9rem 3rem;
+      background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh);
+      transition: box-shadow 150ms ease-out, transform 150ms var(--spring);
+    }
+    .search input::placeholder { color: #6b6b6b; }
+    .search input:focus { outline: none; transform: translate(2px, 2px); box-shadow: var(--sh-sm); background: #FFFBE0; }
+
+    /* ---------- Sections ---------- */
+    main { margin-top: 3rem; display: flex; flex-direction: column; gap: 3rem; }
+    .sec-title { display: flex; align-items: center; gap: .75rem; font: 700 clamp(1.5rem, 4vw, 2rem)/1.1 var(--font-display); margin-bottom: 1.25rem; }
+    .sec-icon { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; flex-shrink: 0; border: var(--bd); border-radius: .8rem; box-shadow: var(--sh-sm); font-size: 1.3rem; line-height: 1; }
+    .sec-count { margin-left: .25rem; background: #fff; border: 2px solid #000; border-radius: 999px; padding: 0 .55rem; font: 700 .9rem/1.6 var(--font-body); }
+
+    .grid { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); }
+    @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (min-width: 1024px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+    .item {
+      position: relative; display: flex; align-items: center; gap: 1rem;
+      padding: 1.1rem 1.2rem; min-height: 6rem;
+      border: var(--bd-lg); border-radius: 1rem; text-decoration: none; color: var(--ink);
+    }
+    .item-icon { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; flex-shrink: 0; background: #fff; border: var(--bd); border-radius: .8rem; box-shadow: var(--sh-sm); }
+    .item-icon .icon { width: 1.6rem; height: 1.6rem; }
+    .item-body { min-width: 0; flex: 1; }
+    .item h3 { font: 700 1.25rem/1.2 var(--font-display); }
+    .item p { margin-top: .15rem; font-weight: 500; }
+    .item-arrow { width: 1.4rem; height: 1.4rem; flex-shrink: 0; transition: transform 150ms var(--spring); }
+    .item:hover .item-arrow, .item:focus-visible .item-arrow { transform: translate(3px, -3px); }
+
+    .c-banana { background: var(--banana); } .c-mint { background: var(--mint); } .c-lilac { background: var(--lilac); }
+    .c-sky { background: var(--sky); } .c-coral { background: var(--coral); } .c-peach { background: var(--peach); }
+    .c-pink { background: var(--pink); } .c-white { background: #fff; }
+
+    /* Projet en maintenance */
+    .item.off {
+      cursor: not-allowed;
+      box-shadow: var(--sh-lg);
+      background: repeating-linear-gradient(-45deg, #f1f1f1 0 14px, #e2e2e2 14px 28px);
+    }
+    .item.off .item-body { opacity: .75; }
+    .tape {
+      position: absolute; top: -.85rem; right: 1rem; transform: rotate(4deg);
+      background: var(--banana); border: var(--bd); padding: .1rem .6rem;
+      font: 700 .75rem/1.6 var(--font-body); text-transform: uppercase; letter-spacing: .1em;
+      box-shadow: var(--sh-sm);
+    }
+
+    /* Recherche : rien trouvé */
+    .empty { display: flex; align-items: center; gap: 1rem; background: #fff; border: var(--bd-lg); border-radius: 1rem; box-shadow: var(--sh-lg); padding: 1.25rem 1.5rem; font-weight: 600; }
+    .empty-emoji { font-size: 2rem; line-height: 1; }
+
+    /* ---------- Footer ---------- */
+    .foot { margin-top: 4rem; padding-top: 1.5rem; border-top: 4px dashed #000; display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; font-weight: 500; }
+    .foot-links { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .foot-links .btn { padding: .55rem .85rem; font-size: .9rem; }
+    .tag-old { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; background: var(--mint); border: 2px solid #000; border-radius: .4rem; padding: 0 .35rem; }
+
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .rise { animation: rise 500ms var(--spring) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ============ DÉCOR DE FOND ============ -->
+  <div class="deco" aria-hidden="true">
+    <svg style="top:-6rem;right:-6rem;width:22rem;height:22rem" viewBox="0 0 200 200"><path d="M150 40c30 25 35 75 10 110s-80 45-115 20S0 90 25 55 120 15 150 40Z" fill="#C3A6FF" stroke="#000" stroke-width="4"/></svg>
+    <svg style="bottom:-13rem;left:-13rem;width:24rem;height:24rem" viewBox="0 0 200 200"><path d="M160 50c25 30 25 80-5 110s-85 30-115 0-25-90 10-120 85-20 110 10Z" fill="#FFD84D" stroke="#000" stroke-width="4"/></svg>
+    <svg class="md-only" style="top:42%;right:-3.5rem;width:10rem;height:10rem" viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" fill="#7BE0AD" stroke="#000" stroke-width="5"/></svg>
+    <!-- disquette -->
+    <svg class="doodle md-only" style="top:20%;left:2%;width:4.5rem;height:4.5rem;--r:-10deg;--d:7s" viewBox="0 0 100 100"><path d="M12 12h62l14 14v62H12Z" fill="#8FD3FF" stroke="#000" stroke-width="5" stroke-linejoin="round"/><rect x="28" y="12" width="36" height="22" fill="#fff" stroke="#000" stroke-width="5"/><rect x="24" y="54" width="52" height="34" fill="#fff" stroke="#000" stroke-width="5"/><rect x="50" y="16" width="8" height="14" fill="#000"/></svg>
+    <!-- étoile -->
+    <svg class="doodle" style="top:8%;right:8%;width:4rem;height:4rem;--r:12deg;--d:6s" viewBox="0 0 100 100"><path d="M50 5 61 38h34L67 58l11 34-28-21-28 21 11-34L5 38h34Z" fill="#FF9478" stroke="#000" stroke-width="5" stroke-linejoin="round"/></svg>
+    <!-- sablier -->
+    <svg class="doodle md-only" style="top:64%;left:3%;width:3.2rem;height:4.2rem;--r:8deg;--d:8s" viewBox="0 0 70 100"><path d="M8 6h54M8 94h54" stroke="#000" stroke-width="6" stroke-linecap="round"/><path d="M14 8c0 26 21 30 21 42S14 66 14 92h42c0-26-21-30-21-42S56 34 56 8Z" fill="#FFC9A8" stroke="#000" stroke-width="5" stroke-linejoin="round"/><path d="M24 84c4-10 18-10 22 0Z" fill="#000"/></svg>
+    <!-- étincelle -->
+    <svg class="doodle" style="top:86%;right:6%;width:2.8rem;height:2.8rem;--r:0deg;--d:5s" viewBox="0 0 60 60"><path d="M30 2c3 18 10 25 28 28-18 3-25 10-28 28-3-18-10-25-28-28 18-3 25-10 28-28Z" fill="#8FD3FF" stroke="#000" stroke-width="3.5" stroke-linejoin="round"/></svg>
+    <!-- manette -->
+    <svg class="doodle md-only" style="top:30%;right:3%;width:5rem;height:3.4rem;--r:-8deg;--d:9s" viewBox="0 0 120 80"><path d="M30 10h60c16 0 26 14 28 34s-6 30-16 30c-8 0-12-6-18-14H36c-6 8-10 14-18 14-10 0-18-10-16-30S14 10 30 10Z" fill="#FFB3D9" stroke="#000" stroke-width="5" stroke-linejoin="round"/><path d="M30 30v18M21 39h18" stroke="#000" stroke-width="5" stroke-linecap="round"/><circle cx="84" cy="32" r="5" fill="#000"/><circle cx="96" cy="44" r="5" fill="#000"/></svg>
+  </div>
+
+  <div class="page">
+
+    <!-- ============ BARRE ============ -->
+    <div class="topbar rise" style="--i:0">
+      <a href="https://glsc.fr" class="btn press group">
+        <i data-lucide="arrow-left" class="icon wiggle-in"></i> Retour au Hub
+      </a>
+      <span class="version"><span class="version-dot" aria-hidden="true"></span> Version 1.1</span>
+    </div>
+
+    <!-- ============ EN-TÊTE ============ -->
+    <header class="hero rise" style="--i:1">
+      <div>
+        <span class="eyebrow">old.glsc.fr</span>
+        <h1 class="title">GLSC <span class="hl">ARCHIVES</span></h1>
+        <p class="lead">Le grenier de glsc.fr : mes anciens projets, jeux et expérimentations, gardés au chaud. Certains datent un peu, mais ils marchent toujours (ou presque).</p>
+      </div>
+      <div class="counter wiggle" aria-live="polite">
+        <strong id="count">11</strong>
+        <span>projets<br />archivés</span>
+      </div>
+    </header>
+
+    <!-- ============ RECHERCHE ============ -->
+    <div class="search rise" style="--i:2">
+      <label for="q" class="sr-only">Rechercher une archive</label>
+      <i data-lucide="search" class="icon"></i>
+      <input id="q" type="search" placeholder="Rechercher une archive…" autocomplete="off" />
+    </div>
+
+    <main>
+
+      <!-- Le Voyage au Japon -->
+      <section class="rise" style="--i:3" data-section aria-labelledby="s-japon">
+        <h2 id="s-japon" class="sec-title"><span class="sec-icon" style="background:var(--pink)" aria-hidden="true">🗾</span>Le Voyage au Japon <span class="sec-count" data-count></span></h2>
+        <div class="grid">
+          <a href="https://old.glsc.fr/KanaMaster/" class="item c-coral press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="languages" class="icon"></i></span>
+            <div class="item-body"><h3>Kana Master</h3><p>Révisions de japonais.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+
+          <div class="item off" data-item aria-disabled="true">
+            <span class="tape">🚧 En maintenance</span>
+            <span class="item-icon"><i data-lucide="flower-2" class="icon"></i></span>
+            <div class="item-body"><h3>Sakura Trip</h3><p>Actuellement en maintenance.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Fun & Multijoueur -->
+      <section class="rise" style="--i:4" data-section aria-labelledby="s-fun">
+        <h2 id="s-fun" class="sec-title"><span class="sec-icon" style="background:var(--banana)" aria-hidden="true">🎮</span>Fun &amp; Multijoueur <span class="sec-count" data-count></span></h2>
+        <div class="grid">
+          <a href="https://old.glsc.fr/Tools/" class="item c-banana press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="zap" class="icon"></i></span>
+            <div class="item-body"><h3>ToolsCenter</h3><p>Réflexes &amp; mémoire.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+          <a href="https://old.glsc.fr/GarticPhone" class="item c-lilac press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="palette" class="icon"></i></span>
+            <div class="item-body"><h3>Gabztic Phone</h3><p>Dessin en multijoueur.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+          <a href="https://old.glsc.fr/VirtualCasino/" class="item c-mint press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="dices" class="icon"></i></span>
+            <div class="item-body"><h3>Casino</h3><p>Joue sans limites.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+          <a href="/GeoFrance/" class="item c-sky press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="map-pin" class="icon"></i></span>
+            <div class="item-body"><h3>GeoFrance</h3><p>Apprends la géographie.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+          <a href="/pixelwar/" class="item c-pink press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="swords" class="icon"></i></span>
+            <div class="item-body"><h3>Pixel War</h3><p>Lutte pour ton territoire.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+          <a href="/doomsday/" class="item c-peach press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="globe-2" class="icon"></i></span>
+            <div class="item-body"><h3>DoomsDay</h3><p>Statistiques mondiales.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+        </div>
+      </section>
+
+      <!-- NetRunner -->
+      <section class="rise" style="--i:5" data-section aria-labelledby="s-net">
+        <h2 id="s-net" class="sec-title"><span class="sec-icon" style="background:var(--sky)" aria-hidden="true">🛰️</span>NetRunner <span class="sec-count" data-count></span></h2>
+        <div class="grid">
+          <a href="/WormHole/" class="item c-sky press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="disc" class="icon"></i></span>
+            <div class="item-body"><h3>WormHole</h3><p>Transfert de fichiers à distance.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+        </div>
+      </section>
+
+      <!-- Archives techniques -->
+      <section class="rise" style="--i:6" data-section aria-labelledby="s-tech">
+        <h2 id="s-tech" class="sec-title"><span class="sec-icon" style="background:var(--mint)" aria-hidden="true">🗄️</span>Archives techniques <span class="sec-count" data-count></span></h2>
+        <div class="grid">
+          <a href="/WEB/index.php" class="item c-mint press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="map" class="icon"></i></span>
+            <div class="item-body"><h3>API Carte</h3><p>Données cartographiques.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+          <a href="/Evaluation/index.php" class="item c-white press-lg group" data-item>
+            <span class="item-icon wiggle-in"><i data-lucide="box-select" class="icon"></i></span>
+            <div class="item-body"><h3>API Aléatoire</h3><p>Génération de données.</p></div>
+            <i data-lucide="arrow-up-right" class="item-arrow"></i>
+          </a>
+        </div>
+      </section>
+
+      <p class="empty" id="empty" hidden><span class="empty-emoji" aria-hidden="true">🕵️</span> <span>Aucune archive ne correspond à « <strong id="empty-q"></strong> ». Essaie un autre mot.</span></p>
+    </main>
+
+    <footer class="foot">
+      <p>© <span id="year">2026</span> GLSC Archives • <span class="tag-old">OLD-GLSC</span></p>
+      <div class="foot-links">
+        <a href="https://github.com/gabinlsc" target="_blank" rel="noopener noreferrer" class="btn press"><i data-lucide="github" class="icon"></i> GitHub</a>
+        <a href="https://glsc.fr" class="btn press"><i data-lucide="house" class="icon"></i> Accueil</a>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      document.getElementById('year').textContent = new Date().getFullYear();
+      if (window.lucide) {
+        window.lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
+      }
+
+      // ---------- Recherche instantanée ----------
+      var input = document.getElementById('q');
+      var sections = Array.prototype.slice.call(document.querySelectorAll('[data-section]'));
+      var empty = document.getElementById('empty');
+      var emptyQ = document.getElementById('empty-q');
+      var count = document.getElementById('count');
+
+      function norm(s) {
+        return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      }
+
+      function update() {
+        var q = norm(input.value.trim());
+        var total = 0;
+        sections.forEach(function (sec) {
+          var title = norm(sec.querySelector('h2').textContent);
+          var items = sec.querySelectorAll('[data-item]');
+          var shown = 0;
+          items.forEach(function (it) {
+            var match = !q || norm(it.textContent).indexOf(q) !== -1 || title.indexOf(q) !== -1;
+            it.hidden = !match;
+            if (match) shown++;
+          });
+          sec.hidden = shown === 0;
+          sec.querySelector('[data-count]').textContent = shown;
+          total += shown;
+        });
+        count.textContent = total;
+        empty.hidden = total !== 0;
+        emptyQ.textContent = input.value.trim();
+      }
+
+      input.addEventListener('input', update);
+      update();
+    })();
+  </script>
+</body>
+</html>
