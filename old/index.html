@@ -66,7 +66,11 @@
       50% { transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 6deg)); }
     }
     .doodle { transform: rotate(var(--r, 0deg)); animation: float var(--d, 7s) ease-in-out infinite; }
-    @media (max-width: 767px) { .deco .md-only { display: none; } }
+    @media (max-width: 767px) {
+      .deco .md-only { display: none; }
+      .deco .blob-top { width: 9rem !important; height: 9rem !important; top: -4.5rem !important; right: -4.5rem !important; }
+      .deco .blob-bottom { width: 12rem !important; height: 12rem !important; bottom: -7rem !important; left: -7rem !important; }
+    }
 
     /* ================= LAYOUT ================= */
     .page { position: relative; z-index: 1; max-width: 68rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
@@ -188,8 +192,8 @@
 <body>
   <!-- ============ DÉCOR DE FOND ============ -->
   <div class="deco" aria-hidden="true">
-    <svg style="top:-6rem;right:-6rem;width:22rem;height:22rem" viewBox="0 0 200 200"><path d="M150 40c30 25 35 75 10 110s-80 45-115 20S0 90 25 55 120 15 150 40Z" fill="#C3A6FF" stroke="#000" stroke-width="4"/></svg>
-    <svg style="bottom:-13rem;left:-13rem;width:24rem;height:24rem" viewBox="0 0 200 200"><path d="M160 50c25 30 25 80-5 110s-85 30-115 0-25-90 10-120 85-20 110 10Z" fill="#FFD84D" stroke="#000" stroke-width="4"/></svg>
+    <svg class="blob blob-top" style="top:-6rem;right:-6rem;width:22rem;height:22rem" viewBox="0 0 200 200"><path d="M150 40c30 25 35 75 10 110s-80 45-115 20S0 90 25 55 120 15 150 40Z" fill="#C3A6FF" stroke="#000" stroke-width="4"/></svg>
+    <svg class="blob blob-bottom" style="bottom:-13rem;left:-13rem;width:24rem;height:24rem" viewBox="0 0 200 200"><path d="M160 50c25 30 25 80-5 110s-85 30-115 0-25-90 10-120 85-20 110 10Z" fill="#FFD84D" stroke="#000" stroke-width="4"/></svg>
     <svg class="md-only" style="top:42%;right:-3.5rem;width:10rem;height:10rem" viewBox="0 0 200 200"><circle cx="100" cy="100" r="90" fill="#7BE0AD" stroke="#000" stroke-width="5"/></svg>
     <!-- disquette -->
     <svg class="doodle md-only" style="top:20%;left:2%;width:4.5rem;height:4.5rem;--r:-10deg;--d:7s" viewBox="0 0 100 100"><path d="M12 12h62l14 14v62H12Z" fill="#8FD3FF" stroke="#000" stroke-width="5" stroke-linejoin="round"/><rect x="28" y="12" width="36" height="22" fill="#fff" stroke="#000" stroke-width="5"/><rect x="24" y="54" width="52" height="34" fill="#fff" stroke="#000" stroke-width="5"/><rect x="50" y="16" width="8" height="14" fill="#000"/></svg>
