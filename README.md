@@ -44,12 +44,14 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - GitHub appelle `https://admin.glsc.fr/hooks/github` (webhook signé par HMAC-SHA256, secret dans `/etc/glsc-admin/github-webhook.secret`). PHP vérifie la signature et ne fait que déposer une demande dans `/var/lib/glsc-admin/deploy/`.
 - `glsc-deploy.path` réveille `glsc-deploy.service` (root), qui télécharge le dépôt et lance uniquement les scripts prévus pour la cible (liste blanche). Plusieurs pushes rapprochés sur un même dépôt ne donnent qu'un déploiement.
 - Historique, journaux complets, bouton « Déployer maintenant » et marche à suivre pour créer les webhooks : admin → GitHub & déploiements. Résultat sur Discord (alerte « déploiement »).
+- **Retour arrière automatique** : deploy4 garde l'image du jeu en service (`glsc/<jeu>:previous`) et la remet si le nouveau jeu ne répond pas dans les 40 s. Pour le portfolio, la sonde vérifie glsc.fr, admin.glsc.fr et status.glsc.fr après le déploiement ; en cas d'échec elle relance les scripts avec la dernière version qui avait réussi. Le déploiement apparaît « annulé, ancienne version remise » dans l'admin, et une alerte orange part sur Discord.
 - Journal système : `journalctl -u glsc-deploy -n 50`.
 
 ### Classements des jeux
 
 - +4, Président et Vortex écrivent chaque partie (ou manche) terminée dans `/var/lib/glsc-games/<jeu>/results.jsonl` (variable `RESULTS_FILE`, seul dossier modifiable des conteneurs). Seuls les humains encore à la table sont comptés.
 - La sonde de l'admin lit ces fichiers chaque minute et publie `/var/www/games.glsc.fr/leaderboard.json` : top 10 par jeu, sur 7 jours et depuis toujours (victoires ; places de président et « abonné au trou du cul » ; éliminations pour Vortex).
+- **Succès** (16, dont « Première victoire », « Série de 3 », « Président ! », « Manche parfaite » à Vortex, « Touche-à-tout »…) : la sonde rejoue l'historique des parties et publie, dans `leaderboard.json`, qui a débloqué quoi. Les emojis apparaissent à côté des pseudos du classement, et la liste des succès de chaque jeu s'affiche dessous (nombre de joueurs, dernier à l'avoir obtenu). Liste et conditions : `ACHIEVEMENTS` dans `admin/collector/glsc_admin_collect.py`.
 - Pseudos par défaut (« Joueur 2 »…) et injurieux filtrés automatiquement ; n'importe quel pseudo peut être masqué depuis l'admin (Jeux en direct → Classements).
 
 ### Récap Discord
@@ -60,6 +62,14 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 ### SSH
 
 `glsc-ssh-harden` (en root, installé par deploy5) coupe la connexion par mot de passe et met fail2ban au régime sévère (sshd : 4 essais → 1 h ; récidivistes : 3 bans en un jour → 1 semaine). Il refuse de s'appliquer sans clé valide dans `/root/.ssh/authorized_keys`, demande de confirmer qu'une connexion par clé a été testée dans un autre terminal, valide la config (`sshd -t`), recharge sans couper les sessions ouvertes et revient en arrière si le résultat n'est pas celui attendu. `--status` montre l'état, `--undo` remet le mot de passe, `--fail2ban` ne touche que fail2ban. Installer une clé (depuis ton PC) : `ssh-keygen -t ed25519`, puis `ssh-copy-id root@87.106.8.177` (sous Windows PowerShell : `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@87.106.8.177 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`).
+
+### Sauvegardes chiffrées
+
+- Chaque nuit vers 3 h 30 (`glsc-backup.timer`), la sonde archive la base de l'admin (copie SQLite cohérente), les classements des jeux, les identifiants et secrets de `/etc/glsc-admin`, la config nginx, les certificats Let's Encrypt et les unités systemd, puis chiffre le tout avec [age](https://age-encryption.org) et une clé **publique** (`/etc/glsc-backup/recipient`). Le serveur ne peut donc pas relire ses propres sauvegardes : la clé privée n'y reste jamais.
+- Mise en route, une seule fois, en root : `glsc-backup-setup` (affiche la clé privée une fois, à ranger dans ton gestionnaire de mots de passe) ou `glsc-backup-setup --recipient age1…` avec une clé générée chez toi.
+- Copie hors du serveur : `glsc-backup-setup --rclone mon-stockage:glsc` (tout stockage géré par rclone : S3, IONOS Object Storage, SFTP, Drive…) ou `--discord` (archives de 8 Mo maximum, sur le salon des alertes). 14 archives sont gardées sur le serveur (`/var/backups/glsc`), 60 jours chez rclone.
+- État, bouton « Sauvegarder maintenant » et alerte Discord en cas d'échec : admin → Réglages. En ligne de commande : `glsc-backup-setup --status`, `journalctl -u glsc-backup -n 30`.
+- Restaurer, sur n'importe quelle machine : `age -d -i cle.txt glsc-AAAAMMJJ-HHMMSS.tar.gz.age | tar -xz -C /tmp/restauration`, puis recopier ce qu'il faut (la base de l'admin est dans `bases/`).
 
 ## Modifier les pages
 

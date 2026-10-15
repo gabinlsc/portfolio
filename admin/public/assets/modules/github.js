@@ -36,7 +36,7 @@ export async function render(root) {
 }
 
 // ---------------------------------------------------------------- déploiement automatique
-const STATUS = { running: ['en cours', 'banana'], ok: ['réussi', 'mint'], fail: ['raté', 'coral'] };
+const STATUS = { running: ['en cours', 'banana'], ok: ['réussi', 'mint'], fail: ['raté', 'coral'], rollback: ['annulé, ancienne version remise', 'banana'] };
 const secs = (n) => (n < 60 ? `${n} s` : `${Math.floor(n / 60)} min ${String(n % 60).padStart(2, '0')} s`);
 
 function autoDeploy(box, s) {

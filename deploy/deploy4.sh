@@ -13,6 +13,10 @@
 # GLSC_ONLY_GAME=uno|president|vortex : ne met à jour que ce jeu (sources, image, conteneur), sans toucher
 # (« uno » reste l'identifiant interne de +4 : service Docker, résultats, déploiement automatique)
 # aux sites ni à nginx. C'est ce qu'utilise le déploiement automatique après un push sur le dépôt du jeu.
+#
+# Retour arrière : avant de reconstruire, l'image en service est gardée sous le nom glsc/<jeu>:previous.
+# Si le jeu ne répond plus après la mise à jour, cette image est remise en service automatiquement
+# (avec GLSC_ONLY_GAME, le script se termine alors avec le code 3 : « raté, mais l'ancienne version tourne »).
 
 set -euo pipefail
 
@@ -45,6 +49,7 @@ die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*"; exit 1; }
 ONLY="${GLSC_ONLY_GAME:-}"
 case "$ONLY" in ""|uno|president|vortex) ;; *) die "GLSC_ONLY_GAME doit valoir uno, president ou vortex." ;; esac
 wanted() { [ -z "$ONLY" ] || [ "$1" = "$ONLY" ]; }   # wanted <service Docker>
+image_of() { case "$1" in uno) echo glsc/plus4;; president) echo glsc/president;; vortex) echo glsc/vortex;; esac; }
 mkdir -p "$BACKUP"
 
 save() {
@@ -148,6 +153,10 @@ fi
 info "4/7 Construction des images (quelques minutes la première fois)"
 cd "$GAMES_DIR"
 for svc in ${ONLY:-uno president vortex}; do
+  img="$(image_of "$svc")"
+  if docker image inspect "$img:latest" >/dev/null 2>&1; then
+    docker tag "$img:latest" "$img:previous"   # version en service : de quoi revenir en arrière
+  fi
   if "${COMPOSE[@]}" build -q "$svc" >"$WORK/build-$svc.log" 2>&1; then
     ok "image $svc construite"
   else
@@ -165,33 +174,66 @@ fi
 docker image prune -f >/dev/null 2>&1 || true
 
 # client statique de Vortex → /var/www/vortex.glsc.fr (remplacement atomique)
-if wanted vortex; then
-tmp="$(mktemp -d /var/www/.vortex-XXXX)"
-cid="$(docker create glsc/vortex:latest)"
-docker cp "$cid:/app/public/." "$tmp/" && docker rm -f "$cid" >/dev/null
-chmod 755 "$tmp"; find "$tmp" -type d -exec chmod 755 {} + ; find "$tmp" -type f -exec chmod 644 {} +
-if [ -d /var/www/vortex.glsc.fr ]; then mv /var/www/vortex.glsc.fr "$tmp.old"; fi
-mv "$tmp" /var/www/vortex.glsc.fr && rm -rf "$tmp.old"
-ok "client Vortex publié dans /var/www/vortex.glsc.fr"
-fi
+publish_vortex_client() {
+  local tmp cid
+  tmp="$(mktemp -d /var/www/.vortex-XXXX)"
+  cid="$(docker create glsc/vortex:latest)"
+  docker cp "$cid:/app/public/." "$tmp/" && docker rm -f "$cid" >/dev/null
+  chmod 755 "$tmp"; find "$tmp" -type d -exec chmod 755 {} + ; find "$tmp" -type f -exec chmod 644 {} +
+  if [ -d /var/www/vortex.glsc.fr ]; then mv /var/www/vortex.glsc.fr "$tmp.old"; fi
+  mv "$tmp" /var/www/vortex.glsc.fr && rm -rf "$tmp.old"
+}
+if wanted vortex; then publish_vortex_client; ok "client Vortex publié dans /var/www/vortex.glsc.fr"; fi
 
-# santé locale
-sleep 5
-health_ok=1
+# santé locale : jusqu'à ~40 s pour démarrer, puis retour à l'image précédente si le jeu ne répond pas
+game_healthy() {   # game_healthy <domaine> <port> <dépôt>
+  local code
+  if [ "$3" = vortex-fps ]; then
+    code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+            -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H "Origin: https://$1" --max-time 3 "http://127.0.0.1:$2/play" || true)"
+    [ "$code" = 101 ]
+  else
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$2/health" || true)"
+    [ "$code" = 200 ]
+  fi
+}
+wait_healthy() {
+  local i
+  for i in 1 2 3 4 5 6 7 8; do sleep 5; game_healthy "$@" && return 0; done
+  return 1
+}
+rollback_game() {   # rollback_game <service> → 0 si l'ancienne version répond
+  local svc="$1" img; img="$(image_of "$1")"
+  docker image inspect "$img:previous" >/dev/null 2>&1 || { warn "pas de version précédente à remettre"; return 1; }
+  docker tag "$img:previous" "$img:latest"
+  "${COMPOSE[@]}" up -d --no-deps --no-build --force-recreate "$svc" >/dev/null 2>&1
+  [ "$svc" = vortex ] && publish_vortex_client
+  return 0
+}
+health_ok=1; rolled_back=0
 for entry in "${GAMES[@]}"; do
   IFS='|' read -r domain name port repo tpl svc <<<"$entry"
   wanted "$svc" || continue
-  if [ "$repo" = vortex-fps ]; then
-    code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
-            -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H "Origin: https://$domain" --max-time 3 "http://127.0.0.1:$port/play" || true)"
-    [ "$code" = 101 ] && ok "$name répond en local (WebSocket)" || { health_ok=0; warn "$name ne répond pas en local (code $code) : docker logs glsc-games-vortex-1"; }
+  if wait_healthy "$domain" "$port" "$repo"; then
+    ok "$name répond en local"
+    continue
+  fi
+  warn "$name ne répond pas en local : docker logs glsc-games-$svc-1"
+  docker logs --tail 15 "glsc-games-$svc-1" 2>&1 | sed 's/^/      /' || true
+  if rollback_game "$svc" && wait_healthy "$domain" "$port" "$repo"; then
+    rolled_back=1
+    warn "$name : la version précédente est remise en service, elle répond."
   else
-    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$port/health" || true)"
-    [ "$code" = 200 ] && ok "$name répond en local" || { health_ok=0; warn "$name ne répond pas en local (code $code) : docker logs glsc-games-$svc-1"; }
+    health_ok=0
+    warn "$name : même l'ancienne version ne répond pas."
   fi
 done
 if [ -n "$ONLY" ]; then
-  [ "$health_ok" = 1 ] || die "$ONLY ne répond pas après la mise à jour."
+  [ "$health_ok" = 1 ] || die "$ONLY ne répond pas, y compris après retour à la version précédente."
+  if [ "$rolled_back" = 1 ]; then
+    info "Mise à jour annulée : $ONLY tourne sur sa version précédente. Sauvegardes : $BACKUP"
+    exit 3
+  fi
   info "Terminé : $ONLY est à jour. Sauvegardes : $BACKUP"
   exit 0
 fi

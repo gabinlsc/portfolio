@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# glsc-backup-setup — met en route les sauvegardes chiffrées du serveur (à lancer en root, une fois).
+#
+# Les archives sont chiffrées avec age et une clé PUBLIQUE : le serveur peut les créer mais pas les rouvrir.
+# La clé privée n'est affichée qu'une fois (ou reste chez toi si tu fournis ta clé publique) : sans elle,
+# les sauvegardes sont définitivement illisibles. Garde-la dans ton gestionnaire de mots de passe.
+#
+#   glsc-backup-setup                       crée une paire de clés (clé privée affichée une fois) et active la sauvegarde
+#   glsc-backup-setup --recipient age1…     utilise ta clé publique (générée chez toi avec « age-keygen »)
+#   glsc-backup-setup --rclone mon-stockage:glsc   envoie aussi chaque archive vers ce stockage rclone (configure-le d'abord : rclone config)
+#   glsc-backup-setup --discord             envoie aussi chaque archive (≤ 8 Mo) sur le salon Discord de l'admin
+#   glsc-backup-setup --status              montre l'état
+set -euo pipefail
+
+ETC=/etc/glsc-backup
+die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*" >&2; exit 1; }
+ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
+warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
+[ "$(id -u)" -eq 0 ] || die "Lance cette commande en root."
+
+recipient=""; remote=""; discord=0; status=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --recipient) recipient="${2:-}"; shift 2 ;;
+    --rclone)    remote="${2:-}"; shift 2 ;;
+    --discord)   discord=1; shift ;;
+    --status)    status=1; shift ;;
+    -h|--help)   sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) die "Option inconnue : $1 (voir --help)" ;;
+  esac
+done
+
+if [ "$status" = 1 ]; then
+  echo "Clé publique : $(cat $ETC/recipient 2>/dev/null || echo 'absente')"
+  echo "Stockage rclone : $(cat $ETC/remote 2>/dev/null || echo 'aucun')"
+  echo "Envoi Discord : $([ -e $ETC/discord ] && echo oui || echo non)"
+  ls -lh /var/backups/glsc 2>/dev/null | tail -n +2 || true
+  systemctl list-timers glsc-backup.timer --no-pager 2>/dev/null | head -3 || true
+  exit 0
+fi
+
+command -v age >/dev/null || { apt-get update -qq >/dev/null; apt-get install -y -qq age >/dev/null; }
+command -v age >/dev/null || die "Installation de « age » impossible."
+install -d -m 750 "$ETC"
+
+if [ -n "$recipient" ]; then
+  case "$recipient" in age1*) ;; *) die "Une clé publique age commence par « age1 »." ;; esac
+  printf '%s\n' "$recipient" > "$ETC/recipient"
+  ok "clé publique enregistrée"
+elif [ -s "$ETC/recipient" ]; then
+  ok "clé publique déjà en place ($(cut -c1-16 "$ETC/recipient")…)"
+else
+  [ -t 0 ] && [ -t 1 ] || die "Pas de terminal : lance la commande à la main, la clé privée doit être lue et recopiée."
+  key="$(mktemp)"; trap 'shred -u "$key" 2>/dev/null || rm -f "$key"' EXIT
+  age-keygen -o "$key" 2>/dev/null
+  pub="$(grep -o 'age1[0-9a-z]*' "$key" | head -1)"
+  printf '\n\033[1m  CLÉ PRIVÉE — affichée UNE SEULE fois, elle ne reste PAS sur le serveur\033[0m\n'
+  printf '  Copie les deux dernières lignes dans ton gestionnaire de mots de passe (sans elle, plus aucune sauvegarde n'"'"'est lisible).\n\n'
+  cat "$key"
+  printf '\n'
+  read -r -p "  Tape SAUVEGARDÉ quand c'est fait : " answer
+  [ "$answer" = "SAUVEGARDÉ" ] || die "Rien n'a été activé. Relance la commande quand tu es prêt."
+  printf '%s\n' "$pub" > "$ETC/recipient"
+  ok "clé publique enregistrée (la privée est effacée du serveur)"
+fi
+chmod 640 "$ETC/recipient"
+
+if [ -n "$remote" ]; then
+  command -v rclone >/dev/null || { apt-get install -y -qq rclone >/dev/null; }
+  case "$remote" in *:*) ;; *) die "Le stockage doit ressembler à « nom-du-remote:dossier » (voir « rclone listremotes »)." ;; esac
+  rclone lsd "${remote%%:*}:" >/dev/null 2>&1 || die "rclone ne joint pas « ${remote%%:*} » : lance d'abord « rclone config »."
+  printf '%s\n' "$remote" > "$ETC/remote"; chmod 640 "$ETC/remote"
+  ok "envoi rclone vers $remote"
+fi
+if [ "$discord" = 1 ]; then : > "$ETC/discord"; ok "envoi Discord activé (archives de 8 Mo maximum)"; fi
+
+systemctl enable --now glsc-backup.timer >/dev/null 2>&1 || warn "timer glsc-backup absent : relance deploy5"
+if systemctl start glsc-backup.service; then ok "première sauvegarde faite"; else warn "la sauvegarde a échoué : journalctl -u glsc-backup -n 30"; fi
+ls -lh /var/backups/glsc | tail -3
+cat <<'TXT'
+
+  Une sauvegarde part chaque nuit vers 3 h 30 (bouton « Sauvegarder maintenant » dans l'admin → Réglages).
+  Restaurer (sur n'importe quelle machine, avec ta clé privée dans cle.txt) :
+      age -d -i cle.txt glsc-AAAAMMJJ-HHMMSS.tar.gz.age | tar -xz -C /tmp/restauration
+TXT

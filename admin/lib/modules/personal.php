@@ -14,6 +14,7 @@ const ALERTS = [
     'ssh' => 'Connexion SSH réussie au serveur',
     'deploy' => 'Fin d’un déploiement automatique (réussi ou raté)',
     'weekly' => 'Récap de la semaine, le lundi à 9 h',
+    'backup' => 'Sauvegarde chiffrée ratée',
 ];
 
 function vault_state(): array
@@ -49,6 +50,7 @@ function settings_state(): array
         'discord' => $hook !== '' ? substr($hook, 0, 40) . '…' : '',
         'alerts' => $alerts,
         'recovery_left' => recovery_left(),
+        'backup' => snapshot('backup'),
         'log' => db()->query('SELECT at, ip, ua, event FROM admin_log ORDER BY at DESC LIMIT 40')->fetchAll(),
     ];
 }
@@ -149,6 +151,13 @@ return [
         glsc_queue('recap', ['period' => $period]) || fail(500, 'File d’attente indisponible.');
         admin_log('récap Discord demandé');
         return ['ok' => true, 'message' => 'Récap en route vers Discord (quelques secondes).'];
+    },
+    'POST settings/backup' => function (): array {
+        $b = snapshot('backup');
+        if (!$b || empty($b['configured'])) fail(422, 'Les sauvegardes ne sont pas encore activées : lance « glsc-backup-setup » sur le serveur.');
+        glsc_queue('backup', []) || fail(500, 'File d’attente indisponible.');
+        admin_log('sauvegarde demandée');
+        return ['ok' => true, 'message' => 'Sauvegarde lancée : le résultat apparaît ici dans une minute environ.'];
     },
     'POST settings/test-discord' => function () {
         if (!setting('discord_webhook')) fail(422, 'Enregistre d’abord un webhook.');

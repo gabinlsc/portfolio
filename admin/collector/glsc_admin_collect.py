@@ -16,6 +16,10 @@ glsc-admin-collect — sonde root de admin.glsc.fr (aucune dépendance hors Pyth
   recap     (commande glsc-recap, ou bouton de l'admin via la file d'attente)
     envoie tout de suite le récap Discord des 7 derniers jours (--semaine : semaine dernière ; --apercu : sans envoyer).
     Le récap de la semaine écoulée part aussi tout seul le lundi à 9 h (collect).
+  backup    (chaque nuit, glsc-backup.timer ; ou bouton de l'admin)
+    archive la base de l'admin, les classements, les identifiants, la config nginx et les certificats,
+    la chiffre avec la clé PUBLIQUE de /etc/glsc-backup/recipient (age : le serveur ne peut pas la rouvrir),
+    la garde en local (/var/backups/glsc) et l'envoie hors du serveur (rclone ou Discord). État : backup.json.
   deploy    (déclenché par glsc-deploy.path : push sur main ou bouton de l'admin)
     télécharge le dépôt et lance les scripts de déploiement prévus pour la cible (liste blanche),
     publie l'historique (deploy-runs.json), les journaux (deploy-logs/) et prévient sur Discord.
@@ -34,6 +38,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
@@ -689,10 +694,61 @@ def ingest_results(db, state, data_dir, now):
     return added
 
 
+# Succès : (id, jeu ou "all", emoji, nom, description, condition sur l'état du joueur après chaque partie)
+ACHIEVEMENTS = [
+    ("uno-win1", "uno", "🎯", "Première victoire", "Gagner une partie de +4", lambda s: s["wins"] >= 1),
+    ("uno-win10", "uno", "🏆", "Dix victoires", "10 parties gagnées", lambda s: s["wins"] >= 10),
+    ("uno-win50", "uno", "👑", "Roi du +4", "50 parties gagnées", lambda s: s["wins"] >= 50),
+    ("uno-streak3", "uno", "🔥", "Série de 3", "3 victoires d'affilée", lambda s: s["best_streak"] >= 3),
+    ("uno-played25", "uno", "🃏", "Habitué", "25 parties jouées", lambda s: s["played"] >= 25),
+    ("pres-first", "president", "👑", "Président !", "Finir premier d'une manche", lambda s: s["president"] >= 1),
+    ("pres-streak3", "president", "🔥", "Règne de 3", "Président 3 manches d'affilée", lambda s: s["pres_streak"] >= 3),
+    ("pres-10", "president", "🏛️", "Dynastie", "10 fois président", lambda s: s["president"] >= 10),
+    ("pres-trouduc3", "president", "🧻", "Abonné au trou du cul", "Finir dernier 3 fois (c'est un titre)", lambda s: s["trouduc"] >= 3),
+    ("pres-played25", "president", "🎴", "Habitué", "25 manches jouées", lambda s: s["played"] >= 25),
+    ("vortex-1", "vortex", "🎯", "Première élimination", "Éliminer un adversaire", lambda s: s["kills"] >= 1),
+    ("vortex-round10", "vortex", "🔫", "Manche parfaite", "10 éliminations dans une seule manche", lambda s: s["best_kills"] >= 10),
+    ("vortex-50", "vortex", "💥", "50 éliminations", "50 éliminations au total", lambda s: s["kills"] >= 50),
+    ("vortex-250", "vortex", "☠️", "Terreur du vortex", "250 éliminations au total", lambda s: s["kills"] >= 250),
+    ("vortex-played25", "vortex", "🌀", "Habitué", "25 manches jouées", lambda s: s["played"] >= 25),
+    ("all-3", "all", "🎮", "Touche-à-tout", "Jouer à +4, au Président et à Vortex", lambda s: s["games"] >= 3),
+]
+
+
+def unlock_achievements(db):
+    """Rejoue l'historique des parties dans l'ordre : {clé du pseudo: {id du succès: date de déblocage}} et dernier pseudo vu."""
+    states, unlocked, names = {}, {}, {}
+    for ts, game, key, name, won, role, kills in db.execute("SELECT ts, game, key, name, won, role, kills FROM results ORDER BY ts, rowid"):
+        st = states.setdefault((key, game), {"played": 0, "wins": 0, "streak": 0, "best_streak": 0, "president": 0, "pres_streak": 0, "pres_run": 0,
+                                             "trouduc": 0, "kills": 0, "best_kills": 0, "games": 0})
+        names[key] = name
+        st["played"] += 1
+        st["wins"] += won
+        st["streak"] = st["streak"] + 1 if won else 0
+        st["best_streak"] = max(st["best_streak"], st["streak"])
+        if role == "president":
+            st["president"] += 1
+            st["pres_run"] += 1
+            st["pres_streak"] = max(st["pres_streak"], st["pres_run"])
+        else:
+            st["pres_run"] = 0
+        st["trouduc"] += 1 if role == "trouduc" else 0
+        st["kills"] += kills or 0
+        st["best_kills"] = max(st["best_kills"], kills or 0)
+        mine = unlocked.setdefault(key, {})
+        st["games"] = sum(1 for g in GAMES if (key, g) in states)
+        for aid, agame, _, _, _, cond in ACHIEVEMENTS:
+            if aid not in mine and (agame == game or agame == "all") and cond(st):
+                mine[aid] = ts
+    return unlocked, names
+
+
 def leaderboards(db, now, hidden):
     """Classements par jeu, sur 7 jours et depuis toujours. Version publique (filtrée) et version admin (tout, avec raisons)."""
     week = now - 7 * 86400
     public, admin = {"at": now, "games": {}}, {"at": now, "games": {}}
+    unlocked, last_names = unlock_achievements(db)
+    shown = {k for k in unlocked if k not in hidden and name_ok(k)}
     for game in GAMES:
         g_pub, g_adm = {}, {}
         for period, since in (("week", week), ("all", 0)):
@@ -713,6 +769,7 @@ def leaderboards(db, now, hidden):
                 why = "masqué" if key in hidden else None if name_ok(key) else "filtré"
                 review.append({**entry, "key": key, "last": last, "hidden": why})
                 if not why and len(board) < 10 and (entry["wins"] or entry.get("kills")):
+                    entry["badges"] = [a[0] for a in ACHIEVEMENTS if a[1] in (game, "all") and a[0] in unlocked.get(key, {})]
                     board.append(entry)
             g_pub[period] = {"matches": matches, "players": players, "top": board}
             g_adm[period] = {"matches": matches, "players": players, "names": review[:100]}
@@ -720,6 +777,11 @@ def leaderboards(db, now, hidden):
                 worst = sorted((e for e in review if not e["hidden"] and e["trouduc"]), key=lambda e: (-e["trouduc"], e["played"]))
                 g_pub[period]["trouduc"] = {k: worst[0][k] for k in ("name", "trouduc", "played")} if worst else None
         public["games"][game], admin["games"][game] = g_pub, g_adm
+    public["achievements"] = []
+    for aid, agame, emoji, label, desc, _ in ACHIEVEMENTS:
+        who = sorted(((unlocked[k][aid], last_names[k]) for k in shown if aid in unlocked[k]), reverse=True)
+        public["achievements"].append({"id": aid, "game": agame, "emoji": emoji, "name": label, "desc": desc, "count": len(who),
+                                       "recent": [{"name": n, "at": t} for t, n in who[:3]]})
     return public, admin
 
 # ---------------------------------------------------------------- récap Discord du lundi
@@ -988,6 +1050,9 @@ def queue(args):
                 log("demande trop ancienne ignorée :", os.path.basename(path))
             elif kind == "recap":
                 log("récap à la demande :", "envoyé" if recap_now(args, "semaine" if data.get("period") == "semaine" else "7j") else "échec")
+            elif kind == "backup":
+                ok = subprocess.run(["systemctl", "start", "--no-block", "glsc-backup.service"], capture_output=True, timeout=30, check=False).returncode == 0
+                log("sauvegarde à la demande :", "lancée" if ok else "échec")
             elif kind == "discord":
                 discord(hook, str(data.get("title", ""))[:200], str(data.get("text", ""))[:1500])
             elif kind == "restart" and data.get("game") in GAMES:
@@ -1006,6 +1071,134 @@ def queue(args):
             except OSError:
                 pass
 
+# ---------------------------------------------------------------- sauvegardes chiffrées
+BACKUP_ETC = os.environ.get("GLSC_BACKUP_ETC", "/etc/glsc-backup")
+BACKUP_DIR = os.environ.get("GLSC_BACKUP_DIR", "/var/backups/glsc")
+BACKUP_KEEP = 14  # archives gardées en local ; ailleurs : 60 jours (rclone)
+BACKUP_PATHS = [  # tout ce qu'on perdrait avec le serveur ; les bases SQLite sont copiées à part (copie cohérente)
+    "/etc/glsc-admin", "/etc/glsc-status", "/etc/glsc-backup/remote", "/var/lib/glsc-status", "/var/lib/glsc-games",
+    "/opt/glsc-games/compose.yml", "/etc/nginx/sites-available", "/etc/nginx/conf.d", "/etc/nginx/glsc-404.inc",
+    "/etc/letsencrypt", "/etc/systemd/system/glsc-*", "/etc/fail2ban/jail.d", "/etc/ssh/sshd_config.d",
+]
+
+
+def read_line(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.readline().strip()
+    except OSError:
+        return ""
+
+
+def discord_file(webhook, path, text):
+    """Envoie un fichier (déjà chiffré) sur Discord ; limite prudente de 8 Mo."""
+    import uuid
+    boundary = uuid.uuid4().hex
+    with open(path, "rb") as f:
+        blob = f.read()
+    parts = [f"--{boundary}\r\nContent-Disposition: form-data; name=\"payload_json\"\r\nContent-Type: application/json\r\n\r\n".encode(),
+             json.dumps({"username": "glsc.fr", "content": text}).encode(),
+             f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"files[0]\"; filename=\"{os.path.basename(path)}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode(),
+             blob, f"\r\n--{boundary}--\r\n".encode()]
+    req = urllib.request.Request(webhook, data=b"".join(parts), method="POST",
+                                 headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "User-Agent": "glsc-admin"})
+    urllib.request.urlopen(req, timeout=60).close()
+
+
+def backup(args):
+    import tarfile
+    import tempfile
+    now = int(time.time())
+    gid = www_gid()
+    status = {"at": now, "ok": False, "configured": False, "name": None, "size": 0, "local": 0, "offsite": None, "error": None,
+              "last_ok": load_json(os.path.join(args.pub_dir, "backup.json"), {}).get("last_ok")}
+    settings = app_settings(args.app_db)
+    hook = settings.get("discord_webhook", "")
+
+    def finish(error=None):
+        status["error"] = error
+        status["ok"] = error is None
+        if status["ok"]:
+            status["last_ok"] = now
+        write_json(os.path.join(args.pub_dir, "backup.json"), status, gid)
+        if error:
+            log("sauvegarde :", error)
+            if settings.get("alert_backup", "1") == "1" and status["configured"]:
+                discord(hook, "❌ Sauvegarde ratée", error[:1500], 0xEF4444)
+        return error is None
+
+    recipient = read_line(os.path.join(BACKUP_ETC, "recipient"))
+    if not recipient.startswith("age1"):
+        return finish("Sauvegarde non configurée : lance « glsc-backup-setup » sur le serveur.")
+    status["configured"] = True
+    if not shutil.which("age"):
+        return finish("Le programme « age » est absent : relance « glsc-backup-setup ».")
+    os.makedirs(BACKUP_DIR, mode=0o700, exist_ok=True)
+    os.chmod(BACKUP_DIR, 0o700)
+    name = time.strftime("glsc-%Y%m%d-%H%M%S", time.localtime(now)) + ".tar.gz.age"
+    out_path = os.path.join(BACKUP_DIR, name)
+    try:
+        with tempfile.TemporaryDirectory(prefix="snap-", dir=BACKUP_DIR) as snap:
+            # bases SQLite : copie cohérente même si PHP ou la sonde écrivent en ce moment
+            for sub in ("app", "collector"):
+                for db in glob.glob(os.path.join(args.var, sub, "*.db")):
+                    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=10)
+                    dst = sqlite3.connect(os.path.join(snap, f"{sub}-{os.path.basename(db)}"))
+                    con.backup(dst)
+                    dst.close()
+                    con.close()
+            skip = (".db", ".db-wal", ".db-shm")
+            proc = subprocess.Popen(["age", "-r", recipient, "-o", out_path], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            with tarfile.open(fileobj=proc.stdin, mode="w|gz") as tar:
+                tar.add(snap, arcname="bases")
+                tar.add(os.path.join(args.var, "app"), arcname="admin-app", filter=lambda t: None if t.name.endswith(skip) else t)
+                for spec in BACKUP_PATHS:
+                    for path in glob.glob(spec):
+                        tar.add(path, arcname=path.lstrip("/"))
+            proc.stdin.close()
+            err = proc.stderr.read().decode(errors="replace")
+            if proc.wait() != 0:
+                raise RuntimeError("age a échoué : " + err[-300:])
+        os.chmod(out_path, 0o600)
+    except Exception as e:
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+        return finish(f"{type(e).__name__}: {e}")
+    status.update(name=name, size=os.path.getsize(out_path))
+    # conservation locale
+    old = sorted(glob.glob(os.path.join(BACKUP_DIR, "glsc-*.tar.gz.age")))
+    for p in old[:-BACKUP_KEEP]:
+        os.remove(p)
+    status["local"] = min(len(old), BACKUP_KEEP)
+    # hors du serveur
+    remote = read_line(os.path.join(BACKUP_ETC, "remote"))
+    problems = []
+    if remote and shutil.which("rclone"):
+        r = subprocess.run(["rclone", "copyto", out_path, remote.rstrip("/") + "/" + name], capture_output=True, text=True, timeout=900, check=False)
+        if r.returncode == 0:
+            status["offsite"] = "rclone"
+            subprocess.run(["rclone", "delete", remote, "--min-age", "60d", "--include", "glsc-*.tar.gz.age"], capture_output=True, timeout=300, check=False)
+        else:
+            problems.append("envoi rclone raté : " + (r.stderr or "")[-300:])
+    elif remote:
+        problems.append("rclone n'est pas installé")
+    if status["offsite"] is None and os.path.exists(os.path.join(BACKUP_ETC, "discord")) and hook:
+        if status["size"] <= 8 * 1024 * 1024:
+            try:
+                discord_file(hook, out_path, f"🔐 Sauvegarde chiffrée du {time.strftime('%d/%m/%Y %H:%M', time.localtime(now))} (illisible sans ta clé privée).")
+                status["offsite"] = "discord"
+            except OSError as e:
+                problems.append(f"envoi Discord raté : {e}")
+        else:
+            problems.append("archive trop grosse pour Discord (8 Mo) : configure rclone")
+    if problems:
+        return finish("Archive faite et gardée sur le serveur, mais pas envoyée ailleurs : " + " ; ".join(problems))
+    log(f"sauvegarde : {name} ({status['size'] // 1024} Ko), hors serveur : {status['offsite'] or 'non configuré'}")
+    return finish()
+
+
 # ---------------------------------------------------------------- déploiement automatique
 REPO_TGZ = os.environ.get("GLSC_DEPLOY_TGZ", "https://codeload.github.com/gabinlsc/portfolio/tar.gz/refs/heads/main")  # surchargé par les tests
 DEPLOY_PLANS = {  # cible → scripts du dépôt portfolio à lancer, avec leurs variables d'environnement
@@ -1016,6 +1209,9 @@ DEPLOY_PLANS = {  # cible → scripts du dépôt portfolio à lancer, avec leurs
     "vortex": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "vortex"})],
 }
 DEPLOY_STEP_TIMEOUT = 40 * 60
+# adresses qui doivent répondre après un déploiement du portfolio ; sinon on revient à la dernière version qui marchait
+DEPLOY_VERIFY = [u for u in os.environ.get("GLSC_DEPLOY_VERIFY", "https://glsc.fr/,https://admin.glsc.fr/,https://status.glsc.fr/").split(",") if u]
+ROLLBACK_CODE = 3  # code de sortie de deploy4 : « raté, mais l'ancienne version du jeu est remise en service »
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
@@ -1055,6 +1251,56 @@ def deploy_publish(args, runs, gid):
             os.remove(p)
 
 
+def fetch_source(work, url, name):
+    """Télécharge et extrait l'archive du dépôt ; renvoie (dossier, sha du commit si l'archive le dit)."""
+    import tarfile
+    tgz = os.path.join(work, name + ".tgz")
+    dest = os.path.join(work, name)
+    os.makedirs(dest)
+    urllib.request.urlretrieve(url, tgz)
+    with tarfile.open(tgz) as tar:
+        sha = str(tar.pax_headers.get("comment", "")).strip()
+        tar.extractall(dest, filter="data")
+    src = next(p for p in glob.glob(os.path.join(dest, "*")) if os.path.isdir(p))
+    return src, sha if re.fullmatch(r"[0-9a-f]{40}", sha) else ""
+
+
+def tgz_url(sha):
+    """Archive d'un commit précis (retour arrière) ; les tests, qui fixent l'archive, la gardent telle quelle."""
+    return REPO_TGZ.replace("refs/heads/main", sha) if "refs/heads/main" in REPO_TGZ else REPO_TGZ
+
+
+def deploy_verify():
+    """Adresses du portfolio qui ne répondent pas (code ≥ 400 ou aucune réponse) après un déploiement."""
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):
+            return None
+    opener = urllib.request.build_opener(NoRedirect)
+    bad = []
+    for url in DEPLOY_VERIFY:
+        code = None
+        for _ in range(3):
+            try:
+                code = opener.open(urllib.request.Request(url, headers={"User-Agent": "glsc-deploy"}), timeout=8).status
+            except urllib.error.HTTPError as e:
+                code = e.code
+            except Exception:
+                code = None
+            if code is not None and code < 400:
+                break
+            time.sleep(2)
+        if code is None or code >= 400:
+            bad.append(f"{url} ({code or 'pas de réponse'})")
+    return bad
+
+
+def last_good_commit(runs):
+    for r in runs:
+        if r.get("status") == "ok" and r.get("commit") and r.get("target") in ("portfolio", "portfolio-full"):
+            return r["commit"]
+    return ""
+
+
 def deploy_run(args, target, info, runs, gid, hook, alert_on):
     import tarfile
     import tempfile
@@ -1081,37 +1327,62 @@ def deploy_run(args, target, info, runs, gid, hook, alert_on):
         try:
             note(f"== {time.strftime('%d/%m/%Y %H:%M:%S')} · déploiement « {target} »" + (f" · {info['sha'][:7]} {info['message']}" if info.get("sha") else ""))
             note("== téléchargement du dépôt portfolio")
-            tgz = os.path.join(work, "src.tgz")
-            urllib.request.urlretrieve(REPO_TGZ, tgz)
-            with tarfile.open(tgz) as tar:
-                tar.extractall(work, filter="data")
-            src = next(p for p in glob.glob(os.path.join(work, "*")) if os.path.isdir(p))
+            src, commit = fetch_source(work, REPO_TGZ, "src")
+            entry["commit"] = commit
             env = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root", "LANG": "C.UTF-8",
                    "TERM": "dumb", "GLSC_AUTO_DEPLOY": "1"}
-            for script, extra in DEPLOY_PLANS[target]:
-                entry["step"] = os.path.basename(script) + "".join(f" {k}={v}" for k, v in extra.items())
-                deploy_publish(args, runs, gid)
-                note(f"\n== {entry['step']}")
-                proc = subprocess.Popen(["bash", os.path.join(src, script)], cwd=work, env={**env, **extra}, stdin=subprocess.DEVNULL,
-                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
-                watchdog = threading.Timer(DEPLOY_STEP_TIMEOUT, lambda p=proc: os.killpg(p.pid, 9))  # script bloqué : on coupe tout
-                watchdog.start()
-                try:
-                    for line in proc.stdout:
-                        out.write(ANSI.sub("", line))
-                    code = proc.wait()
-                finally:
-                    watchdog.cancel()
-                if code == -9:
-                    note(f"!! délai de {DEPLOY_STEP_TIMEOUT // 60} min dépassé, script arrêté")
-                out.flush()
-                if code != 0:
-                    note(f"!! {os.path.basename(script)} a échoué (code {code})")
-                    break
+
+            def run_plan(src_dir):
+                last = 0
+                for script, extra in DEPLOY_PLANS[target]:
+                    entry["step"] = os.path.basename(script) + "".join(f" {k}={v}" for k, v in extra.items())
+                    deploy_publish(args, runs, gid)
+                    note(f"\n== {entry['step']}")
+                    proc = subprocess.Popen(["bash", os.path.join(src_dir, script)], cwd=work, env={**env, **extra}, stdin=subprocess.DEVNULL,
+                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
+                    watchdog = threading.Timer(DEPLOY_STEP_TIMEOUT, lambda p=proc: os.killpg(p.pid, 9))  # script bloqué : on coupe tout
+                    watchdog.start()
+                    try:
+                        for line in proc.stdout:
+                            out.write(ANSI.sub("", line))
+                        last = proc.wait()
+                    finally:
+                        watchdog.cancel()
+                    if last == -9:
+                        note(f"!! délai de {DEPLOY_STEP_TIMEOUT // 60} min dépassé, script arrêté")
+                    out.flush()
+                    if last != 0:
+                        note(f"!! {os.path.basename(script)} a échoué (code {last})")
+                        break
+                return last
+
+            portfolio_target = target in ("portfolio", "portfolio-full")
+            good = last_good_commit(runs[1:])  # dernière version qui a marché, avant ce déploiement
+            code = run_plan(src)
+            if code == ROLLBACK_CODE and not portfolio_target:
+                entry["rollback"] = True  # deploy4 a déjà remis l'ancienne version du jeu
+            elif portfolio_target:
+                problems = [] if code != 0 else deploy_verify()
+                if code == 0 and problems:
+                    note("!! après le déploiement, ne répond pas : " + ", ".join(problems))
+                if (code != 0 or problems) and good and good != commit:
+                    note(f"\n== retour arrière vers la version {good[:7]}")
+                    old_src, _ = fetch_source(work, tgz_url(good), "old")
+                    back = run_plan(old_src)
+                    again = [] if back != 0 else deploy_verify()
+                    if back == 0 and not again:
+                        note("== l'ancienne version est remise en service")
+                        entry["rollback"] = True
+                        code = ROLLBACK_CODE
+                    else:
+                        note("!! le retour arrière n'a pas suffi" + (" : " + ", ".join(again) if again else ""))
+                        code = code or 1
+                elif problems:
+                    code = 1
         except Exception as e:
             code = code or 1
             note(f"!! {type(e).__name__}: {e}")
-    entry.update(end=int(time.time()), status="ok" if code == 0 else "fail", code=code, step=None)
+    entry.update(end=int(time.time()), status="ok" if code == 0 else "rollback" if entry.get("rollback") else "fail", code=code, step=None)
     deploy_publish(args, runs, gid)
     took = entry["end"] - entry["start"]
     took_txt = f"{took // 60} min {took % 60:02d} s" if took >= 60 else f"{took} s"
@@ -1120,6 +1391,8 @@ def deploy_run(args, target, info, runs, gid, hook, alert_on):
     if alert_on:
         if code == 0:
             discord(hook, f"✅ {target} déployé", f"{what}\nDurée : {took_txt}", 0x22C55E)
+        elif entry["status"] == "rollback":
+            discord(hook, f"↩️ {target} : mise à jour annulée", f"{what}\nLa nouvelle version ne répondait pas : la précédente a été remise en service automatiquement.\nJournal dans l'admin (GitHub & déploiements).", 0xF59E0B)
         else:
             try:
                 with open(log_path, encoding="utf-8") as f:
@@ -1160,7 +1433,7 @@ def deploy(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["collect", "queue", "deploy", "recap"])
+    ap.add_argument("command", choices=["collect", "queue", "deploy", "recap", "backup"])
     ap.add_argument("--semaine", action="store_true", help="recap : la semaine dernière complète (lundi → dimanche) au lieu des 7 derniers jours")
     ap.add_argument("--apercu", action="store_true", help="recap : affiche le récap ici sans l'envoyer sur Discord")
     ap.add_argument("--var", default="/var/lib/glsc-admin", help="dossier de données de l'admin")
@@ -1188,6 +1461,8 @@ def main():
         collect(args)
     elif args.command == "deploy":
         deploy(args)
+    elif args.command == "backup":
+        sys.exit(0 if backup(args) else 1)
     elif args.command == "recap":
         ok = recap_now(args, "semaine" if args.semaine else "7j", args.apercu)
         print("Récap envoyé sur Discord." if ok and not args.apercu else "" if ok else "Envoi impossible (voir le message ci-dessus).")

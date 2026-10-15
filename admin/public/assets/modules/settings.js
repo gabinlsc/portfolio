@@ -36,6 +36,7 @@ function view(s, show) {
         }, { kind: 'danger' }) : null),
       h('h3', {}, 'Me prévenir quand…'),
       h('div', { class: 'stack-xs' }, toggles))),
+    backupCard(s.backup, show),
     card('Connexion & 2FA', h('div', { class: 'stack-sm' },
       h('p', {}, 'Codes de secours restants : ', pill(String(s.recovery_left), s.recovery_left > 2 ? 'mint' : 'coral')),
       h('p', { class: 'muted small' }, 'Pour changer le mot de passe, refaire la 2FA (nouveau téléphone) ou régénérer les codes de secours, connecte-toi en SSH au serveur et lance :'),
@@ -47,3 +48,30 @@ function view(s, show) {
         h('td', { class: 'ellipsis small' }, l.ua)))))), { cls: 'span-2' }));
 }
 
+
+function backupCard(b, show) {
+  const size = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1024)) + ' Ko');
+  const ago = (t) => dateTimeFr(t);
+  let body;
+  if (!b || !b.configured) {
+    body = [
+      h('p', {}, pill('pas activées', 'coral')),
+      h('p', { class: 'muted small' }, 'Chaque nuit, la base de l’admin, les classements, les identifiants, la config nginx et les certificats sont archivés puis chiffrés avec une clé publique : le serveur ne peut pas relire ses propres sauvegardes. Pour activer, sur le serveur :'),
+      h('pre', { class: 'code' }, 'glsc-backup-setup\nglsc-backup-setup --rclone mon-stockage:glsc   # envoi hors du serveur'),
+    ];
+  } else {
+    body = [
+      h('p', {}, b.ok ? pill('en place', 'mint') : pill('à vérifier', 'coral'), ' ',
+        b.last_ok ? h('span', { class: 'muted small' }, 'dernière réussie : ', ago(b.last_ok)) : null),
+      b.name ? h('p', { class: 'small' }, h('span', { class: 'mono' }, b.name), ' · ', size(b.size), ' · ', String(b.local), ' gardée(s) sur le serveur') : null,
+      b.offsite
+        ? h('p', {}, pill('copie hors du serveur : ' + b.offsite, 'mint'))
+        : h('p', {}, pill('aucune copie hors du serveur', 'banana'), ' ', h('span', { class: 'muted small' }, 'si le VPS disparaît, les archives disparaissent avec : glsc-backup-setup --rclone … ou --discord')),
+      b.error ? h('p', { class: 'small error' }, b.error) : null,
+    ];
+  }
+  const run = (b && b.configured) ? btn('Sauvegarder maintenant', async () => {
+    await attempt(() => api('settings/backup', { body: {} }), (r) => r.message);
+  }, { iconName: 'lock', title: 'Lance une sauvegarde tout de suite' }) : null;
+  return card('Sauvegardes chiffrées', h('div', { class: 'stack-sm' }, ...body, run));
+}
