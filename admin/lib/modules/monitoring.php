@@ -5,9 +5,9 @@
  */
 declare(strict_types=1);
 
-const GAMES = ['uno' => 'UNO', 'president' => 'Le Président', 'vortex' => 'Vortex'];
+const GAMES = ['uno' => '+4', 'president' => 'Le Président', 'vortex' => 'Vortex'];
 const SITE_HOSTS = ['glsc.fr', 'cv.glsc.fr', 'share.glsc.fr', 'old.glsc.fr', 'games.glsc.fr', 'status.glsc.fr', 'click.glsc.fr',
-                    'uno.glsc.fr', 'president.glsc.fr', 'vortex.glsc.fr', 'admin.glsc.fr'];
+                    'plus4.glsc.fr', 'uno.glsc.fr', 'president.glsc.fr', 'vortex.glsc.fr', 'admin.glsc.fr'];
 
 function m_all(string $sql, array $args = []): array
 {

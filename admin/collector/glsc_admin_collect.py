@@ -40,7 +40,7 @@ from zoneinfo import ZoneInfo
 
 TZ = ZoneInfo("Europe/Paris")
 GAMES = {  # service compose → (nom affiché, port local, domaine)
-    "uno": ("UNO", 3101, "uno.glsc.fr"),
+    "uno": ("+4", 3101, "plus4.glsc.fr"),  # « uno » : identifiant interne de +4 (service Docker, résultats)
     "president": ("Le Président", 3102, "president.glsc.fr"),
     "vortex": ("Vortex", 3103, "vortex.glsc.fr"),
 }
@@ -724,7 +724,7 @@ def leaderboards(db, now, hidden):
 
 # ---------------------------------------------------------------- récap Discord du lundi
 SITE_NAMES = {"glsc.fr": "Hub", "cv.glsc.fr": "CV", "share.glsc.fr": "Projets", "old.glsc.fr": "Archives", "games.glsc.fr": "Salle de jeux",
-              "status.glsc.fr": "Statut", "uno.glsc.fr": "UNO", "president.glsc.fr": "Président", "vortex.glsc.fr": "Vortex"}
+              "status.glsc.fr": "Statut", "plus4.glsc.fr": "+4", "uno.glsc.fr": "+4", "president.glsc.fr": "Président", "vortex.glsc.fr": "Vortex"}
 CV_EVENTS = {"print": "impressions", "email": "clics e-mail", "email_copy": "e-mails copiés", "phone": "clics téléphone",
              "linkedin": "clics LinkedIn", "github": "clics GitHub", "site": "clics site"}
 

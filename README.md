@@ -10,7 +10,7 @@ Sites statiques de [glsc.fr](https://glsc.fr), dans un style néo-brutaliste car
 | `games/` | [games.glsc.fr](https://games.glsc.fr) — Salle de jeux | `/var/www/games.glsc.fr/` |
 | `old/` | [old.glsc.fr](https://old.glsc.fr) — Archives | `/var/www/old.glsc.fr/` |
 | `status/` | [status.glsc.fr](https://status.glsc.fr) — Statut des services | `/var/www/status.glsc.fr/` |
-| `deploy/games/` | [uno](https://uno.glsc.fr), [president](https://president.glsc.fr), [vortex](https://vortex.glsc.fr).glsc.fr — jeux en ligne | `/opt/glsc-games/` (Docker) |
+| `deploy/games/` | [plus4](https://plus4.glsc.fr), [president](https://president.glsc.fr), [vortex](https://vortex.glsc.fr).glsc.fr — jeux en ligne (uno.glsc.fr redirige vers plus4) | `/opt/glsc-games/` (Docker) |
 | `admin/` | [admin.glsc.fr](https://admin.glsc.fr) — espace privé, et [click.glsc.fr](https://click.glsc.fr) — liens courts | `/var/www/admin.glsc.fr/`, `/opt/glsc-admin/` |
 
 Fichiers communs copiés dans chaque racine : `assets/_glsc/` (polices, icônes, CSS et JS des pages), `errors/404.html`, `seo/<site>/robots.txt` et `sitemap.xml`.
@@ -39,7 +39,7 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 | Dépôt | Ce qui est relancé |
 | --- | --- |
 | `portfolio` | deploy3 puis deploy5 `GLSC_ONLY_ADMIN=1` (sites, status, admin) ; deploy5 complet si `deploy/games/`, `deploy/deploy4.sh` ou un modèle nginx de jeu change |
-| `uno`, `president`, `vortex-fps` | deploy4 `GLSC_ONLY_GAME=<jeu>` : seul ce jeu est reconstruit et relancé |
+| `plus4`, `president`, `vortex-fps` | deploy4 `GLSC_ONLY_GAME=<jeu>` : seul ce jeu est reconstruit et relancé |
 
 - GitHub appelle `https://admin.glsc.fr/hooks/github` (webhook signé par HMAC-SHA256, secret dans `/etc/glsc-admin/github-webhook.secret`). PHP vérifie la signature et ne fait que déposer une demande dans `/var/lib/glsc-admin/deploy/`.
 - `glsc-deploy.path` réveille `glsc-deploy.service` (root), qui télécharge le dépôt et lance uniquement les scripts prévus pour la cible (liste blanche). Plusieurs pushes rapprochés sur un même dépôt ne donnent qu'un déploiement.
@@ -48,7 +48,7 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 
 ### Classements des jeux
 
-- UNO, Président et Vortex écrivent chaque partie (ou manche) terminée dans `/var/lib/glsc-games/<jeu>/results.jsonl` (variable `RESULTS_FILE`, seul dossier modifiable des conteneurs). Seuls les humains encore à la table sont comptés.
+- +4, Président et Vortex écrivent chaque partie (ou manche) terminée dans `/var/lib/glsc-games/<jeu>/results.jsonl` (variable `RESULTS_FILE`, seul dossier modifiable des conteneurs). Seuls les humains encore à la table sont comptés.
 - La sonde de l'admin lit ces fichiers chaque minute et publie `/var/www/games.glsc.fr/leaderboard.json` : top 10 par jeu, sur 7 jours et depuis toujours (victoires ; places de président et « abonné au trou du cul » ; éliminations pour Vortex).
 - Pseudos par défaut (« Joueur 2 »…) et injurieux filtrés automatiquement ; n'importe quel pseudo peut être masqué depuis l'admin (Jeux en direct → Classements).
 
@@ -74,7 +74,7 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 
 ## Jeux en ligne
 
-- Un conteneur Docker par jeu (`deploy/games/compose.yml`), construit depuis les dépôts GitHub `uno`, `president` et `vortex-fps`.
+- Un conteneur Docker par jeu (`deploy/games/compose.yml`), construit depuis les dépôts GitHub `plus4`, `president` et `vortex-fps`. Le service de +4 garde l'identifiant interne `uno` (conteneur `glsc-games-uno-1`, résultats, `GLSC_ONLY_GAME=uno`) pour ne pas perdre l'historique.
 - Conteneurs durcis : lecture seule, aucun privilège, utilisateur non-root, mémoire limitée, ports ouverts uniquement sur `127.0.0.1`.
 - nginx relaie HTTPS et WebSocket ; limitation de débit par IP (`deploy/nginx/glsc-games.conf`).
 - Vortex tourne en mode serveur ouvert (joueurs anonymes, 16 max) ; son client statique est servi par nginx.

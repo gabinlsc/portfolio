@@ -16,13 +16,13 @@ x-durcissement: &durcissement
     options: { max-size: "10m", max-file: "3" }
 
 services:
-  uno:
+  uno:                            # +4 (plus4.glsc.fr) : « uno » reste l'identifiant interne du service
     <<: *durcissement
-    image: glsc/uno:latest
+    image: glsc/plus4:latest
     build:
-      context: ./src/uno           # Dockerfile fourni par le dépôt uno
+      context: ./src/plus4         # Dockerfile fourni par le dépôt plus4
     environment:
-      CORS_ORIGIN: https://uno.glsc.fr
+      CORS_ORIGIN: https://plus4.glsc.fr
       RESULTS_FILE: /data/results.jsonl
     volumes: ["/var/lib/glsc-games/uno:/data"]
     ports: ["127.0.0.1:3101:3001"]
