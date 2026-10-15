@@ -1,0 +1,52 @@
+# Jeux de games.glsc.fr — un conteneur par jeu, accessible uniquement depuis le serveur (127.0.0.1).
+# Installé dans /opt/glsc-games par deploy4.sh ; les sources sont dans /opt/glsc-games/src/<jeu>.
+name: glsc-games
+
+x-durcissement: &durcissement
+  restart: unless-stopped
+  read_only: true                 # système de fichiers en lecture seule
+  tmpfs: ["/tmp:size=64m"]
+  cap_drop: ["ALL"]               # aucun privilège noyau
+  security_opt: ["no-new-privileges:true"]
+  pids_limit: 256
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  uno:
+    <<: *durcissement
+    image: glsc/uno:latest
+    build:
+      context: ./src/uno           # Dockerfile fourni par le dépôt uno
+    environment:
+      CORS_ORIGIN: https://uno.glsc.fr
+    ports: ["127.0.0.1:3101:3001"]
+    mem_limit: 512m
+
+  president:
+    <<: *durcissement
+    image: glsc/president:latest
+    build:
+      context: ./src/president
+      dockerfile: /opt/glsc-games/dockerfiles/president.Dockerfile
+    environment:
+      CLIENT_ORIGIN: https://president.glsc.fr
+    ports: ["127.0.0.1:3102:3001"]
+    mem_limit: 512m
+
+  vortex:
+    <<: *durcissement
+    image: glsc/vortex:latest
+    build:
+      context: ./src/vortex-fps
+      dockerfile: /opt/glsc-games/dockerfiles/vortex.Dockerfile
+      args:
+        GAME_URL: wss://vortex.glsc.fr/play
+    # Le serveur Vortex en mode ouvert n'écoute que sur 127.0.0.1 : il partage donc le réseau de l'hôte
+    # et reste inaccessible depuis l'extérieur (nginx relaie /play en WebSocket).
+    network_mode: host
+    environment:
+      PORT: "3103"
+      ALLOWED_ORIGINS: https://vortex.glsc.fr
+    mem_limit: 1g

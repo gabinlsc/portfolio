@@ -10,16 +10,17 @@ Sites statiques de [glsc.fr](https://glsc.fr), dans un style néo-brutaliste car
 | `games/` | [games.glsc.fr](https://games.glsc.fr) — Salle de jeux | `/var/www/games.glsc.fr/` |
 | `old/` | [old.glsc.fr](https://old.glsc.fr) — Archives | `/var/www/old.glsc.fr/` |
 | `status/` | [status.glsc.fr](https://status.glsc.fr) — Statut des services | `/var/www/status.glsc.fr/` |
+| `deploy/games/` | [uno](https://uno.glsc.fr), [president](https://president.glsc.fr), [vortex](https://vortex.glsc.fr).glsc.fr — jeux en ligne | `/opt/glsc-games/` (Docker) |
 
 Fichiers communs copiés dans chaque racine : `assets/_glsc/` (polices, icônes, CSS et JS des pages), `errors/404.html`, `seo/<site>/robots.txt` et `sitemap.xml`.
 Aucune ressource externe : tout est servi depuis le VPS.
 
 ## Déployer
 
-En root sur le VPS (deploy3 inclut deploy2) :
+En root sur le VPS (deploy4 inclut deploy3, qui inclut deploy2) :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/deploy3.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/deploy4.sh | bash
 ```
 
 Les scripts sauvegardent tout ce qu'il remplace dans `/root/glsc-backups/<date>/`, restaure la config nginx si `nginx -t` échoue, et vérifie chaque site à la fin.
@@ -38,3 +39,12 @@ Les scripts sauvegardent tout ce qu'il remplace dans `/root/glsc-backups/<date>/
 - Un incident s'ouvre après 2 échecs d'affilée. Alertes Discord : mettre l'URL du webhook dans `/etc/glsc-status/discord-webhook`.
 - Ajouter un service : une ligne dans `status/targets.json`, puis relancer deploy3.
 - Logs de la sonde : `journalctl -u glsc-status -n 50`.
+
+## Jeux en ligne
+
+- Un conteneur Docker par jeu (`deploy/games/compose.yml`), construit depuis les dépôts GitHub `uno`, `president` et `vortex-fps`.
+- Conteneurs durcis : lecture seule, aucun privilège, utilisateur non-root, mémoire limitée, ports ouverts uniquement sur `127.0.0.1`.
+- nginx relaie HTTPS et WebSocket ; limitation de débit par IP (`deploy/nginx/glsc-games.conf`).
+- Vortex tourne en mode serveur ouvert (joueurs anonymes, 16 max) ; son client statique est servi par nginx.
+- Mettre les jeux à jour : relancer deploy4 (il récupère la dernière version de chaque dépôt).
+- Logs : `docker logs -f glsc-games-uno-1` (ou `president-1`, `vortex-1`).
