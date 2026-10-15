@@ -213,6 +213,31 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
     }
+    /* ---------- Classements (remplis par games.js depuis /leaderboard.json) ---------- */
+    .champ { background: var(--banana); border: 2px solid #000; border-radius: .6rem; padding: .3rem .6rem; font-size: .88rem; font-weight: 600; transform: rotate(-1deg); }
+    .champ strong { font-weight: 700; }
+    .board { background: #fff; border: var(--bd-lg); border-radius: 1.25rem; box-shadow: var(--sh-lg); padding: 1.25rem; display: grid; gap: 1rem; min-width: 0; }
+    .board-tools { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: space-between; align-items: center; }
+    .tabs { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .tab { font: 700 .95rem/1 var(--font-display); color: var(--ink); background: #fff; border: var(--bd); border-radius: 999px; padding: .5rem .9rem; cursor: pointer; box-shadow: var(--sh-sm); transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .tab:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
+    .tab[aria-pressed="true"] { background: var(--banana); transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+    .tabs.small .tab { font-size: .82rem; padding: .4rem .7rem; }
+    .board-stats { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .board-stats span { background: var(--cream); border: 2px solid #000; border-radius: .5rem; padding: .1rem .55rem; font-weight: 700; font-size: .85rem; }
+    .board-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+    .board-table th { text-align: left; font: 700 .75rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .06em; padding: .4rem .5rem; border-bottom: var(--bd); }
+    .board-table td { padding: .55rem .5rem; border-bottom: 2px dashed #0002; }
+    .board-table tr:last-child td { border-bottom: 0; }
+    .board-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .board-table .pos { width: 2.5rem; font-weight: 700; text-align: center; }
+    .board-table .who { font-weight: 700; overflow-wrap: anywhere; }
+    .board-table tr.podium td { background: #FFFBE0; }
+    .board-empty { font-weight: 600; }
+    .board-empty a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--coral); }
+    .board-shame { background: var(--peach); border: 2px solid #000; border-radius: .8rem; padding: .6rem .8rem; font-weight: 600; }
+    .board-note { font-size: .82rem; opacity: .75; }
+    @media (max-width: 560px) { .board-table .opt { display: none; } .board { padding: 1rem .8rem; } }
   </style>
 </head>
 
@@ -341,6 +366,19 @@
           </div>
         </div>
       </div>
+
+      <section id="classements" hidden aria-labelledby="board-title">
+        <h2 class="sec-title" id="board-title"><span class="sec-icon" style="background:var(--banana)" aria-hidden="true">🏆</span>Classements</h2>
+        <div class="board">
+          <div class="board-tools">
+            <div class="tabs" role="group" aria-label="Jeu" id="board-games"></div>
+            <div class="tabs small" role="group" aria-label="Période" id="board-period"></div>
+          </div>
+          <div class="board-stats" id="board-stats"></div>
+          <div id="board-body"></div>
+          <p class="board-note" id="board-note"></p>
+        </div>
+      </section>
 
       <h2 class="sec-title"><span class="sec-icon" style="background:var(--peach)" aria-hidden="true">🕹️</span>Les classiques des archives</h2>
       <div class="classics">

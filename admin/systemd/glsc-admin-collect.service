@@ -13,4 +13,4 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=read-only
 PrivateTmp=yes
-ReadWritePaths=/var/lib/glsc-admin -/etc/glsc-status
+ReadWritePaths=/var/lib/glsc-admin -/etc/glsc-status -/var/www/games.glsc.fr

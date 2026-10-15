@@ -6,6 +6,7 @@ glsc-admin-collect — sonde root de admin.glsc.fr (aucune dépendance hors Pyth
     1. lit les nouvelles lignes du log nginx JSON (/var/log/nginx/glsc-access.log) → table requests ;
     2. mesure le serveur (CPU, mémoire, disque, services, certificats, processus) → health.json + table health ;
     3. état des conteneurs de jeux et joueurs connectés → docker.json + table games ;
+       résultats des parties (/var/lib/glsc-games/<jeu>/results.jsonl) → table results + classements ;
     4. tentatives SSH (journald) et fail2ban → table ssh + security.json ;
     5. GitHub (toutes les 15 min) et sauvegardes/versions (toutes les 10 min) → github.json, deploys.json ;
     6. envoie les alertes Discord (si un webhook est réglé dans l'admin) ;
@@ -99,6 +100,9 @@ CREATE TABLE IF NOT EXISTS games (ts INTEGER NOT NULL, game TEXT NOT NULL, conns
 CREATE INDEX IF NOT EXISTS games_ts ON games(ts);
 CREATE TABLE IF NOT EXISTS ssh (ts INTEGER NOT NULL, ip TEXT NOT NULL, user TEXT NOT NULL, kind TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS ssh_ts ON ssh(ts);
+CREATE TABLE IF NOT EXISTS results (ts INTEGER NOT NULL, game TEXT NOT NULL, match TEXT NOT NULL, mode TEXT NOT NULL, name TEXT NOT NULL,
+  key TEXT NOT NULL, rank INTEGER NOT NULL, won INTEGER NOT NULL, role TEXT, kills INTEGER, deaths INTEGER, assists INTEGER);
+CREATE INDEX IF NOT EXISTS results_game_ts ON results(game, ts);
 """
 
 
@@ -559,6 +563,109 @@ def publish_db(work_db, pub_db, gid):
             pass
     os.replace(tmp, pub_db)
 
+# ---------------------------------------------------------------- classements des jeux
+# Recherchés dans le pseudo entier (même collés ou écrits en l33t) ; les mots courts ou ambigus
+# (« Monique », « computer », « Montenegro »…) ne sont refusés que seuls.
+INSULTS = ("connard", "connasse", "salope", "putain", "encule", "batard", "bougnoul", "nazi", "hitler", "fuck", "bitch",
+           "nigger", "nigga", "whore", "porno", "couille", "merde")
+INSULT_WORDS = {"pd", "tg", "fdp", "ntm", "con", "conne", "pute", "putes", "nique", "niquer", "negre", "negro", "pede", "cunt",
+                "shit", "chatte", "bite", "sex", "sexe", "porn", "penis", "ss"}
+DEFAULT_NAMES = re.compile(r"^(joueur|joueuse|player|invite|guest|anonyme|anonymous|moi|test|bot|hote|host|toto)\s*\d*$")
+LEET = str.maketrans("013457@$", "oieastas")
+
+
+def name_key(name):
+    """Clé d'un pseudo : sans accents ni majuscules, espaces réduits (« Gabin » = « gabin » = « GABIN »)."""
+    import unicodedata
+    plain = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    return " ".join(plain.casefold().split()) or name.casefold().strip()
+
+
+def name_ok(key):
+    """False pour un pseudo par défaut ou injurieux : il n'apparaît jamais dans le classement public."""
+    if DEFAULT_NAMES.match(key):
+        return False
+    squashed = re.sub(r"[^a-z]", "", key.translate(LEET))
+    words = set(re.findall(r"[a-z]+", key.translate(LEET)))
+    return not (any(w in squashed for w in INSULTS) or words & INSULT_WORDS)
+
+
+def ingest_results(db, state, data_dir, now):
+    """Lit les nouvelles lignes de chaque results.jsonl (écrits par les jeux) ; seuls les humains sont gardés."""
+    offsets = state.setdefault("results", {})
+    added = 0
+    for game in GAMES:
+        path = os.path.join(data_dir, game, "results.jsonl")
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        pos = offsets.get(game, {})
+        start = pos.get("off", 0) if pos.get("ino") == st.st_ino and st.st_size >= pos.get("off", 0) else 0
+        with open(path, "rb") as f:
+            f.seek(start)
+            chunk = f.read(4 * 1024 * 1024)
+        end = chunk.rfind(b"\n") + 1  # une ligne en cours d'écriture attend le prochain passage
+        offset = start
+        for raw in chunk[:end].splitlines(keepends=True):
+            line_at, offset = offset, offset + len(raw)
+            try:
+                r = json.loads(raw)
+                t, players = int(r["t"]), r["players"]
+                if r.get("game") != game or not isinstance(players, list) or len(players) > 16 or not now - 400 * 86400 < t <= now + 300:
+                    continue
+            except (ValueError, KeyError, TypeError):
+                continue
+            match = f"{game}:{st.st_ino}:{line_at}"
+            mode = str(r.get("mode", ""))[:20]
+            for p in players:
+                if not isinstance(p, dict) or p.get("bot") is not False or not isinstance(p.get("name"), str):
+                    continue
+                name = " ".join(p["name"].split())[:24]
+                if not name:
+                    continue
+                num = lambda k: int(p[k]) if isinstance(p.get(k), (int, float)) else None  # noqa: E731
+                db.execute("INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                           (t, game, match, mode, name, name_key(name), num("rank") or 0, 1 if p.get("won") is True else 0,
+                            str(p["role"])[:20] if isinstance(p.get("role"), str) else None, num("kills"), num("deaths"), num("assists")))
+                added += 1
+        offsets[game] = {"ino": st.st_ino, "off": start + end}
+    return added
+
+
+def leaderboards(db, now, hidden):
+    """Classements par jeu, sur 7 jours et depuis toujours. Version publique (filtrée) et version admin (tout, avec raisons)."""
+    week = now - 7 * 86400
+    public, admin = {"at": now, "games": {}}, {"at": now, "games": {}}
+    for game in GAMES:
+        g_pub, g_adm = {}, {}
+        for period, since in (("week", week), ("all", 0)):
+            matches, players = db.execute("SELECT COUNT(DISTINCT match), COUNT(DISTINCT key) FROM results WHERE game = ? AND ts >= ?",
+                                          (game, since)).fetchone()
+            order = "SUM(kills) DESC, SUM(deaths) ASC" if game == "vortex" else "SUM(won) DESC, COUNT(*) ASC"
+            rows = db.execute(f"""SELECT key, name, MAX(ts), COUNT(*), SUM(won), SUM(kills), SUM(deaths), SUM(assists),
+                                         SUM(role = 'president'), SUM(role = 'trouduc')
+                                  FROM results WHERE game = ? AND ts >= ? GROUP BY key ORDER BY {order}, MAX(ts) DESC LIMIT 150""",
+                                  (game, since)).fetchall()
+            board, review = [], []
+            for key, name, last, played, wins, kills, deaths, assists, pres, trou in rows:
+                entry = {"name": name, "played": played, "wins": wins or 0}
+                if game == "vortex":
+                    entry.update(kills=kills or 0, deaths=deaths or 0, assists=assists or 0)
+                if game == "president":
+                    entry.update(president=pres or 0, trouduc=trou or 0)
+                why = "masqué" if key in hidden else None if name_ok(key) else "filtré"
+                review.append({**entry, "key": key, "last": last, "hidden": why})
+                if not why and len(board) < 10 and (entry["wins"] or entry.get("kills")):
+                    board.append(entry)
+            g_pub[period] = {"matches": matches, "players": players, "top": board}
+            g_adm[period] = {"matches": matches, "players": players, "names": review[:100]}
+            if game == "president":  # le titre que personne ne veut
+                worst = sorted((e for e in review if not e["hidden"] and e["trouduc"]), key=lambda e: (-e["trouduc"], e["played"]))
+                g_pub[period]["trouduc"] = {k: worst[0][k] for k in ("name", "trouduc", "played")} if worst else None
+        public["games"][game], admin["games"][game] = g_pub, g_adm
+    return public, admin
+
 
 def www_gid():
     try:
@@ -594,6 +701,13 @@ def collect(args):
     if dk:
         write_json(pub("docker"), dk, gid)
     accepted = step("ssh", lambda: ssh_events(db, state, now)) or []
+    step("résultats des jeux", lambda: ingest_results(db, state, args.games_data, now))
+    hidden = set(json.loads(app_settings(args.app_db).get("games_hidden") or "[]"))
+    boards = step("classements", lambda: leaderboards(db, now, hidden))
+    if boards:
+        write_json(pub("leaderboard"), boards[1], gid)
+        if os.path.isdir(os.path.dirname(args.leaderboard_json)):
+            write_json(args.leaderboard_json, boards[0], mode=0o644)
     sec = {"at": now, "fail2ban": step("fail2ban", fail2ban)}
     write_json(pub("security"), sec, gid)
     if now - state.get("github_at", 0) >= 900 and not args.offline:
@@ -615,6 +729,7 @@ def collect(args):
     db.execute("DELETE FROM health WHERE ts < ?", (now - 8 * 86400,))
     db.execute("DELETE FROM games WHERE ts < ?", (now - 8 * 86400,))
     db.execute("DELETE FROM ssh WHERE ts < ?", (now - 35 * 86400,))
+    db.execute("DELETE FROM results WHERE ts < ?", (now - 400 * 86400,))
     db.commit()
     if now - state.get("vacuum_at", 0) > 7 * 86400:
         db.execute("VACUUM")
@@ -665,6 +780,8 @@ def main():
     ap.add_argument("--letsencrypt", default="/etc/letsencrypt/live")
     ap.add_argument("--backups", default="/root/glsc-backups")
     ap.add_argument("--games-src", default="/opt/glsc-games/src")
+    ap.add_argument("--games-data", default="/var/lib/glsc-games", help="results.jsonl de chaque jeu")
+    ap.add_argument("--leaderboard-json", default="/var/www/games.glsc.fr/leaderboard.json", help="classements publics")
     ap.add_argument("--version-file", default="/etc/glsc-admin/portfolio-version.json")
     ap.add_argument("--status-webhook", default="/etc/glsc-status/discord-webhook")
     ap.add_argument("--github-user", default="gabinlsc")

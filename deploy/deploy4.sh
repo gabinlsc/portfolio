@@ -99,6 +99,8 @@ for entry in "${GAMES[@]}"; do
   ok "$name : $(git -C "$dir" log -1 --format='%h · %s' | cut -c1-70)"
 done
 install -m 644 "$SRC/deploy/games/president.Dockerfile" "$SRC/deploy/games/vortex.Dockerfile" "$GAMES_DIR/dockerfiles/"
+# résultats des parties (classements) : seul dossier où les conteneurs peuvent écrire (utilisateur node, uid 1000)
+for svc in uno president vortex; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
 save "$GAMES_DIR/compose.yml"
 install -m 644 "$SRC/deploy/games/compose.yml" "$GAMES_DIR/compose.yml"
 

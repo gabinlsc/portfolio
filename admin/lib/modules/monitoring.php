@@ -263,6 +263,21 @@ return [
         }
         return ['docker' => $docker, 'history' => $history, 'pending' => $pending];
     },
+    // Classements de games.glsc.fr : la sonde publie tous les pseudos ; masquer l'un d'eux le retire du classement public.
+    'GET games/board' => fn () => [
+        'board' => snapshot('leaderboard'),
+        'hidden' => json_decode((string) setting('games_hidden', '[]'), true) ?: [],
+    ],
+    'POST games/hide' => function () {
+        $b = body();
+        $key = str_in($b, 'key', 60, true);
+        $hide = bool_in($b, 'hidden');
+        $list = array_values(array_diff(json_decode((string) setting('games_hidden', '[]'), true) ?: [], [$key]));
+        if ($hide) $list[] = $key;
+        set_setting('games_hidden', json_encode($list, JSON_UNESCAPED_UNICODE));
+        admin_log(($hide ? 'pseudo masqué : ' : 'pseudo réaffiché : ') . $key);
+        return ['ok' => true, 'hidden' => $list];
+    },
     'POST games/restart' => function () {
         $game = enum_in(body(), 'game', array_keys(GAMES), '');
         glsc_queue('restart', ['game' => $game]) || fail(500, 'File d’attente indisponible.');
