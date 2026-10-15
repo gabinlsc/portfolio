@@ -367,3 +367,15 @@ mark { background: var(--banana); border-radius: 3px; padding: 0 1px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
 }
+
+/* déploiement automatique (page GitHub) */
+.setup { border: 2px dashed var(--line); border-radius: 12px; padding: .6rem .8rem; }
+.setup summary { cursor: pointer; font-weight: 700; }
+.setup[open] summary { margin-bottom: .6rem; }
+.steps { margin: 0 0 .8rem; padding-left: 1.3rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+.auto-deploy { display: grid; grid-template-columns: minmax(0, 1fr); margin-bottom: 1.25rem; }
+.auto-deploy .stack-sm { grid-template-columns: minmax(0, 1fr); }
+.auto-deploy select.input { flex: 1 1 16rem; max-width: 30rem; min-width: 0; }
+.steps .row { flex-wrap: nowrap; min-width: 0; }
+.steps .row > code { min-width: 0; flex: 1 1 auto; }
+.code.log { max-height: min(65vh, 560px); overflow: auto; white-space: pre-wrap; word-break: break-word; color: #e8ffe8; font-size: .8rem; }

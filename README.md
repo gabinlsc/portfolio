@@ -30,6 +30,20 @@ Pour mettre à jour seulement l'admin (plus rapide) : `curl -fsSL …/deploy5.sh
 
 Les scripts sauvegardent tout ce qu'il remplace dans `/root/glsc-backups/<date>/`, restaure la config nginx si `nginx -t` échoue, et vérifie chaque site à la fin.
 
+### Déploiement automatique
+
+Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveur à jour tout seul :
+
+| Dépôt | Ce qui est relancé |
+| --- | --- |
+| `portfolio` | deploy3 puis deploy5 `GLSC_ONLY_ADMIN=1` (sites, status, admin) ; deploy5 complet si `deploy/games/`, `deploy/deploy4.sh` ou un modèle nginx de jeu change |
+| `uno`, `president`, `vortex-fps` | deploy4 `GLSC_ONLY_GAME=<jeu>` : seul ce jeu est reconstruit et relancé |
+
+- GitHub appelle `https://admin.glsc.fr/hooks/github` (webhook signé par HMAC-SHA256, secret dans `/etc/glsc-admin/github-webhook.secret`). PHP vérifie la signature et ne fait que déposer une demande dans `/var/lib/glsc-admin/deploy/`.
+- `glsc-deploy.path` réveille `glsc-deploy.service` (root), qui télécharge le dépôt et lance uniquement les scripts prévus pour la cible (liste blanche). Plusieurs pushes rapprochés sur un même dépôt ne donnent qu'un déploiement.
+- Historique, journaux complets, bouton « Déployer maintenant » et marche à suivre pour créer les webhooks : admin → GitHub & déploiements. Résultat sur Discord (alerte « déploiement »).
+- Journal système : `journalctl -u glsc-deploy -n 50`.
+
 ## Modifier les pages
 
 - Le Hub utilise Tailwind compilé : après avoir changé des classes dans `index.html`, lancer `npm install` puis `npm run build:css`.

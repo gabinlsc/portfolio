@@ -12,6 +12,9 @@ glsc-admin-collect — sonde root de admin.glsc.fr (aucune dépendance hors Pyth
     7. publie une copie figée de la base (metrics.db) lisible par www-data.
   queue     (déclenché par glsc-admin-queue.path dès qu'un fichier arrive)
     traite les demandes de l'admin : message Discord, redémarrage d'un jeu (liste blanche).
+  deploy    (déclenché par glsc-deploy.path : push sur main ou bouton de l'admin)
+    télécharge le dépôt et lance les scripts de déploiement prévus pour la cible (liste blanche),
+    publie l'historique (deploy-runs.json), les journaux (deploy-logs/) et prévient sur Discord.
 
 L'admin web (www-data) ne fait que LIRE ce qui est publié ; elle n'a aucun droit sur Docker ni sur les logs.
 """
@@ -25,6 +28,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -656,10 +660,156 @@ def queue(args):
             except OSError:
                 pass
 
+# ---------------------------------------------------------------- déploiement automatique
+REPO_TGZ = os.environ.get("GLSC_DEPLOY_TGZ", "https://codeload.github.com/gabinlsc/portfolio/tar.gz/refs/heads/main")  # surchargé par les tests
+DEPLOY_PLANS = {  # cible → scripts du dépôt portfolio à lancer, avec leurs variables d'environnement
+    "portfolio": [("deploy/deploy3.sh", {}), ("deploy/deploy5.sh", {"GLSC_ONLY_ADMIN": "1"})],
+    "portfolio-full": [("deploy/deploy5.sh", {})],
+    "uno": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "uno"})],
+    "president": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "president"})],
+    "vortex": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "vortex"})],
+}
+DEPLOY_STEP_TIMEOUT = 40 * 60
+ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def deploy_requests(args):
+    """Lit et supprime les demandes en attente ; une seule exécution par cible (la plus récente gagne)."""
+    wanted = {}
+    for path in sorted(glob.glob(os.path.join(args.deploy_dir, "*.json"))):
+        try:
+            if os.path.getsize(path) > 8192:
+                raise ValueError("fichier trop gros")
+            req = load_json(path, {})
+            target = req.get("target")
+            if target not in DEPLOY_PLANS:
+                log("déploiement : cible inconnue ignorée :", target)
+            elif time.time() - int(req.get("at", 0)) > 6 * 3600:
+                log("déploiement : demande trop ancienne ignorée")
+            else:
+                wanted[target] = {k: str(req.get(k, ""))[:200] for k in ("sha", "message", "by", "source")}
+        except Exception as e:
+            log("déploiement :", os.path.basename(path), e)
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    if "portfolio-full" in wanted:
+        wanted.pop("portfolio", None)
+    order = ["portfolio-full", "portfolio", "uno", "president", "vortex"]
+    return [(t, wanted[t]) for t in order if t in wanted]
+
+
+def deploy_publish(args, runs, gid):
+    write_json(os.path.join(args.pub_dir, "deploy-runs.json"), {"at": int(time.time()), "runs": runs[:30]}, gid)
+    keep = {r["id"] for r in runs[:30]}
+    for p in glob.glob(os.path.join(args.pub_dir, "deploy-logs", "*.log")):
+        if os.path.basename(p)[:-4] not in keep:
+            os.remove(p)
+
+
+def deploy_run(args, target, info, runs, gid, hook, alert_on):
+    import tarfile
+    import tempfile
+    start = time.time()
+    run_id = time.strftime("%Y%m%d-%H%M%S", time.localtime(start)) + "-" + target
+    logs = os.path.join(args.pub_dir, "deploy-logs")
+    os.makedirs(logs, exist_ok=True)
+    gid = gid if gid is not None else -1
+    os.chown(logs, 0, gid)
+    os.chmod(logs, 0o750)
+    log_path = os.path.join(logs, run_id + ".log")
+    entry = {"id": run_id, "target": target, **info, "start": int(start), "end": None, "status": "running", "step": None}
+    runs.insert(0, entry)
+    deploy_publish(args, runs, gid)
+    code = 0
+    with open(log_path, "w", encoding="utf-8") as out, tempfile.TemporaryDirectory(prefix="glsc-deploy-") as work:
+        os.chown(log_path, 0, gid)
+
+        def note(text):
+            out.write(text + "\n")
+            out.flush()
+
+        try:
+            note(f"== {time.strftime('%d/%m/%Y %H:%M:%S')} · déploiement « {target} »" + (f" · {info['sha'][:7]} {info['message']}" if info.get("sha") else ""))
+            note("== téléchargement du dépôt portfolio")
+            tgz = os.path.join(work, "src.tgz")
+            urllib.request.urlretrieve(REPO_TGZ, tgz)
+            with tarfile.open(tgz) as tar:
+                tar.extractall(work, filter="data")
+            src = next(p for p in glob.glob(os.path.join(work, "*")) if os.path.isdir(p))
+            env = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root", "LANG": "C.UTF-8",
+                   "TERM": "dumb", "GLSC_AUTO_DEPLOY": "1"}
+            for script, extra in DEPLOY_PLANS[target]:
+                entry["step"] = os.path.basename(script) + "".join(f" {k}={v}" for k, v in extra.items())
+                deploy_publish(args, runs, gid)
+                note(f"\n== {entry['step']}")
+                proc = subprocess.Popen(["bash", os.path.join(src, script)], cwd=work, env={**env, **extra}, stdin=subprocess.DEVNULL,
+                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
+                watchdog = threading.Timer(DEPLOY_STEP_TIMEOUT, lambda p=proc: os.killpg(p.pid, 9))  # script bloqué : on coupe tout
+                watchdog.start()
+                try:
+                    for line in proc.stdout:
+                        out.write(ANSI.sub("", line))
+                    code = proc.wait()
+                finally:
+                    watchdog.cancel()
+                if code == -9:
+                    note(f"!! délai de {DEPLOY_STEP_TIMEOUT // 60} min dépassé, script arrêté")
+                out.flush()
+                if code != 0:
+                    note(f"!! {os.path.basename(script)} a échoué (code {code})")
+                    break
+        except Exception as e:
+            code = code or 1
+            note(f"!! {type(e).__name__}: {e}")
+    entry.update(end=int(time.time()), status="ok" if code == 0 else "fail", code=code, step=None)
+    deploy_publish(args, runs, gid)
+    took = entry["end"] - entry["start"]
+    took_txt = f"{took // 60} min {took % 60:02d} s" if took >= 60 else f"{took} s"
+    what = f"`{info['sha'][:7]}` {info['message']}" if info.get("sha") else "lancé depuis l'admin"
+    log(f"déploiement {target} :", entry["status"], took_txt)
+    if alert_on:
+        if code == 0:
+            discord(hook, f"✅ {target} déployé", f"{what}\nDurée : {took_txt}", 0x22C55E)
+        else:
+            try:
+                with open(log_path, encoding="utf-8") as f:
+                    tail = "".join(f.readlines()[-12:])[-1500:]
+            except OSError:
+                tail = ""
+            discord(hook, f"❌ Déploiement de {target} raté", f"{what}\nJournal complet dans l'admin (GitHub & déploiements).\n```\n{tail}\n```", 0xEF4444)
+    return code
+
+
+def deploy(args):
+    import fcntl
+    gid = www_gid()
+    os.makedirs("/run/lock", exist_ok=True)
+    with open("/run/lock/glsc-deploy.lock", "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            log("un déploiement est déjà en cours : les demandes attendront la fin")
+            return
+        runs = load_json(os.path.join(args.pub_dir, "deploy-runs.json"), {}).get("runs", [])
+        for r in runs:  # un déploiement interrompu (redémarrage du serveur…) n'est plus « en cours »
+            if r.get("status") == "running":
+                r.update(status="fail", end=r.get("end") or int(time.time()), step=None)
+        while True:
+            todo = deploy_requests(args)
+            if not todo:
+                break
+            settings = app_settings(args.app_db)
+            for target, info in todo:
+                deploy_run(args, target, info, runs, gid, settings.get("discord_webhook", ""), settings.get("alert_deploy", "1") == "1")
+        deploy_publish(args, runs, gid)
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["collect", "queue"])
+    ap.add_argument("command", choices=["collect", "queue", "deploy"])
     ap.add_argument("--var", default="/var/lib/glsc-admin", help="dossier de données de l'admin")
     ap.add_argument("--log", default="/var/log/nginx/glsc-access.log")
     ap.add_argument("--letsencrypt", default="/etc/letsencrypt/live")
@@ -674,10 +824,13 @@ def main():
     args.state_dir = os.path.join(args.var, "collector")
     args.pub_dir = os.path.join(args.var, "pub")
     args.queue_dir = os.path.join(args.var, "queue")
+    args.deploy_dir = os.path.join(args.var, "deploy")
     args.app_db = os.path.join(args.var, "app", "app.db")
     os.umask(0o027)
     if args.command == "collect":
         collect(args)
+    elif args.command == "deploy":
+        deploy(args)
     else:
         queue(args)
 

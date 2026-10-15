@@ -8,6 +8,9 @@
 # Prérequis : un enregistrement DNS « A » vers le VPS pour uno, president et vortex (sans AAAA).
 # Un jeu dont le DNS n'est pas prêt est quand même installé ; seul son HTTPS est reporté.
 # Relançable à volonté : il met aussi les jeux à jour depuis GitHub.
+#
+# GLSC_ONLY_GAME=uno|president|vortex : ne met à jour que ce jeu (sources, image, conteneur), sans toucher
+# aux sites ni à nginx. C'est ce qu'utilise le déploiement automatique après un push sur le dépôt du jeu.
 
 set -euo pipefail
 
@@ -33,6 +36,9 @@ warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "Lance ce script en root."
+ONLY="${GLSC_ONLY_GAME:-}"
+case "$ONLY" in ""|uno|president|vortex) ;; *) die "GLSC_ONLY_GAME doit valoir uno, president ou vortex." ;; esac
+wanted() { [ -z "$ONLY" ] || [ "${1%%.*}" = "$ONLY" ]; }   # wanted <domaine>
 mkdir -p "$BACKUP"
 
 save() {
@@ -57,12 +63,13 @@ command -v git >/dev/null || apt-get install -y -qq git >/dev/null
 
 # ---------------------------------------------------------------- 1. deploy3
 info "1/7 Sites, sécurité et status (deploy3)"
-bash "$SRC/deploy/deploy3.sh"
+if [ -n "$ONLY" ]; then ok "ignoré : seul $ONLY est mis à jour"; else bash "$SRC/deploy/deploy3.sh"; fi
 
 # ---------------------------------------------------------------- 2. anciens processus
 info "2/7 Anciens processus node (projets morts de games.glsc.fr)"
 stopped=0
-for port in 3000 3001 3005; do
+[ -n "$ONLY" ] && stopped=-1
+for port in $([ -z "$ONLY" ] && echo 3000 3001 3005); do
   for pid in $(ss -ltnpH "sport = :$port" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u); do
     cmd="$({ tr '\0' ' ' < "/proc/$pid/cmdline"; } 2>/dev/null || true)"
     cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
@@ -84,12 +91,14 @@ for port in 3000 3001 3005; do
   done
 done
 [ "$stopped" -eq 0 ] && ok "aucun ancien processus à arrêter"
+[ "$stopped" -eq -1 ] && ok "ignoré : seul $ONLY est mis à jour"
 
 # ---------------------------------------------------------------- 3. sources des jeux
 info "3/7 Sources des jeux (GitHub)"
 install -d -m 755 "$GAMES_DIR" "$GAMES_DIR/src" "$GAMES_DIR/dockerfiles"
 for entry in "${GAMES[@]}"; do
   IFS='|' read -r domain name port repo tpl <<<"$entry"
+  wanted "$domain" || continue
   dir="$GAMES_DIR/src/$repo"
   if [ -d "$dir/.git" ]; then
     git -C "$dir" fetch -q --depth 1 origin main && git -C "$dir" reset -q --hard origin/main
@@ -127,7 +136,7 @@ fi
 # ---------------------------------------------------------------- 4. build + lancement
 info "4/7 Construction des images (quelques minutes la première fois)"
 cd "$GAMES_DIR"
-for svc in uno president vortex; do
+for svc in ${ONLY:-uno president vortex}; do
   if "${COMPOSE[@]}" build -q "$svc" >"$WORK/build-$svc.log" 2>&1; then
     ok "image $svc construite"
   else
@@ -135,11 +144,17 @@ for svc in uno president vortex; do
     die "La construction de $svc a échoué. Les jeux déjà en ligne continuent de tourner."
   fi
 done
-"${COMPOSE[@]}" up -d --remove-orphans >/dev/null 2>&1
-ok "conteneurs lancés"
+if [ -n "$ONLY" ]; then
+  "${COMPOSE[@]}" up -d --no-deps "$ONLY" >/dev/null 2>&1
+  ok "conteneur $ONLY relancé"
+else
+  "${COMPOSE[@]}" up -d --remove-orphans >/dev/null 2>&1
+  ok "conteneurs lancés"
+fi
 docker image prune -f >/dev/null 2>&1 || true
 
 # client statique de Vortex → /var/www/vortex.glsc.fr (remplacement atomique)
+if wanted vortex.glsc.fr; then
 tmp="$(mktemp -d /var/www/.vortex-XXXX)"
 cid="$(docker create glsc/vortex:latest)"
 docker cp "$cid:/app/public/." "$tmp/" && docker rm -f "$cid" >/dev/null
@@ -147,20 +162,28 @@ chmod 755 "$tmp"; find "$tmp" -type d -exec chmod 755 {} + ; find "$tmp" -type f
 if [ -d /var/www/vortex.glsc.fr ]; then mv /var/www/vortex.glsc.fr "$tmp.old"; fi
 mv "$tmp" /var/www/vortex.glsc.fr && rm -rf "$tmp.old"
 ok "client Vortex publié dans /var/www/vortex.glsc.fr"
+fi
 
 # santé locale
 sleep 5
+health_ok=1
 for entry in "${GAMES[@]}"; do
   IFS='|' read -r domain name port repo tpl <<<"$entry"
+  wanted "$domain" || continue
   if [ "$repo" = vortex-fps ]; then
     code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
             -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H "Origin: https://$domain" --max-time 3 "http://127.0.0.1:$port/play" || true)"
-    [ "$code" = 101 ] && ok "$name répond en local (WebSocket)" || warn "$name ne répond pas en local (code $code) : docker logs glsc-games-vortex-1"
+    [ "$code" = 101 ] && ok "$name répond en local (WebSocket)" || { health_ok=0; warn "$name ne répond pas en local (code $code) : docker logs glsc-games-vortex-1"; }
   else
     code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$port/health" || true)"
-    [ "$code" = 200 ] && ok "$name répond en local" || warn "$name ne répond pas en local (code $code) : docker logs glsc-games-$repo-1"
+    [ "$code" = 200 ] && ok "$name répond en local" || { health_ok=0; warn "$name ne répond pas en local (code $code) : docker logs glsc-games-$repo-1"; }
   fi
 done
+if [ -n "$ONLY" ]; then
+  [ "$health_ok" = 1 ] || die "$ONLY ne répond pas après la mise à jour."
+  info "Terminé : $ONLY est à jour. Sauvegardes : $BACKUP"
+  exit 0
+fi
 
 # ---------------------------------------------------------------- 5. nginx commun
 info "5/7 nginx : réglages communs des jeux"
