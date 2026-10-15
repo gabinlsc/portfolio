@@ -102,6 +102,28 @@ install -m 644 "$SRC/deploy/games/president.Dockerfile" "$SRC/deploy/games/vorte
 save "$GAMES_DIR/compose.yml"
 install -m 644 "$SRC/deploy/games/compose.yml" "$GAMES_DIR/compose.yml"
 
+# ---------------------------------------------------------------- mémoire d'appoint (swap)
+# Le VPS S n'a que ~2 Go de RAM : la compilation des jeux peut dépasser la mémoire libre.
+# Un fichier swap de 2 Go sur le disque évite que le système coupe la compilation (ou un autre programme).
+info "Mémoire d'appoint (swap)"
+if [ -n "$(swapon --show --noheadings 2>/dev/null)" ]; then
+  ok "swap déjà actif ($(free -h | awk '/^Swap/{print $2}'))"
+elif [ "$(df --output=avail -k / | tail -1)" -lt $((6 * 1024 * 1024)) ]; then
+  warn "moins de 6 Go libres sur le disque : pas de swap créé (la compilation risque de manquer de mémoire)"
+else
+  if [ ! -f /swapfile ]; then
+    fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+  fi
+  swapon /swapfile
+  save /etc/fstab
+  grep -qE '^/swapfile[[:space:]]' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  echo 'vm.swappiness=10' > /etc/sysctl.d/99-glsc-swap.conf   # n'utilise le swap qu'en dernier recours
+  sysctl -q -p /etc/sysctl.d/99-glsc-swap.conf 2>/dev/null || true
+  ok "swap de 2 Go activé (permanent, utilisé seulement si la RAM est pleine)"
+fi
+
 # ---------------------------------------------------------------- 4. build + lancement
 info "4/7 Construction des images (quelques minutes la première fois)"
 cd "$GAMES_DIR"
