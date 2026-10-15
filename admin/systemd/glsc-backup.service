@@ -1,0 +1,14 @@
+[Unit]
+Description=Sauvegarde chiffrée de glsc.fr (base de l'admin, classements, identifiants, nginx, certificats)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/glsc-admin/glsc_admin_collect.py backup
+TimeoutStartSec=30min
+Nice=15
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes
+ReadWritePaths=/var/backups/glsc /var/lib/glsc-admin

@@ -16,6 +16,10 @@ glsc-admin-collect — sonde root de admin.glsc.fr (aucune dépendance hors Pyth
   recap     (commande glsc-recap, ou bouton de l'admin via la file d'attente)
     envoie tout de suite le récap Discord des 7 derniers jours (--semaine : semaine dernière ; --apercu : sans envoyer).
     Le récap de la semaine écoulée part aussi tout seul le lundi à 9 h (collect).
+  backup    (chaque nuit, glsc-backup.timer ; ou bouton de l'admin)
+    archive la base de l'admin, les classements, les identifiants, la config nginx et les certificats,
+    la chiffre avec la clé PUBLIQUE de /etc/glsc-backup/recipient (age : le serveur ne peut pas la rouvrir),
+    la garde en local (/var/backups/glsc) et l'envoie hors du serveur (rclone ou Discord). État : backup.json.
   deploy    (déclenché par glsc-deploy.path : push sur main ou bouton de l'admin)
     télécharge le dépôt et lance les scripts de déploiement prévus pour la cible (liste blanche),
     publie l'historique (deploy-runs.json), les journaux (deploy-logs/) et prévient sur Discord.
@@ -989,6 +993,9 @@ def queue(args):
                 log("demande trop ancienne ignorée :", os.path.basename(path))
             elif kind == "recap":
                 log("récap à la demande :", "envoyé" if recap_now(args, "semaine" if data.get("period") == "semaine" else "7j") else "échec")
+            elif kind == "backup":
+                ok = subprocess.run(["systemctl", "start", "--no-block", "glsc-backup.service"], capture_output=True, timeout=30, check=False).returncode == 0
+                log("sauvegarde à la demande :", "lancée" if ok else "échec")
             elif kind == "discord":
                 discord(hook, str(data.get("title", ""))[:200], str(data.get("text", ""))[:1500])
             elif kind == "restart" and data.get("game") in GAMES:
@@ -1006,6 +1013,134 @@ def queue(args):
                 os.remove(path)
             except OSError:
                 pass
+
+# ---------------------------------------------------------------- sauvegardes chiffrées
+BACKUP_ETC = os.environ.get("GLSC_BACKUP_ETC", "/etc/glsc-backup")
+BACKUP_DIR = os.environ.get("GLSC_BACKUP_DIR", "/var/backups/glsc")
+BACKUP_KEEP = 14  # archives gardées en local ; ailleurs : 60 jours (rclone)
+BACKUP_PATHS = [  # tout ce qu'on perdrait avec le serveur ; les bases SQLite sont copiées à part (copie cohérente)
+    "/etc/glsc-admin", "/etc/glsc-status", "/etc/glsc-backup/remote", "/var/lib/glsc-status", "/var/lib/glsc-games",
+    "/opt/glsc-games/compose.yml", "/etc/nginx/sites-available", "/etc/nginx/conf.d", "/etc/nginx/glsc-404.inc",
+    "/etc/letsencrypt", "/etc/systemd/system/glsc-*", "/etc/fail2ban/jail.d", "/etc/ssh/sshd_config.d",
+]
+
+
+def read_line(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.readline().strip()
+    except OSError:
+        return ""
+
+
+def discord_file(webhook, path, text):
+    """Envoie un fichier (déjà chiffré) sur Discord ; limite prudente de 8 Mo."""
+    import uuid
+    boundary = uuid.uuid4().hex
+    with open(path, "rb") as f:
+        blob = f.read()
+    parts = [f"--{boundary}\r\nContent-Disposition: form-data; name=\"payload_json\"\r\nContent-Type: application/json\r\n\r\n".encode(),
+             json.dumps({"username": "glsc.fr", "content": text}).encode(),
+             f"\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"files[0]\"; filename=\"{os.path.basename(path)}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode(),
+             blob, f"\r\n--{boundary}--\r\n".encode()]
+    req = urllib.request.Request(webhook, data=b"".join(parts), method="POST",
+                                 headers={"Content-Type": f"multipart/form-data; boundary={boundary}", "User-Agent": "glsc-admin"})
+    urllib.request.urlopen(req, timeout=60).close()
+
+
+def backup(args):
+    import tarfile
+    import tempfile
+    now = int(time.time())
+    gid = www_gid()
+    status = {"at": now, "ok": False, "configured": False, "name": None, "size": 0, "local": 0, "offsite": None, "error": None,
+              "last_ok": load_json(os.path.join(args.pub_dir, "backup.json"), {}).get("last_ok")}
+    settings = app_settings(args.app_db)
+    hook = settings.get("discord_webhook", "")
+
+    def finish(error=None):
+        status["error"] = error
+        status["ok"] = error is None
+        if status["ok"]:
+            status["last_ok"] = now
+        write_json(os.path.join(args.pub_dir, "backup.json"), status, gid)
+        if error:
+            log("sauvegarde :", error)
+            if settings.get("alert_backup", "1") == "1" and status["configured"]:
+                discord(hook, "❌ Sauvegarde ratée", error[:1500], 0xEF4444)
+        return error is None
+
+    recipient = read_line(os.path.join(BACKUP_ETC, "recipient"))
+    if not recipient.startswith("age1"):
+        return finish("Sauvegarde non configurée : lance « glsc-backup-setup » sur le serveur.")
+    status["configured"] = True
+    if not shutil.which("age"):
+        return finish("Le programme « age » est absent : relance « glsc-backup-setup ».")
+    os.makedirs(BACKUP_DIR, mode=0o700, exist_ok=True)
+    os.chmod(BACKUP_DIR, 0o700)
+    name = time.strftime("glsc-%Y%m%d-%H%M%S", time.localtime(now)) + ".tar.gz.age"
+    out_path = os.path.join(BACKUP_DIR, name)
+    try:
+        with tempfile.TemporaryDirectory(prefix="snap-", dir=BACKUP_DIR) as snap:
+            # bases SQLite : copie cohérente même si PHP ou la sonde écrivent en ce moment
+            for sub in ("app", "collector"):
+                for db in glob.glob(os.path.join(args.var, sub, "*.db")):
+                    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=10)
+                    dst = sqlite3.connect(os.path.join(snap, f"{sub}-{os.path.basename(db)}"))
+                    con.backup(dst)
+                    dst.close()
+                    con.close()
+            skip = (".db", ".db-wal", ".db-shm")
+            proc = subprocess.Popen(["age", "-r", recipient, "-o", out_path], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+            with tarfile.open(fileobj=proc.stdin, mode="w|gz") as tar:
+                tar.add(snap, arcname="bases")
+                tar.add(os.path.join(args.var, "app"), arcname="admin-app", filter=lambda t: None if t.name.endswith(skip) else t)
+                for spec in BACKUP_PATHS:
+                    for path in glob.glob(spec):
+                        tar.add(path, arcname=path.lstrip("/"))
+            proc.stdin.close()
+            err = proc.stderr.read().decode(errors="replace")
+            if proc.wait() != 0:
+                raise RuntimeError("age a échoué : " + err[-300:])
+        os.chmod(out_path, 0o600)
+    except Exception as e:
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+        return finish(f"{type(e).__name__}: {e}")
+    status.update(name=name, size=os.path.getsize(out_path))
+    # conservation locale
+    old = sorted(glob.glob(os.path.join(BACKUP_DIR, "glsc-*.tar.gz.age")))
+    for p in old[:-BACKUP_KEEP]:
+        os.remove(p)
+    status["local"] = min(len(old), BACKUP_KEEP)
+    # hors du serveur
+    remote = read_line(os.path.join(BACKUP_ETC, "remote"))
+    problems = []
+    if remote and shutil.which("rclone"):
+        r = subprocess.run(["rclone", "copyto", out_path, remote.rstrip("/") + "/" + name], capture_output=True, text=True, timeout=900, check=False)
+        if r.returncode == 0:
+            status["offsite"] = "rclone"
+            subprocess.run(["rclone", "delete", remote, "--min-age", "60d", "--include", "glsc-*.tar.gz.age"], capture_output=True, timeout=300, check=False)
+        else:
+            problems.append("envoi rclone raté : " + (r.stderr or "")[-300:])
+    elif remote:
+        problems.append("rclone n'est pas installé")
+    if status["offsite"] is None and os.path.exists(os.path.join(BACKUP_ETC, "discord")) and hook:
+        if status["size"] <= 8 * 1024 * 1024:
+            try:
+                discord_file(hook, out_path, f"🔐 Sauvegarde chiffrée du {time.strftime('%d/%m/%Y %H:%M', time.localtime(now))} (illisible sans ta clé privée).")
+                status["offsite"] = "discord"
+            except OSError as e:
+                problems.append(f"envoi Discord raté : {e}")
+        else:
+            problems.append("archive trop grosse pour Discord (8 Mo) : configure rclone")
+    if problems:
+        return finish("Archive faite et gardée sur le serveur, mais pas envoyée ailleurs : " + " ; ".join(problems))
+    log(f"sauvegarde : {name} ({status['size'] // 1024} Ko), hors serveur : {status['offsite'] or 'non configuré'}")
+    return finish()
+
 
 # ---------------------------------------------------------------- déploiement automatique
 REPO_TGZ = os.environ.get("GLSC_DEPLOY_TGZ", "https://codeload.github.com/gabinlsc/portfolio/tar.gz/refs/heads/main")  # surchargé par les tests
@@ -1241,7 +1376,7 @@ def deploy(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["collect", "queue", "deploy", "recap"])
+    ap.add_argument("command", choices=["collect", "queue", "deploy", "recap", "backup"])
     ap.add_argument("--semaine", action="store_true", help="recap : la semaine dernière complète (lundi → dimanche) au lieu des 7 derniers jours")
     ap.add_argument("--apercu", action="store_true", help="recap : affiche le récap ici sans l'envoyer sur Discord")
     ap.add_argument("--var", default="/var/lib/glsc-admin", help="dossier de données de l'admin")
@@ -1269,6 +1404,8 @@ def main():
         collect(args)
     elif args.command == "deploy":
         deploy(args)
+    elif args.command == "backup":
+        sys.exit(0 if backup(args) else 1)
     elif args.command == "recap":
         ok = recap_now(args, "semaine" if args.semaine else "7j", args.apercu)
         print("Récap envoyé sur Discord." if ok and not args.apercu else "" if ok else "Envoi impossible (voir le message ci-dessus).")
