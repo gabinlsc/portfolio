@@ -1,0 +1,12 @@
+[Unit]
+Description=Traite les demandes de admin.glsc.fr
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/glsc-admin/glsc_admin_collect.py queue
+TimeoutStartSec=120
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/glsc-admin

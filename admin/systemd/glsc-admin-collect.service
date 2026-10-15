@@ -1,0 +1,16 @@
+[Unit]
+Description=Sonde de admin.glsc.fr (logs nginx, santé, Docker, SSH, GitHub, alertes)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/glsc-admin/glsc_admin_collect.py collect
+TimeoutStartSec=55
+Nice=10
+# root pour lire les logs, journald et Docker ; écriture limitée à ses propres dossiers
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadWritePaths=/var/lib/glsc-admin -/etc/glsc-status

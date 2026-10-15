@@ -34,3 +34,27 @@
     el.textContent = values[el.getAttribute('data-p')] || '';
   });
 })();
+
+// Mesure d'audience maison (sans cookie) : un clic important = une requête vers /_glsc/b.gif?e=…, comptée par admin.glsc.fr.
+(function () {
+  'use strict';
+  function track(e) {
+    try { fetch('/_glsc/b.gif?e=' + encodeURIComponent(e), { keepalive: true, cache: 'no-store' }).catch(function () {}); } catch (err) { /* rien */ }
+  }
+  window.glscTrack = track;
+  document.addEventListener('click', function (ev) {
+    var el = ev.target.closest ? ev.target.closest('a, button') : null;
+    if (!el) return;
+    var e = el.getAttribute('data-track') || (function (a) {
+      var href = a.getAttribute('href') || '';
+      if (a.id === 'print-btn') return 'print';
+      if (href.indexOf('mailto:') === 0) return 'email';
+      if (href.indexOf('tel:') === 0) return 'phone';
+      if (/linkedin\.com/.test(href)) return 'linkedin';
+      if (/github\.com/.test(href)) return 'github';
+      if (/^https:\/\/glsc\.fr/.test(href)) return 'site';
+      return '';
+    })(el);
+    if (e) track(e);
+  });
+})();

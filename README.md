@@ -11,17 +11,20 @@ Sites statiques de [glsc.fr](https://glsc.fr), dans un style néo-brutaliste car
 | `old/` | [old.glsc.fr](https://old.glsc.fr) — Archives | `/var/www/old.glsc.fr/` |
 | `status/` | [status.glsc.fr](https://status.glsc.fr) — Statut des services | `/var/www/status.glsc.fr/` |
 | `deploy/games/` | [uno](https://uno.glsc.fr), [president](https://president.glsc.fr), [vortex](https://vortex.glsc.fr).glsc.fr — jeux en ligne | `/opt/glsc-games/` (Docker) |
+| `admin/` | [admin.glsc.fr](https://admin.glsc.fr) — espace privé, et [click.glsc.fr](https://click.glsc.fr) — liens courts | `/var/www/admin.glsc.fr/`, `/opt/glsc-admin/` |
 
 Fichiers communs copiés dans chaque racine : `assets/_glsc/` (polices, icônes, CSS et JS des pages), `errors/404.html`, `seo/<site>/robots.txt` et `sitemap.xml`.
 Aucune ressource externe : tout est servi depuis le VPS.
 
 ## Déployer
 
-En root sur le VPS (deploy4 inclut deploy3, qui inclut deploy2) :
+En root sur le VPS (deploy5 inclut deploy4, qui inclut deploy3, qui inclut deploy2) :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/deploy4.sh | bash
+curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/deploy5.sh | bash
 ```
+
+Pour mettre à jour seulement l'admin (plus rapide) : `curl -fsSL …/deploy5.sh | GLSC_ONLY_ADMIN=1 bash`.
 
 Les scripts sauvegardent tout ce qu'il remplace dans `/root/glsc-backups/<date>/`, restaure la config nginx si `nginx -t` échoue, et vérifie chaque site à la fin.
 
@@ -48,3 +51,12 @@ Les scripts sauvegardent tout ce qu'il remplace dans `/root/glsc-backups/<date>/
 - Vortex tourne en mode serveur ouvert (joueurs anonymes, 16 max) ; son client statique est servi par nginx.
 - Mettre les jeux à jour : relancer deploy4 (il récupère la dernière version de chaque dépôt).
 - Logs : `docker logs -f glsc-games-uno-1` (ou `president-1`, `vortex-1`).
+
+## admin.glsc.fr
+
+Espace privé (voir `admin/README.md`) : kanban, notes et liens, alternance, trafic de tous les sites, stats du CV et des projets,
+liens courts, santé du serveur, sécurité, jeux en direct, GitHub et déploiements, partage de fichiers, coffre chiffré, mini-outils.
+
+- Connexion : mot de passe + code 2FA (ou code de secours). Identifiants : `glsc-admin-setup` sur le serveur.
+- Une sonde root (`glsc-admin-collect.timer`, chaque minute) lit les logs et l'état du serveur ; le site PHP ne fait que lire ses résultats.
+- Prérequis DNS : enregistrements A `admin.glsc.fr` et `click.glsc.fr` vers le VPS.

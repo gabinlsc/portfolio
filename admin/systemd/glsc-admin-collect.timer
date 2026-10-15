@@ -1,0 +1,10 @@
+[Unit]
+Description=Sonde de admin.glsc.fr chaque minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
