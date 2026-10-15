@@ -1,0 +1,12 @@
+[Unit]
+Description=Déploiement automatique de glsc.fr (scripts deploy du dépôt portfolio)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Pas de bac à sable : les scripts de déploiement installent nginx, systemd, Docker et les sites, comme lancés à la main.
+# Seules les cibles de la liste blanche (DEPLOY_PLANS) sont exécutées ; les demandes ne contiennent aucune commande.
+ExecStart=/usr/bin/python3 /opt/glsc-admin/glsc_admin_collect.py deploy
+TimeoutStartSec=2h
+Nice=5

@@ -5,6 +5,7 @@
  *   POST /login       connexion          POST /logout   déconnexion
  *   *    /api/<module>/<action>          API JSON (connecté, CSRF sur tout sauf GET)
  *   GET  /f/<jeton>   téléchargement public d'un fichier partagé
+ *   POST /hooks/github                 webhook GitHub (signé) → déploiement automatique
  */
 declare(strict_types=1);
 
@@ -34,6 +35,10 @@ function handle_request(): void
             api_routes(); // charge les modules (dont file_public)
             file_public($m[1], $method);
             return;
+        }
+        if ($path === '/hooks/github' && $method === 'POST') {
+            api_routes(); // charge les modules (dont hook_github)
+            hook_github();
         }
         if ($path === '/login' && $method === 'POST') {
             session_boot();

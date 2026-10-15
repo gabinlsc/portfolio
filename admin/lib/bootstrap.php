@@ -4,7 +4,7 @@
  *
  * Emplacements (modifiables par variables d'environnement, utile pour les tests) :
  *   GLSC_ADMIN_ETC  /etc/glsc-admin        auth.json (mot de passe + 2FA), lisible par www-data
- *   GLSC_ADMIN_VAR  /var/lib/glsc-admin    app/ (base + fichiers partagés), pub/ (mesures de la sonde), queue/
+ *   GLSC_ADMIN_VAR  /var/lib/glsc-admin    app/ (base + fichiers partagés), pub/ (mesures de la sonde), queue/, deploy/
  */
 declare(strict_types=1);
 
@@ -23,6 +23,8 @@ function glsc_path(string $what): string
         'metrics' => "$var/pub/metrics.db",
         'pub'     => "$var/pub",
         'queue'   => "$var/queue",
+        'deploy'  => "$var/deploy",                    // demandes de déploiement, traitées par glsc-deploy.service (root)
+        'deploy_secret' => "$etc/github-webhook.secret", // secret partagé avec les webhooks GitHub
         default   => throw new InvalidArgumentException("chemin inconnu : $what"),
     };
 }

@@ -18,6 +18,8 @@ Fichiers communs copiés dans chaque racine : `assets/_glsc/` (polices, icônes,
 La page 404 (`errors/404.html`) sert à tous les sites : copiée dans chaque racine statique, et dans `/var/www/glsc-errors/` pour les jeux, l'admin et les liens courts (`deploy/nginx/glsc-404.inc`). Elle s'adapte au site et à l'adresse demandée, et cache quelques secrets (code Konami, terminal avec « : », chiffres à casser…). Elle est autonome : après l'avoir modifiée, `npm run build:404` recalcule les empreintes de sa CSP.
 Aucune ressource externe : tout est servi depuis le VPS.
 
+La page Projets affiche l'activité GitHub de chaque dépôt (dernier commit, langages, commits sur 30 jours) : la sonde de l'admin écrit `/var/www/share.glsc.fr/github.json` toutes les 15 minutes, sans jeton, en ne redemandant le détail d'un dépôt qu'après un nouveau push.
+
 ## Déployer
 
 En root sur le VPS (deploy5 inclut deploy4, qui inclut deploy3, qui inclut deploy2) :
@@ -29,6 +31,20 @@ curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/depl
 Pour mettre à jour seulement l'admin (plus rapide) : `curl -fsSL …/deploy5.sh | GLSC_ONLY_ADMIN=1 bash`.
 
 Les scripts sauvegardent tout ce qu'il remplace dans `/root/glsc-backups/<date>/`, restaure la config nginx si `nginx -t` échoue, et vérifie chaque site à la fin.
+
+### Déploiement automatique
+
+Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveur à jour tout seul :
+
+| Dépôt | Ce qui est relancé |
+| --- | --- |
+| `portfolio` | deploy3 puis deploy5 `GLSC_ONLY_ADMIN=1` (sites, status, admin) ; deploy5 complet si `deploy/games/`, `deploy/deploy4.sh` ou un modèle nginx de jeu change |
+| `uno`, `president`, `vortex-fps` | deploy4 `GLSC_ONLY_GAME=<jeu>` : seul ce jeu est reconstruit et relancé |
+
+- GitHub appelle `https://admin.glsc.fr/hooks/github` (webhook signé par HMAC-SHA256, secret dans `/etc/glsc-admin/github-webhook.secret`). PHP vérifie la signature et ne fait que déposer une demande dans `/var/lib/glsc-admin/deploy/`.
+- `glsc-deploy.path` réveille `glsc-deploy.service` (root), qui télécharge le dépôt et lance uniquement les scripts prévus pour la cible (liste blanche). Plusieurs pushes rapprochés sur un même dépôt ne donnent qu'un déploiement.
+- Historique, journaux complets, bouton « Déployer maintenant » et marche à suivre pour créer les webhooks : admin → GitHub & déploiements. Résultat sur Discord (alerte « déploiement »).
+- Journal système : `journalctl -u glsc-deploy -n 50`.
 
 ### Classements des jeux
 

@@ -13,6 +13,9 @@ glsc-admin-collect — sonde root de admin.glsc.fr (aucune dépendance hors Pyth
     7. publie une copie figée de la base (metrics.db) lisible par www-data.
   queue     (déclenché par glsc-admin-queue.path dès qu'un fichier arrive)
     traite les demandes de l'admin : message Discord, redémarrage d'un jeu (liste blanche).
+  deploy    (déclenché par glsc-deploy.path : push sur main ou bouton de l'admin)
+    télécharge le dépôt et lance les scripts de déploiement prévus pour la cible (liste blanche),
+    publie l'historique (deploy-runs.json), les journaux (deploy-logs/) et prévient sur Discord.
 
 L'admin web (www-data) ne fait que LIRE ce qui est publié ; elle n'a aucun droit sur Docker ni sur les logs.
 """
@@ -26,6 +29,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -66,11 +70,11 @@ def run(cmd, timeout=20):
         return ""
 
 
-def write_json(path, data, group_gid=None):
+def write_json(path, data, group_gid=None, mode=0o640):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-    os.chmod(tmp, 0o640)
+    os.chmod(tmp, mode)
     if group_gid is not None:
         try:
             os.chown(tmp, 0, group_gid)
@@ -386,7 +390,51 @@ def fail2ban():
     return out
 
 
+# ---------------------------------------------------------------- activité publique pour share.glsc.fr
+def github_projects(user, repos, state, now):
+    """Langages et derniers commits de chaque dépôt public, pour la page Projets.
+
+    L'API sans jeton est limitée à 60 appels par heure : on ne redemande le détail d'un dépôt
+    (2 appels) que lorsque sa date de dernier push a changé. Le reste vient du cache (state).
+    """
+    cache = state.setdefault("projects", {})
+    since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 90 * 86400))
+    calls = 0
+    for r in repos:
+        if r.get("private"):
+            continue
+        name, c = r["name"], cache.get(r["name"], {})
+        if c.get("pushed") != r["pushed"] and calls < 24:  # au pire 26 appels par passage
+            langs = http_json(f"https://api.github.com/repos/{user}/{name}/languages")
+            commits = http_json(f"https://api.github.com/repos/{user}/{name}/commits?since={since}&per_page=100")
+            calls += 2
+            total = sum(langs.values()) or 1
+            c = {
+                "pushed": r["pushed"],
+                "languages": [[k, round(v * 100 / total, 1)] for k, v in sorted(langs.items(), key=lambda kv: -kv[1])][:4],
+                "dates": [iso_ts(x["commit"]["committer"]["date"]) for x in commits if not x["commit"]["message"].startswith("Merge ")],
+                "last": [{"message": x["commit"]["message"].splitlines()[0][:100], "sha": x["sha"][:7], "at": iso_ts(x["commit"]["committer"]["date"])}
+                         for x in commits if not x["commit"]["message"].startswith("Merge ")][:3],
+            }
+            cache[name] = c
+    out = []
+    for r in repos:
+        c = cache.get(r["name"])
+        if r.get("private") or not c:
+            continue
+        out.append({"name": r["name"], "url": r["url"], "stars": r["stars"], "pushed": r["pushed"], "languages": c["languages"],
+                    "commits30": sum(1 for d in c["dates"] if d >= now - 30 * 86400),
+                    "commits90": len(c["dates"]), "last": c["last"]})
+    # fil global : les derniers commits, tous dépôts confondus
+    recent = sorted(({**x, "repo": p["name"]} for p in out for x in p["last"]), key=lambda x: -x["at"])[:6]
+    return {"at": now, "user": user, "repos": out, "recent": recent}
+
+
 # ---------------------------------------------------------------- GitHub, sauvegardes, versions
+def iso_ts(s):
+    return int(dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp())
+
+
 def http_json(url, timeout=10):
     req = urllib.request.Request(url, headers={"User-Agent": "glsc-admin", "Accept": "application/vnd.github+json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -394,7 +442,7 @@ def http_json(url, timeout=10):
 
 
 def github(user):
-    repos = http_json(f"https://api.github.com/users/{user}/repos?sort=pushed&per_page=30")
+    repos = http_json(f"https://api.github.com/users/{user}/repos?sort=pushed&per_page=60")
     events = http_json(f"https://api.github.com/users/{user}/events/public?per_page=60")
     commits, feed = [], []
 
@@ -422,9 +470,10 @@ def github(user):
                          or (p.get("issue") or {}).get("title") or repo, "url": None, "at": at})
     return {
         "at": int(time.time()),
-        "repos": [{"name": r["name"], "description": r.get("description") or "", "url": r["html_url"], "language": r.get("language"),
-                   "stars": r.get("stargazers_count", 0), "pushed": ts(r["pushed_at"]), "private": r.get("private", False)}
-                  for r in repos if not r.get("fork")][:18],
+        # tous les dépôts (page Projets) ; l'admin n'en affiche que les 18 plus récents
+        "all": [{"name": r["name"], "description": r.get("description") or "", "url": r["html_url"], "language": r.get("language"),
+                 "stars": r.get("stargazers_count", 0), "pushed": ts(r["pushed_at"]), "private": r.get("private", False)}
+                for r in repos if not r.get("fork")],
         "commits": commits[:15], "events": feed[:15],
     }
 
@@ -714,7 +763,11 @@ def collect(args):
         gh = step("github", lambda: github(args.github_user))
         state["github_at"] = now  # même en échec : pas plus d'un essai par 15 min (limite de l'API)
         if gh:
-            write_json(pub("github"), gh, gid)
+            repos = gh.pop("all")
+            write_json(pub("github"), {**gh, "repos": repos[:18]}, gid)
+            pj = step("projets", lambda: github_projects(args.github_user, repos, state, now))
+            if pj and os.path.isdir(os.path.dirname(args.projects_json)):
+                write_json(args.projects_json, pj, mode=0o644)
     if now - state.get("deploys_at", 0) >= 600:
         dp = step("déploiements", lambda: deploys(state, args.backups, args.games_src, args.version_file, now))
         if dp:
@@ -771,10 +824,156 @@ def queue(args):
             except OSError:
                 pass
 
+# ---------------------------------------------------------------- déploiement automatique
+REPO_TGZ = os.environ.get("GLSC_DEPLOY_TGZ", "https://codeload.github.com/gabinlsc/portfolio/tar.gz/refs/heads/main")  # surchargé par les tests
+DEPLOY_PLANS = {  # cible → scripts du dépôt portfolio à lancer, avec leurs variables d'environnement
+    "portfolio": [("deploy/deploy3.sh", {}), ("deploy/deploy5.sh", {"GLSC_ONLY_ADMIN": "1"})],
+    "portfolio-full": [("deploy/deploy5.sh", {})],
+    "uno": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "uno"})],
+    "president": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "president"})],
+    "vortex": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "vortex"})],
+}
+DEPLOY_STEP_TIMEOUT = 40 * 60
+ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def deploy_requests(args):
+    """Lit et supprime les demandes en attente ; une seule exécution par cible (la plus récente gagne)."""
+    wanted = {}
+    for path in sorted(glob.glob(os.path.join(args.deploy_dir, "*.json"))):
+        try:
+            if os.path.getsize(path) > 8192:
+                raise ValueError("fichier trop gros")
+            req = load_json(path, {})
+            target = req.get("target")
+            if target not in DEPLOY_PLANS:
+                log("déploiement : cible inconnue ignorée :", target)
+            elif time.time() - int(req.get("at", 0)) > 6 * 3600:
+                log("déploiement : demande trop ancienne ignorée")
+            else:
+                wanted[target] = {k: str(req.get(k, ""))[:200] for k in ("sha", "message", "by", "source")}
+        except Exception as e:
+            log("déploiement :", os.path.basename(path), e)
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    if "portfolio-full" in wanted:
+        wanted.pop("portfolio", None)
+    order = ["portfolio-full", "portfolio", "uno", "president", "vortex"]
+    return [(t, wanted[t]) for t in order if t in wanted]
+
+
+def deploy_publish(args, runs, gid):
+    write_json(os.path.join(args.pub_dir, "deploy-runs.json"), {"at": int(time.time()), "runs": runs[:30]}, gid)
+    keep = {r["id"] for r in runs[:30]}
+    for p in glob.glob(os.path.join(args.pub_dir, "deploy-logs", "*.log")):
+        if os.path.basename(p)[:-4] not in keep:
+            os.remove(p)
+
+
+def deploy_run(args, target, info, runs, gid, hook, alert_on):
+    import tarfile
+    import tempfile
+    start = time.time()
+    run_id = time.strftime("%Y%m%d-%H%M%S", time.localtime(start)) + "-" + target
+    logs = os.path.join(args.pub_dir, "deploy-logs")
+    os.makedirs(logs, exist_ok=True)
+    gid = gid if gid is not None else -1
+    os.chown(logs, 0, gid)
+    os.chmod(logs, 0o750)
+    log_path = os.path.join(logs, run_id + ".log")
+    entry = {"id": run_id, "target": target, **info, "start": int(start), "end": None, "status": "running", "step": None}
+    runs.insert(0, entry)
+    deploy_publish(args, runs, gid)
+    code = 0
+    with open(log_path, "w", encoding="utf-8") as out, tempfile.TemporaryDirectory(prefix="glsc-deploy-") as work:
+        os.chown(log_path, 0, gid)
+
+        def note(text):
+            out.write(text + "\n")
+            out.flush()
+
+        try:
+            note(f"== {time.strftime('%d/%m/%Y %H:%M:%S')} · déploiement « {target} »" + (f" · {info['sha'][:7]} {info['message']}" if info.get("sha") else ""))
+            note("== téléchargement du dépôt portfolio")
+            tgz = os.path.join(work, "src.tgz")
+            urllib.request.urlretrieve(REPO_TGZ, tgz)
+            with tarfile.open(tgz) as tar:
+                tar.extractall(work, filter="data")
+            src = next(p for p in glob.glob(os.path.join(work, "*")) if os.path.isdir(p))
+            env = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root", "LANG": "C.UTF-8",
+                   "TERM": "dumb", "GLSC_AUTO_DEPLOY": "1"}
+            for script, extra in DEPLOY_PLANS[target]:
+                entry["step"] = os.path.basename(script) + "".join(f" {k}={v}" for k, v in extra.items())
+                deploy_publish(args, runs, gid)
+                note(f"\n== {entry['step']}")
+                proc = subprocess.Popen(["bash", os.path.join(src, script)], cwd=work, env={**env, **extra}, stdin=subprocess.DEVNULL,
+                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
+                watchdog = threading.Timer(DEPLOY_STEP_TIMEOUT, lambda p=proc: os.killpg(p.pid, 9))  # script bloqué : on coupe tout
+                watchdog.start()
+                try:
+                    for line in proc.stdout:
+                        out.write(ANSI.sub("", line))
+                    code = proc.wait()
+                finally:
+                    watchdog.cancel()
+                if code == -9:
+                    note(f"!! délai de {DEPLOY_STEP_TIMEOUT // 60} min dépassé, script arrêté")
+                out.flush()
+                if code != 0:
+                    note(f"!! {os.path.basename(script)} a échoué (code {code})")
+                    break
+        except Exception as e:
+            code = code or 1
+            note(f"!! {type(e).__name__}: {e}")
+    entry.update(end=int(time.time()), status="ok" if code == 0 else "fail", code=code, step=None)
+    deploy_publish(args, runs, gid)
+    took = entry["end"] - entry["start"]
+    took_txt = f"{took // 60} min {took % 60:02d} s" if took >= 60 else f"{took} s"
+    what = f"`{info['sha'][:7]}` {info['message']}" if info.get("sha") else "lancé depuis l'admin"
+    log(f"déploiement {target} :", entry["status"], took_txt)
+    if alert_on:
+        if code == 0:
+            discord(hook, f"✅ {target} déployé", f"{what}\nDurée : {took_txt}", 0x22C55E)
+        else:
+            try:
+                with open(log_path, encoding="utf-8") as f:
+                    tail = "".join(f.readlines()[-12:])[-1500:]
+            except OSError:
+                tail = ""
+            discord(hook, f"❌ Déploiement de {target} raté", f"{what}\nJournal complet dans l'admin (GitHub & déploiements).\n```\n{tail}\n```", 0xEF4444)
+    return code
+
+
+def deploy(args):
+    import fcntl
+    gid = www_gid()
+    os.makedirs("/run/lock", exist_ok=True)
+    with open("/run/lock/glsc-deploy.lock", "w") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            log("un déploiement est déjà en cours : les demandes attendront la fin")
+            return
+        runs = load_json(os.path.join(args.pub_dir, "deploy-runs.json"), {}).get("runs", [])
+        for r in runs:  # un déploiement interrompu (redémarrage du serveur…) n'est plus « en cours »
+            if r.get("status") == "running":
+                r.update(status="fail", end=r.get("end") or int(time.time()), step=None)
+        while True:
+            todo = deploy_requests(args)
+            if not todo:
+                break
+            settings = app_settings(args.app_db)
+            for target, info in todo:
+                deploy_run(args, target, info, runs, gid, settings.get("discord_webhook", ""), settings.get("alert_deploy", "1") == "1")
+        deploy_publish(args, runs, gid)
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["collect", "queue"])
+    ap.add_argument("command", choices=["collect", "queue", "deploy"])
     ap.add_argument("--var", default="/var/lib/glsc-admin", help="dossier de données de l'admin")
     ap.add_argument("--log", default="/var/log/nginx/glsc-access.log")
     ap.add_argument("--letsencrypt", default="/etc/letsencrypt/live")
@@ -785,16 +984,20 @@ def main():
     ap.add_argument("--version-file", default="/etc/glsc-admin/portfolio-version.json")
     ap.add_argument("--status-webhook", default="/etc/glsc-status/discord-webhook")
     ap.add_argument("--github-user", default="gabinlsc")
+    ap.add_argument("--projects-json", default="/var/www/share.glsc.fr/github.json", help="activité publique lue par la page Projets")
     ap.add_argument("--offline", action="store_true", help="ne pas appeler GitHub (tests)")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
     args.state_dir = os.path.join(args.var, "collector")
     args.pub_dir = os.path.join(args.var, "pub")
     args.queue_dir = os.path.join(args.var, "queue")
+    args.deploy_dir = os.path.join(args.var, "deploy")
     args.app_db = os.path.join(args.var, "app", "app.db")
     os.umask(0o027)
     if args.command == "collect":
         collect(args)
+    elif args.command == "deploy":
+        deploy(args)
     else:
         queue(args)
 

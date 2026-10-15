@@ -25,6 +25,13 @@ server {
         limit_req_status 429;
         include /etc/nginx/glsc-admin-php.inc;
     }
+    # webhook GitHub (déploiement automatique) : public, la signature HMAC est vérifiée par PHP
+    location = /hooks/github {
+        client_max_body_size 5m;
+        limit_req zone=glsc_admin_login burst=10 nodelay;
+        limit_req_status 429;
+        include /etc/nginx/glsc-admin-php.inc;
+    }
     location = /api/files/upload {
         client_max_body_size 210m;
         client_body_timeout 300s;
