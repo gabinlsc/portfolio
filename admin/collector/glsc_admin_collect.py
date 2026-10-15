@@ -1072,6 +1072,7 @@ def deploy_run(args, target, info, runs, gid, hook, alert_on):
     code = 0
     with open(log_path, "w", encoding="utf-8") as out, tempfile.TemporaryDirectory(prefix="glsc-deploy-") as work:
         os.chown(log_path, 0, gid)
+        os.chmod(log_path, 0o640)  # journal réservé à root et à l'admin (www-data)
 
         def note(text):
             out.write(text + "\n")
@@ -1131,6 +1132,10 @@ def deploy_run(args, target, info, runs, gid, hook, alert_on):
 
 def deploy(args):
     import fcntl
+    # Les scripts de déploiement doivent tourner avec le masque habituel (022), comme lancés à la main :
+    # avec celui de la sonde (027), les sources clonées deviennent illisibles pour l'utilisateur des conteneurs
+    # (+4 lit ses fichiers à l'exécution) et les dossiers créés pour nginx aussi.
+    os.umask(0o022)
     gid = www_gid()
     os.makedirs("/run/lock", exist_ok=True)
     with open("/run/lock/glsc-deploy.lock", "w") as lock:
