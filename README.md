@@ -14,6 +14,8 @@ Sites statiques de [glsc.fr](https://glsc.fr), dans un style néo-brutaliste car
 | `admin/` | [admin.glsc.fr](https://admin.glsc.fr) — espace privé, et [click.glsc.fr](https://click.glsc.fr) — liens courts | `/var/www/admin.glsc.fr/`, `/opt/glsc-admin/` |
 
 Fichiers communs copiés dans chaque racine : `assets/_glsc/` (polices, icônes, CSS et JS des pages), `errors/404.html`, `seo/<site>/robots.txt` et `sitemap.xml`.
+
+La page 404 (`errors/404.html`) sert à tous les sites : copiée dans chaque racine statique, et dans `/var/www/glsc-errors/` pour les jeux, l'admin et les liens courts (`deploy/nginx/glsc-404.inc`). Elle s'adapte au site et à l'adresse demandée, et cache quelques secrets (code Konami, terminal avec « : », chiffres à casser…). Elle est autonome : après l'avoir modifiée, `npm run build:404` recalcule les empreintes de sa CSP.
 Aucune ressource externe : tout est servi depuis le VPS.
 
 ## Déployer

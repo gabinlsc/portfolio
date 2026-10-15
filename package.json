@@ -3,9 +3,10 @@
   "private": true,
   "description": "Sites statiques de glsc.fr (Hub, CV, Projets, Salle de jeux, Archives)",
   "scripts": {
-    "build": "npm run build:css && npm run build:icons",
+    "build": "npm run build:css && npm run build:icons && npm run build:404",
     "build:css": "tailwindcss -c tools/tailwind.config.js -i tools/hub.tailwind.css -o assets/_glsc/hub.css --minify",
-    "build:icons": "node tools/build-icons.mjs"
+    "build:icons": "node tools/build-icons.mjs",
+    "build:404": "node tools/build-404.mjs"
   },
   "devDependencies": {
     "lucide": "0.460.0",

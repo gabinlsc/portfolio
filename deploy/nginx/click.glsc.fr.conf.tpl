@@ -2,6 +2,7 @@
 server {
     listen 443 ssl;
     server_name click.glsc.fr;
+    include /etc/nginx/glsc-404.inc;
     root /var/www/click.glsc.fr;
 
     location ^~ /assets/ { try_files $uri =404; expires 7d; }
@@ -10,6 +11,7 @@ server {
     location ~ /\. { return 404; }
     location / {
         limit_req zone=glsc_games burst=60 nodelay;
+        fastcgi_intercept_errors on;   # lien inconnu : la 404 commune
         include /etc/nginx/glsc-admin-php.inc;
     }
 
