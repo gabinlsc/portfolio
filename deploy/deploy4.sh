@@ -111,6 +111,7 @@ for entry in "${GAMES[@]}"; do
   else
     rm -rf "${dir:?}"; git clone -q --depth 1 "https://github.com/gabinlsc/$repo.git" "$dir"
   fi
+  chmod -R a+rX "$dir"   # lisible par l'utilisateur des conteneurs, quel que soit le masque du clone (git ne corrige pas les droits)
   ok "$name : $(git -C "$dir" log -1 --format='%h · %s' | cut -c1-70)"
 done
 # le dépôt « uno » est devenu « plus4 » : l'ancienne copie des sources ne sert plus
