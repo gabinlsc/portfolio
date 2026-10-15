@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# glsc-ssh-harden — durcit SSH : connexion par clé uniquement + fail2ban plus sévère (à lancer en root).
+#
+# Garde-fous : refuse de couper le mot de passe s'il n'y a aucune clé valide dans /root/.ssh/authorized_keys,
+# exige que tu confirmes avoir testé la connexion par clé dans un AUTRE terminal, valide la config (sshd -t),
+# la recharge sans couper les sessions ouvertes, vérifie le résultat et revient en arrière sinon.
+#
+#   glsc-ssh-harden            applique (après confirmation)
+#   glsc-ssh-harden --fail2ban seulement fail2ban (sans toucher à la connexion SSH)
+#   glsc-ssh-harden --undo     remet le mot de passe (retire le durcissement SSH)
+#   glsc-ssh-harden --status   montre l'état
+set -euo pipefail
+
+CONF=/etc/ssh/sshd_config.d/00-glsc-hardening.conf
+JAIL=/etc/fail2ban/jail.d/glsc.local
+KEYS=/root/.ssh/authorized_keys
+die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*" >&2; exit 1; }
+ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
+warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
+[ "$(id -u)" -eq 0 ] || die "Lance cette commande en root."
+
+mode=apply
+case "${1:-}" in
+  "") ;; --fail2ban) mode=f2b ;; --undo) mode=undo ;; --status) mode=status ;;
+  -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  *) die "Option inconnue : $1" ;;
+esac
+
+ssh_unit() { systemctl list-unit-files ssh.service >/dev/null 2>&1 && echo ssh || echo sshd; }
+reload_ssh() { sshd -t || return 1; systemctl reload "$(ssh_unit)"; }
+eff() { sshd -T 2>/dev/null | awk -v k="$1" '$1 == k { print $2 }'; }
+
+if [ "$mode" = status ]; then
+  echo "Mot de passe : $(eff passwordauthentication) · root : $(eff permitrootlogin) · essais max : $(eff maxauthtries)"
+  echo "Clés autorisées : $(grep -cE '^(ssh|ecdsa|sk-)' "$KEYS" 2>/dev/null || echo 0)"
+  fail2ban-client status sshd 2>/dev/null | sed 's/^/  /' || true
+  fail2ban-client status recidive 2>/dev/null | sed 's/^/  /' || true
+  exit 0
+fi
+
+if [ "$mode" = undo ]; then
+  rm -f "$CONF"; reload_ssh || die "Config SSH invalide après retrait."
+  ok "durcissement SSH retiré : mot de passe de nouveau accepté (vérifie : glsc-ssh-harden --status)"
+  exit 0
+fi
+
+if [ "$mode" = apply ]; then
+  [ -s "$KEYS" ] || die "Aucune clé dans $KEYS : le mot de passe ne sera PAS coupé (tu serais enfermé dehors). Installe d'abord ta clé (voir README, « SSH »)."
+  valid=0
+  while IFS= read -r line; do
+    case "$line" in ""|\#*) continue ;; esac
+    printf '%s\n' "$line" | ssh-keygen -l -f /dev/stdin >/dev/null 2>&1 && valid=$((valid + 1))
+  done < "$KEYS"
+  [ "$valid" -ge 1 ] || die "$KEYS ne contient aucune clé lisible. Rien n'a été modifié."
+  ok "$valid clé(s) valide(s) dans $KEYS"
+  chmod 700 /root/.ssh; chmod 600 "$KEYS"
+
+  printf '\n  Avant de couper le mot de passe : dans un AUTRE terminal, sur ton PC, vérifie que ceci te connecte SANS demander de mot de passe :\n'
+  printf '      ssh -o PasswordAuthentication=no root@%s\n\n' "$(hostname -I | awk '{print $1}')"
+  [ -t 0 ] || die "Pas de terminal : lance la commande à la main."
+  read -r -p "  Ça marche ? Tape OUI pour continuer : " answer
+  [ "$answer" = "OUI" ] || die "Rien n'a été modifié."
+
+  [ -f "$CONF" ] && cp -a "$CONF" "$CONF.bak"
+  cat > "$CONF" <<'CFG'
+# Géré par glsc-ssh-harden (deploy : admin/bin/glsc-ssh-harden). « glsc-ssh-harden --undo » pour retirer.
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin prohibit-password
+PermitEmptyPasswords no
+MaxAuthTries 3
+LoginGraceTime 20
+X11Forwarding no
+CFG
+  chmod 644 "$CONF"
+  if ! reload_ssh; then rm -f "$CONF"; [ -f "$CONF.bak" ] && mv "$CONF.bak" "$CONF"; die "sshd refuse la config : retirée, rien n'a changé."; fi
+  if [ "$(eff passwordauthentication)" != no ]; then
+    rm -f "$CONF"; reload_ssh || true
+    die "Un autre fichier de /etc/ssh impose encore le mot de passe (voir « sshd -T ») : durcissement retiré. Dis-le moi, on l'enlève proprement."
+  fi
+  rm -f "$CONF.bak"
+  ok "SSH : clé uniquement, root sans mot de passe, 3 essais max (sessions ouvertes conservées)"
+  warn "Garde CE terminal ouvert et teste une nouvelle connexion par clé maintenant. Si elle échoue : glsc-ssh-harden --undo"
+fi
+
+# ---------------------------------------------------------------- fail2ban
+command -v fail2ban-client >/dev/null || { apt-get install -y -qq fail2ban >/dev/null; }
+install -d /etc/fail2ban/jail.d
+cat > "$JAIL" <<'CFG'
+# Géré par glsc-ssh-harden
+[sshd]
+enabled  = true
+maxretry = 4
+findtime = 10m
+bantime  = 1h
+
+# récidivistes : bannis plusieurs fois en un jour → une semaine
+[recidive]
+enabled  = true
+logpath  = /var/log/fail2ban.log
+banaction = %(banaction_allports)s
+maxretry = 3
+findtime = 1d
+bantime  = 1w
+CFG
+if fail2ban-client -t >/dev/null 2>&1; then
+  systemctl restart fail2ban && ok "fail2ban : sshd (4 essais → 1 h) et récidivistes (3 bans en 1 jour → 1 semaine)"
+else
+  rm -f "$JAIL"; fail2ban-client -t 2>&1 | tail -3 || true
+  die "fail2ban refuse la config : retirée."
+fi
