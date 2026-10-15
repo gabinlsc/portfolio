@@ -162,6 +162,8 @@
     .cover svg.art { width: 9rem; height: 9rem; transition: transform 200ms var(--spring); }
     .game:hover .cover svg.art { transform: rotate(-6deg) scale(1.06); }
     .status { position: absolute; right: .8rem; top: .8rem; transform: rotate(4deg); background: #fff; border: var(--bd); border-radius: .6rem; padding: .1rem .55rem; font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; box-shadow: var(--sh-sm); }
+    .beta { position: absolute; left: .8rem; top: .8rem; transform: rotate(-4deg); background: var(--banana); border: var(--bd); border-radius: .6rem; padding: .1rem .55rem; font-weight: 700; font-size: .82rem; box-shadow: var(--sh-sm); }
+    .beta-note { margin-top: -.3rem; font-size: .85rem; font-weight: 600; color: #4a4a4a; }
     .game-body { display: flex; flex-direction: column; gap: .7rem; flex: 1; padding: 1.25rem; }
     .game h3 { font: 700 1.6rem/1.1 var(--font-display); }
     .meta { display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -307,6 +309,7 @@
         <article class="game">
           <div class="cover" style="background-color:var(--lilac)">
             <span class="status">🟢 En ligne</span>
+            <span class="beta">Bêta · v0.6.0</span>
             <svg class="art" viewBox="0 0 120 120" aria-hidden="true">
               <circle cx="60" cy="60" r="40" fill="#fff" stroke="#000" stroke-width="5"/>
               <circle cx="60" cy="60" r="22" fill="#FF9478" stroke="#000" stroke-width="5"/>
@@ -316,6 +319,7 @@
           </div>
           <div class="game-body">
             <h3>Vortex · Rift Outpost</h3>
+            <p class="beta-note">🧪 Première release publique : quelques bugs peuvent encore traîner.</p>
             <div class="meta">
               <span><i data-lucide="crosshair" class="icon"></i> FPS</span>
               <span><i data-lucide="swords" class="icon"></i> FFA &amp; équipes</span>
