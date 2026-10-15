@@ -1,0 +1,7 @@
+#!/bin/sh
+# glsc-recap — envoie tout de suite sur Discord le récap de glsc.fr (à lancer en root sur le serveur).
+#
+#   glsc-recap              les 7 derniers jours, jusqu'à maintenant
+#   glsc-recap --semaine    la semaine dernière complète (lundi → dimanche), comme le récap automatique du lundi
+#   glsc-recap --apercu     affiche le récap dans le terminal sans l'envoyer (combinable avec --semaine)
+exec /usr/bin/python3 /opt/glsc-admin/glsc_admin_collect.py recap "$@"

@@ -27,6 +27,9 @@ function view(s, show) {
         }, { kind: 'primary' })),
       h('div', { class: 'row' },
         btn('Envoyer un test', async () => { await attempt(() => api('settings/test-discord', { body: {} }), (r) => r.message); }, { iconName: 'send' }),
+        btn('Récap des 7 derniers jours', async () => {
+          await attempt(() => api('settings/recap', { body: { period: '7j' } }), (r) => r.message);
+        }, { iconName: 'chart-column', title: 'Envoie tout de suite le récap sur Discord (aussi : « glsc-recap » sur le serveur)' }),
         s.discord ? btn('Retirer', async () => {
           const r = await attempt(() => api('settings/save', { body: { discord: '' } }), 'Webhook retiré');
           if (r) show(r);

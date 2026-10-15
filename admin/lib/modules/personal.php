@@ -13,6 +13,7 @@ const ALERTS = [
     'cert' => 'Certificat HTTPS qui expire dans moins de 14 jours',
     'ssh' => 'Connexion SSH réussie au serveur',
     'deploy' => 'Fin d’un déploiement automatique (réussi ou raté)',
+    'weekly' => 'Récap de la semaine, le lundi à 9 h',
 ];
 
 function vault_state(): array
@@ -141,6 +142,13 @@ return [
             if (isset(ALERTS[$key])) set_setting("alert_$key", $on ? '1' : '0');
         }
         return settings_state();
+    },
+    'POST settings/recap' => function (): array {
+        if (setting('discord_webhook', '') === '') fail(422, 'Règle d’abord un webhook Discord.');
+        $period = enum_in(body(), 'period', ['7j', 'semaine'], '7j');
+        glsc_queue('recap', ['period' => $period]) || fail(500, 'File d’attente indisponible.');
+        admin_log('récap Discord demandé');
+        return ['ok' => true, 'message' => 'Récap en route vers Discord (quelques secondes).'];
     },
     'POST settings/test-discord' => function () {
         if (!setting('discord_webhook')) fail(422, 'Enregistre d’abord un webhook.');
