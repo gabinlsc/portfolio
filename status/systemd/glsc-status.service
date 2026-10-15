@@ -1,0 +1,17 @@
+[Unit]
+Description=Sondes de status.glsc.fr
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=glsc-status
+Group=glsc-status
+ExecStart=/usr/bin/python3 /opt/glsc-status/glsc_status.py -c /etc/glsc-status/targets.json -s /var/lib/glsc-status/state.json -o /var/www/status.glsc.fr/status.json
+TimeoutStartSec=50
+# Durcissement : la sonde ne peut écrire que son état et status.json
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/var/lib/glsc-status /var/www/status.glsc.fr

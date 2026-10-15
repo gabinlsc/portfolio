@@ -1,0 +1,13 @@
+{
+  "webhook_url": "",
+  "targets": [
+    { "id": "hub", "name": "Hub", "group": "Sites web", "type": "http", "url": "https://glsc.fr/", "link": "https://glsc.fr", "description": "glsc.fr" },
+    { "id": "cv", "name": "CV", "group": "Sites web", "type": "http", "url": "https://cv.glsc.fr/", "link": "https://cv.glsc.fr", "description": "cv.glsc.fr" },
+    { "id": "projets", "name": "Projets", "group": "Sites web", "type": "http", "url": "https://share.glsc.fr/", "link": "https://share.glsc.fr", "description": "share.glsc.fr" },
+    { "id": "games", "name": "Salle de jeux", "group": "Sites web", "type": "http", "url": "https://games.glsc.fr/", "link": "https://games.glsc.fr", "description": "games.glsc.fr" },
+    { "id": "studio", "name": "Studio GLSC", "group": "Sites web", "type": "http", "url": "https://studio.glsc.fr/", "link": "https://studio.glsc.fr", "description": "studio.glsc.fr" },
+    { "id": "archives", "name": "Archives", "group": "Sites web", "type": "http", "url": "https://old.glsc.fr/", "link": "https://old.glsc.fr", "description": "old.glsc.fr" },
+    { "id": "mariadb", "name": "MariaDB", "group": "Infrastructure", "type": "tcp", "host": "127.0.0.1", "port": 3306, "slow_ms": 500, "description": "Base de données" },
+    { "id": "postgres", "name": "PostgreSQL", "group": "Infrastructure", "type": "tcp", "host": "127.0.0.1", "port": 5432, "slow_ms": 500, "description": "Base de données (Street Dex)" }
+  ]
+}

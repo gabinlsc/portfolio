@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const lucide = require('lucide');
 
-const PAGES = ['index.html', 'cv/index.html', 'old/index.html', 'projets/index.html', 'games/index.html', 'errors/404.html'];
+const PAGES = ['index.html', 'cv/index.html', 'old/index.html', 'projets/index.html', 'games/index.html', 'status/index.html', 'errors/404.html'];
 
 const toPascal = (name) => name.replace(/(^|-)([a-z0-9])/g, (_, __, c) => c.toUpperCase());
 
