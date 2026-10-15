@@ -1,0 +1,109 @@
+#!/usr/bin/env php
+<?php
+/**
+ * glsc-admin-setup — crée ou change les identifiants de admin.glsc.fr (à lancer en root sur le serveur).
+ *
+ *   glsc-admin-setup              tout configurer (mot de passe + 2FA + codes de secours)
+ *   glsc-admin-setup --password   changer seulement le mot de passe
+ *   glsc-admin-setup --2fa        refaire seulement la 2FA (nouveau QR code)
+ *   glsc-admin-setup --recovery   régénérer seulement les codes de secours
+ *
+ * Écrit /etc/glsc-admin/auth.json (root:www-data, 640). Rien n'est envoyé nulle part.
+ */
+declare(strict_types=1);
+
+$lib = getenv('GLSC_ADMIN_LIB') ?: '/opt/glsc-admin/lib';
+require $lib . '/totp.php';
+
+$etc = rtrim(getenv('GLSC_ADMIN_ETC') ?: '/etc/glsc-admin', '/');
+$file = "$etc/auth.json";
+$mode = $argv[1] ?? '--all';
+if (!in_array($mode, ['--all', '--password', '--2fa', '--recovery'], true)) {
+    fwrite(STDERR, "Usage : glsc-admin-setup [--password | --2fa | --recovery]\n");
+    exit(2);
+}
+if (function_exists('posix_geteuid') && posix_geteuid() !== 0 && !getenv('GLSC_ADMIN_ETC')) {
+    fwrite(STDERR, "Lance-moi en root (sudo glsc-admin-setup).\n");
+    exit(1);
+}
+
+$tty = @fopen('/dev/tty', 'r+') ?: fopen('php://stdin', 'r');
+$out = fn (string $s) => fwrite(STDOUT, $s);
+$ask = function (string $prompt, bool $hidden = false) use ($tty, $out): string {
+    $out($prompt);
+    if ($hidden) @shell_exec('stty -echo < /dev/tty 2>/dev/null');
+    $line = fgets($tty);
+    if ($hidden) { @shell_exec('stty echo < /dev/tty 2>/dev/null'); $out("\n"); }
+    if ($line === false) { fwrite(STDERR, "\nEntrée fermée : lance la commande dans un vrai terminal.\n"); exit(1); }
+    return trim($line);
+};
+
+$cfg = is_readable($file) ? (json_decode((string) file_get_contents($file), true) ?: []) : [];
+if ($mode !== '--all' && empty($cfg['password_hash'])) {
+    fwrite(STDERR, "Pas encore configuré : lance d'abord « glsc-admin-setup » sans option.\n");
+    exit(1);
+}
+
+$out("\n\033[1madmin.glsc.fr — identifiants\033[0m\n\n");
+
+// ---------------------------------------------------------------- mot de passe
+if ($mode === '--all' || $mode === '--password') {
+    while (true) {
+        $p1 = $ask('Nouveau mot de passe (12 caractères minimum) : ', true);
+        if (mb_strlen($p1) < 12) { $out("  Trop court.\n"); continue; }
+        if ($ask('Confirme le mot de passe : ', true) !== $p1) { $out("  Les deux saisies diffèrent.\n"); continue; }
+        break;
+    }
+    $algo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
+    $cfg['password_hash'] = password_hash($p1, $algo);
+    $out("  \033[32m✔\033[0m mot de passe enregistré\n\n");
+}
+
+// ---------------------------------------------------------------- 2FA
+if ($mode === '--all' || $mode === '--2fa') {
+    $secret = base32_encode(random_bytes(20));
+    $uri = 'otpauth://totp/GLSC%20Admin:gabin?secret=' . $secret . '&issuer=GLSC%20Admin&digits=6&period=30';
+    $out("Scanne ce QR code avec ton appli d'authentification (Google Authenticator, Aegis, 2FAS…) :\n\n");
+    $qr = trim((string) @shell_exec('command -v qrencode'));
+    if ($qr !== '') {
+        passthru('qrencode -t ANSIUTF8 -m 2 ' . escapeshellarg($uri));
+    } else {
+        $out("  (qrencode absent : ajoute le compte à la main)\n");
+    }
+    $out("\nOu saisis la clé à la main : \033[1m" . trim(chunk_split($secret, 4, ' ')) . "\033[0m\n\n");
+    while (true) {
+        $code = preg_replace('/\s+/', '', $ask('Code affiché par l’appli (pour vérifier) : '));
+        if (totp_verify($secret, $code) !== null) break;
+        $out("  Code refusé. Vérifie l'heure du téléphone et réessaie.\n");
+    }
+    $cfg['totp_secret'] = $secret;
+    $out("  \033[32m✔\033[0m 2FA activée\n\n");
+}
+
+// ---------------------------------------------------------------- codes de secours
+if ($mode === '--all' || $mode === '--recovery') {
+    $alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+    $codes = [];
+    for ($i = 0; $i < 8; $i++) {
+        $c = '';
+        for ($j = 0; $j < 12; $j++) $c .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        $codes[] = implode('-', str_split($c, 4));
+    }
+    $cfg['recovery'] = array_map(fn ($c) => hash('sha256', $c), $codes);
+    $out("Codes de secours (chacun marche UNE fois si tu perds ton téléphone).\n\033[1mNote-les maintenant\033[0m, ils ne seront plus jamais affichés :\n\n");
+    foreach (array_chunk($codes, 2) as $pair) $out('    ' . implode('      ', $pair) . "\n");
+    $out("\n");
+}
+
+// ---------------------------------------------------------------- écriture
+if (!is_dir($etc)) mkdir($etc, 0750, true);
+$tmp = "$file.tmp";
+file_put_contents($tmp, json_encode($cfg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+chmod($tmp, 0640);
+if (function_exists('posix_getgrnam') && ($gr = posix_getgrnam('www-data'))) {
+    @chgrp($tmp, 'www-data');
+    @chgrp($etc, 'www-data');
+    @chmod($etc, 0750);
+}
+rename($tmp, $file);
+$out("\033[32m✔ Enregistré dans $file\033[0m — connecte-toi sur https://admin.glsc.fr\n\n");
