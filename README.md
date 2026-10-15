@@ -52,6 +52,11 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - La sonde de l'admin lit ces fichiers chaque minute et publie `/var/www/games.glsc.fr/leaderboard.json` : top 10 par jeu, sur 7 jours et depuis toujours (victoires ; places de président et « abonné au trou du cul » ; éliminations pour Vortex).
 - Pseudos par défaut (« Joueur 2 »…) et injurieux filtrés automatiquement ; n'importe quel pseudo peut être masqué depuis l'admin (Jeux en direct → Classements).
 
+### Récap Discord
+
+- Chaque lundi à 9 h, la sonde envoie sur Discord le récap de la semaine écoulée : visites (et évolution), sources, CV et projets cliqués, parties et champions des jeux, commits et déploiements, incidents, tentatives SSH, disque et certificats. Désactivable dans l'admin (Réglages → « Récap de la semaine »).
+- À la demande, en root sur le serveur : `glsc-recap` (7 derniers jours), `glsc-recap --semaine` (semaine dernière complète), `glsc-recap --apercu` (affiche sans envoyer). Ou depuis l'admin : Réglages → « Récap des 7 derniers jours ».
+
 ## Modifier les pages
 
 - Le Hub utilise Tailwind compilé : après avoir changé des classes dans `index.html`, lancer `npm install` puis `npm run build:css`.

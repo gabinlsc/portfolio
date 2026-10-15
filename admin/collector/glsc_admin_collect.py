@@ -13,6 +13,9 @@ glsc-admin-collect — sonde root de admin.glsc.fr (aucune dépendance hors Pyth
     7. publie une copie figée de la base (metrics.db) lisible par www-data.
   queue     (déclenché par glsc-admin-queue.path dès qu'un fichier arrive)
     traite les demandes de l'admin : message Discord, redémarrage d'un jeu (liste blanche).
+  recap     (commande glsc-recap, ou bouton de l'admin via la file d'attente)
+    envoie tout de suite le récap Discord des 7 derniers jours (--semaine : semaine dernière ; --apercu : sans envoyer).
+    Le récap de la semaine écoulée part aussi tout seul le lundi à 9 h (collect).
   deploy    (déclenché par glsc-deploy.path : push sur main ou bouton de l'admin)
     télécharge le dépôt et lance les scripts de déploiement prévus pour la cible (liste blanche),
     publie l'historique (deploy-runs.json), les journaux (deploy-logs/) et prévient sur Discord.
@@ -522,11 +525,15 @@ def app_settings(app_db):
         return {}
 
 
-def discord(webhook, title, text, color=0xFFD84D):
+def discord(webhook, title, text, color=0xFFD84D, fields=None, url=None):
     if not webhook:
         return False
-    payload = json.dumps({"username": "glsc.fr", "embeds": [{"title": title[:250], "description": text[:3500], "color": color,
-                                                              "timestamp": dt.datetime.now(dt.timezone.utc).isoformat()}]}).encode()
+    embed = {"title": title[:250], "description": text[:3500], "color": color, "timestamp": dt.datetime.now(dt.timezone.utc).isoformat()}
+    if fields:  # au plus 25 champs de 1024 caractères (limites Discord)
+        embed["fields"] = [{"name": n[:250], "value": v[:1020] or "—", "inline": inline} for n, v, inline in fields[:25]]
+    if url:
+        embed["url"] = url
+    payload = json.dumps({"username": "glsc.fr", "embeds": [embed]}).encode()
     try:
         req = urllib.request.Request(webhook, data=payload, method="POST", headers={"Content-Type": "application/json", "User-Agent": "glsc-admin"})
         urllib.request.urlopen(req, timeout=8).close()
@@ -715,6 +722,178 @@ def leaderboards(db, now, hidden):
         public["games"][game], admin["games"][game] = g_pub, g_adm
     return public, admin
 
+# ---------------------------------------------------------------- récap Discord du lundi
+SITE_NAMES = {"glsc.fr": "Hub", "cv.glsc.fr": "CV", "share.glsc.fr": "Projets", "old.glsc.fr": "Archives", "games.glsc.fr": "Salle de jeux",
+              "status.glsc.fr": "Statut", "uno.glsc.fr": "UNO", "president.glsc.fr": "Président", "vortex.glsc.fr": "Vortex"}
+CV_EVENTS = {"print": "impressions", "email": "clics e-mail", "email_copy": "e-mails copiés", "phone": "clics téléphone",
+             "linkedin": "clics LinkedIn", "github": "clics GitHub", "site": "clics site"}
+
+
+def source_of(ref):
+    """Même regroupement que l'admin (Trafic) : d'où viennent les visiteurs."""
+    host = (urllib.parse.urlsplit(ref).hostname or "") if ref not in ("", "-") else ""
+    host = re.sub(r"^(www|m|l|lm)\.", "", host)
+    for key, name in (("linkedin", "LinkedIn"), ("lnkd.in", "LinkedIn"), ("google", "Google"), ("bing", "Bing"), ("duckduckgo", "DuckDuckGo"),
+                      ("github", "GitHub"), ("indeed", "Indeed"), ("welcometothejungle", "Welcome to the Jungle"), ("discord", "Discord")):
+        if key in host:
+            return name
+    return "Direct" if not host else None if host.endswith("glsc.fr") else host
+
+
+def week_bounds(now):
+    """Semaine écoulée : du lundi 0 h au lundi suivant 0 h (heure de Paris)."""
+    today = dt.datetime.fromtimestamp(now, TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    end = today - dt.timedelta(days=today.weekday())
+    start = end - dt.timedelta(days=7)
+    return int(start.timestamp()), int(end.timestamp())
+
+
+def trend(cur, prev):
+    if not prev:
+        return " (nouveau)" if cur else ""
+    p = round((cur - prev) * 100 / prev)
+    return f" ({'+' if p >= 0 else ''}{p} %)" if p else " (=)"
+
+
+def fr(n):
+    return f"{n:,}".replace(",", " ")
+
+
+def weekly_recap(db, state, start, end, pub_dir, status_file):
+    """Titre, texte et champs du récap entre start et end (comparé à la période d'avant, de même durée)."""
+    prev = (2 * start - end, start)
+    one = lambda sql, args=(): db.execute(sql, args).fetchone()[0] or 0  # noqa: E731
+    fields = []
+
+    # Visites
+    views = one("SELECT COUNT(*) FROM requests WHERE page = 1 AND ts >= ? AND ts < ?", (start, end))
+    views_prev = one("SELECT COUNT(*) FROM requests WHERE page = 1 AND ts >= ? AND ts < ?", prev)
+    visitors = one("SELECT COUNT(DISTINCT ip || ua) FROM requests WHERE page = 1 AND ts >= ? AND ts < ?", (start, end))
+    sites = db.execute("SELECT host, COUNT(*) n FROM requests WHERE page = 1 AND ts >= ? AND ts < ? GROUP BY host ORDER BY n DESC LIMIT 4",
+                       (start, end)).fetchall()
+    sources = {}
+    for ref, n in db.execute("SELECT referer, COUNT(*) FROM requests WHERE page = 1 AND ts >= ? AND ts < ? GROUP BY referer", (start, end)):
+        src = source_of(ref)
+        if src:
+            sources[src] = sources.get(src, 0) + n
+    top_src = sorted(sources.items(), key=lambda kv: -kv[1])[:3]
+    fields.append(("👀 Visites", "\n".join(filter(None, [
+        f"**{fr(views)}** pages vues{trend(views, views_prev)} · **{fr(visitors)}** visiteurs",
+        "Sites : " + ", ".join(f"{SITE_NAMES.get(h, h)} {fr(n)}" for h, n in sites) if sites else None,
+        "Sources : " + ", ".join(f"{k} {fr(v)}" for k, v in top_src) if top_src else None])), False))
+
+    # CV et projets (beacons /_glsc/b.gif?e=…)
+    cv_views = one("SELECT COUNT(*) FROM requests WHERE page = 1 AND host = 'cv.glsc.fr' AND ts >= ? AND ts < ?", (start, end))
+    events = {}
+    for q, n in db.execute("SELECT query, COUNT(*) FROM requests WHERE path = '/_glsc/b.gif' AND bot = 0 AND ts >= ? AND ts < ? GROUP BY query",
+                           (start, end)):
+        e = urllib.parse.parse_qs(q).get("e", [""])[0][:60]
+        if e:
+            events[e] = events.get(e, 0) + n
+    cv_bits = [f"{fr(n)} {CV_EVENTS[e]}" for e, n in sorted(events.items(), key=lambda kv: -kv[1]) if e in CV_EVENTS][:4]
+    projects = sorted(((e[8:], n) for e, n in events.items() if e.startswith("project:")), key=lambda kv: -kv[1])[:3]
+    fields.append(("📄 CV & projets", "\n".join(filter(None, [
+        f"CV vu **{fr(cv_views)}** fois" + (" · " + ", ".join(cv_bits) if cv_bits else ""),
+        "Projets cliqués : " + ", ".join(f"{p} ({fr(n)})" for p, n in projects) if projects else None])), False))
+
+    # Jeux
+    lines = []
+    for game, (label, _, _) in GAMES.items():
+        matches = one("SELECT COUNT(DISTINCT match) FROM results WHERE game = ? AND ts >= ? AND ts < ?", (game, start, end))
+        peak = one("SELECT MAX(conns) FROM games WHERE game = ? AND ts >= ? AND ts < ?", (game, start, end))
+        order = "SUM(kills) DESC" if game == "vortex" else "SUM(won) DESC, COUNT(*) ASC"
+        champ = None
+        for key, name, wins, kills in db.execute(f"SELECT key, name, SUM(won), SUM(kills) FROM results WHERE game = ? AND ts >= ? AND ts < ? "
+                                                 f"GROUP BY key ORDER BY {order} LIMIT 20", (game, start, end)):
+            if name_ok(key) and (wins or kills):
+                champ = f"👑 {name} ({fr(kills or 0)} élim.)" if game == "vortex" else f"👑 {name} ({fr(wins)} victoire{'s' if wins > 1 else ''})"
+                break
+        if matches or peak:
+            unit = "partie" if game == "uno" else "manche"
+            lines.append(f"**{label}** : {fr(matches)} {unit}{'s' if matches > 1 else ''}" + (f", jusqu'à {peak} connectés" if peak else "")
+                         + (f" · {champ}" if champ else ""))
+    fields.append(("🎮 Jeux", "\n".join(lines) or "Personne n'a joué cette semaine.", False))
+
+    # GitHub (cache de la page Projets : dates des commits hors merge, 90 jours)
+    per_repo = {name: sum(1 for d in c.get("dates", []) if start <= d < end) for name, c in state.get("projects", {}).items()}
+    commits = sum(per_repo.values())
+    busiest = sorted(((n, r) for r, n in per_repo.items() if n), reverse=True)[:3]
+    runs = load_json(os.path.join(pub_dir, "deploy-runs.json"), {}).get("runs", [])
+    week_runs = [r for r in runs if start <= (r.get("start") or 0) < end]
+    ok = sum(1 for r in week_runs if r.get("status") == "ok")
+    fields.append(("🛠️ Code", "\n".join(filter(None, [
+        f"**{fr(commits)}** commit{'s' if commits > 1 else ''}" + (" · " + ", ".join(f"{r} {n}" for n, r in busiest) if busiest else ""),
+        f"{ok} déploiement{'s' if ok > 1 else ''} réussi{'s' if ok > 1 else ''}" + (f", **{len(week_runs) - ok} raté{'s' if len(week_runs) - ok > 1 else ''}**" if len(week_runs) > ok else "")
+        if week_runs else None])), False))
+
+    # Serveur
+    status = load_json(status_file, {})
+    incidents = []
+    for i in status.get("incidents", []):
+        try:
+            t = int(dt.datetime.fromisoformat(i["start"].replace("Z", "+00:00")).timestamp())
+        except (KeyError, ValueError, AttributeError):
+            continue
+        if start <= t < end:
+            incidents.append(i)
+    down = sum(int(i.get("duration_s") or 0) for i in incidents)
+    ssh = one("SELECT COUNT(*) FROM ssh WHERE kind != 'accepted' AND ts >= ? AND ts < ?", (start, end))
+    scans = one("SELECT COUNT(*) FROM requests WHERE scan = 1 AND ts >= ? AND ts < ?", (start, end))
+    health = load_json(os.path.join(pub_dir, "health.json"), {})
+    disk = health.get("disk") or {}
+    certs = [c for c in health.get("certs", []) if c.get("days") is not None and c["days"] < 21]
+    fields.append(("🖥️ Serveur", "\n".join(filter(None, [
+        f"**{len(incidents)}** incident{'s' if len(incidents) > 1 else ''}" + (f" ({human(down)} d'indisponibilité : "
+                                                                          + ", ".join(sorted({i['name'] for i in incidents})) + ")" if incidents else " 🎉"),
+        f"{fr(ssh)} tentatives SSH refusées · {fr(scans)} requêtes de robots scanneurs",
+        f"Disque : {disk['used'] * 100 // max(1, disk['total'])} % utilisé" if disk.get("total") else None,
+        "⚠️ Certificats bientôt expirés : " + ", ".join(f"{c['domain']} ({c['days']} j)" for c in certs) if certs else None])), False))
+
+    a = dt.datetime.fromtimestamp(start, TZ)
+    b = dt.datetime.fromtimestamp(end - 1, TZ)
+    months = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
+    title = f"📊 Récap · {a.day} {months[a.month - 1]} → {b.day} {months[b.month - 1]}"
+    return title, f"Ce qui s'est passé sur glsc.fr, du {a.strftime('%d/%m %H:%M')} au {b.strftime('%d/%m %H:%M')}.", fields
+
+
+def human(sec):
+    return f"{sec // 3600} h {sec % 3600 // 60:02d}" if sec >= 3600 else f"{max(1, sec // 60)} min"
+
+
+def send_recap(db, state, now, args, settings):
+    """Automatique : le lundi à partir de 9 h (Paris), une fois par semaine, sur la semaine écoulée."""
+    local = dt.datetime.fromtimestamp(now, TZ)
+    week = local.strftime("%G-%V")
+    if local.weekday() != 0 or local.hour < 9 or state.get("recap_week") == week:
+        return False
+    state["recap_week"] = week  # même sans webhook ou alerte coupée : une seule tentative par semaine
+    if settings.get("alert_weekly", "1") != "1":
+        return False
+    title, text, fields = weekly_recap(db, state, *week_bounds(now), args.pub_dir, args.status_json)
+    return discord(settings.get("discord_webhook", ""), title, text, 0xC3A6FF, fields, url="https://admin.glsc.fr")
+
+
+def recap_now(args, period="7j", preview=False):
+    """À la demande (commande glsc-recap ou bouton de l'admin) : lit la copie publiée de la base, n'écrit rien."""
+    now = int(time.time())
+    start, end = week_bounds(now) if period == "semaine" else (now - 7 * 86400, now)
+    pub_db = os.path.join(args.pub_dir, "metrics.db")
+    if not os.path.exists(pub_db):
+        raise SystemExit("Pas encore de mesures : la sonde n'a jamais tourné (deploy5).")
+    db = sqlite3.connect(f"file:{pub_db}?mode=ro", uri=True)
+    state = load_json(os.path.join(args.state_dir, "state.json"), {})
+    title, text, fields = weekly_recap(db, state, start, end, args.pub_dir, args.status_json)
+    db.close()
+    if preview:
+        print(title, "\n" + text)
+        for name, value, _ in fields:
+            print(f"\n{name}\n" + "\n".join("  " + line.replace("**", "") for line in value.splitlines()))
+        return True
+    hook = app_settings(args.app_db).get("discord_webhook", "")
+    if not hook:
+        raise SystemExit("Aucun webhook Discord : règle-le dans l'admin (Réglages).")
+    return discord(hook, title, text, 0xC3A6FF, fields, url="https://admin.glsc.fr")
+
 
 def www_gid():
     try:
@@ -776,6 +955,7 @@ def collect(args):
     settings = app_settings(args.app_db)
     step("alertes", lambda: alerts(state, settings, now, hl, dk, accepted))
     step("webhook status", lambda: sync_status_webhook(state, settings, args.status_webhook))
+    step("récap du lundi", lambda: send_recap(db, state, now, args, settings))
 
     # rétention : 35 jours de requêtes, 8 jours de mesures fines
     db.execute("DELETE FROM requests WHERE ts < ?", (now - 35 * 86400,))
@@ -806,6 +986,8 @@ def queue(args):
             kind, data = job.get("type"), job.get("data") or {}
             if time.time() - int(job.get("at", 0)) > 3600:
                 log("demande trop ancienne ignorée :", os.path.basename(path))
+            elif kind == "recap":
+                log("récap à la demande :", "envoyé" if recap_now(args, "semaine" if data.get("period") == "semaine" else "7j") else "échec")
             elif kind == "discord":
                 discord(hook, str(data.get("title", ""))[:200], str(data.get("text", ""))[:1500])
             elif kind == "restart" and data.get("game") in GAMES:
@@ -973,7 +1155,9 @@ def deploy(args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["collect", "queue", "deploy"])
+    ap.add_argument("command", choices=["collect", "queue", "deploy", "recap"])
+    ap.add_argument("--semaine", action="store_true", help="recap : la semaine dernière complète (lundi → dimanche) au lieu des 7 derniers jours")
+    ap.add_argument("--apercu", action="store_true", help="recap : affiche le récap ici sans l'envoyer sur Discord")
     ap.add_argument("--var", default="/var/lib/glsc-admin", help="dossier de données de l'admin")
     ap.add_argument("--log", default="/var/log/nginx/glsc-access.log")
     ap.add_argument("--letsencrypt", default="/etc/letsencrypt/live")
@@ -983,6 +1167,7 @@ def main():
     ap.add_argument("--leaderboard-json", default="/var/www/games.glsc.fr/leaderboard.json", help="classements publics")
     ap.add_argument("--version-file", default="/etc/glsc-admin/portfolio-version.json")
     ap.add_argument("--status-webhook", default="/etc/glsc-status/discord-webhook")
+    ap.add_argument("--status-json", default="/var/www/status.glsc.fr/status.json", help="incidents (récap du lundi)")
     ap.add_argument("--github-user", default="gabinlsc")
     ap.add_argument("--projects-json", default="/var/www/share.glsc.fr/github.json", help="activité publique lue par la page Projets")
     ap.add_argument("--offline", action="store_true", help="ne pas appeler GitHub (tests)")
@@ -998,6 +1183,10 @@ def main():
         collect(args)
     elif args.command == "deploy":
         deploy(args)
+    elif args.command == "recap":
+        ok = recap_now(args, "semaine" if args.semaine else "7j", args.apercu)
+        print("Récap envoyé sur Discord." if ok and not args.apercu else "" if ok else "Envoi impossible (voir le message ci-dessus).")
+        sys.exit(0 if ok else 1)
     else:
         queue(args)
 

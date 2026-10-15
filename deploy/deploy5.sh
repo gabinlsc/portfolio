@@ -51,7 +51,7 @@ else
   SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
 fi
 for f in deploy/deploy4.sh admin/lib/router.php admin/lib/click.php admin/public/index.php admin/public/assets/app.js \
-         admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py \
+         admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py admin/bin/glsc-recap \
          admin/systemd/glsc-admin-collect.service admin/systemd/glsc-admin-collect.timer admin/systemd/glsc-admin-queue.path \
          admin/systemd/glsc-admin-queue.service admin/systemd/glsc-deploy.path admin/systemd/glsc-deploy.service deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
          deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css \
@@ -102,6 +102,7 @@ find "$OPT/lib.new" -type d -exec chmod 755 {} + ; find "$OPT/lib.new" -type f -
 rm -rf "${OPT:?}/lib.old"; mv "$OPT/lib" "$OPT/lib.old"; mv "$OPT/lib.new" "$OPT/lib"; rm -rf "${OPT:?}/lib.old"
 install -m 755 "$SRC/admin/collector/glsc_admin_collect.py" "$OPT/glsc_admin_collect.py"
 install -m 755 "$SRC/admin/bin/glsc-admin-setup" /usr/local/sbin/glsc-admin-setup
+install -m 755 "$SRC/admin/bin/glsc-recap" /usr/local/sbin/glsc-recap   # récap Discord à la demande
 ok "code dans $OPT, commande glsc-admin-setup installée"
 
 publish_root() {   # publish_root <dossier> <source index.php>
@@ -253,4 +254,5 @@ info "Terminé. Sauvegardes : $BACKUP"
 echo "  Admin       : https://admin.glsc.fr  (mot de passe + code 2FA)"
 echo "  Identifiants: glsc-admin-setup [--password | --2fa | --recovery]"
 echo "  Sonde       : journalctl -u glsc-admin-collect -n 30"
+echo "  Récap       : glsc-recap (7 derniers jours) · glsc-recap --semaine · glsc-recap --apercu"
 echo "  L'ancien glsc.fr/private reste en place tant que tu ne le supprimes pas."
