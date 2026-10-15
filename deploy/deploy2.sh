@@ -118,6 +118,12 @@ chown -R www-data:www-data "$GAMES"
 ok "Salle de jeux (games.glsc.fr)"
 bash "$SRC/deploy/install-404.sh" "$SRC"
 ok "page 404 commune (jeux, admin, liens courts) dans /var/www/glsc-errors"
+# glsc.fr, cv et old ont dans leur vhost « error_page 404 /errors/404.html » servie depuis $HUB/errors :
+# on remplace aussi cette page-là (l'ancienne est sauvegardée), sans toucher aux vhosts
+if [ -f "$HUB/errors/404.html" ]; then
+  put errors/404.html "$HUB/errors/404.html"
+  ok "page 404 des anciens vhosts ($HUB/errors/404.html)"
+fi
 
 # ---------------------------------------------------------------- 4. nginx
 info "4/6 Configuration nginx"
