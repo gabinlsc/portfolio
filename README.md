@@ -50,6 +50,7 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 
 - +4, Président et Vortex écrivent chaque partie (ou manche) terminée dans `/var/lib/glsc-games/<jeu>/results.jsonl` (variable `RESULTS_FILE`, seul dossier modifiable des conteneurs). Seuls les humains encore à la table sont comptés.
 - La sonde de l'admin lit ces fichiers chaque minute et publie `/var/www/games.glsc.fr/leaderboard.json` : top 10 par jeu, sur 7 jours et depuis toujours (victoires ; places de président et « abonné au trou du cul » ; éliminations pour Vortex).
+- **Succès** (16, dont « Première victoire », « Série de 3 », « Président ! », « Manche parfaite » à Vortex, « Touche-à-tout »…) : la sonde rejoue l'historique des parties et publie, dans `leaderboard.json`, qui a débloqué quoi. Les emojis apparaissent à côté des pseudos du classement, et la liste des succès de chaque jeu s'affiche dessous (nombre de joueurs, dernier à l'avoir obtenu). Liste et conditions : `ACHIEVEMENTS` dans `admin/collector/glsc_admin_collect.py`.
 - Pseudos par défaut (« Joueur 2 »…) et injurieux filtrés automatiquement ; n'importe quel pseudo peut être masqué depuis l'admin (Jeux en direct → Classements).
 
 ### Récap Discord

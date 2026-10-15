@@ -689,10 +689,61 @@ def ingest_results(db, state, data_dir, now):
     return added
 
 
+# Succès : (id, jeu ou "all", emoji, nom, description, condition sur l'état du joueur après chaque partie)
+ACHIEVEMENTS = [
+    ("uno-win1", "uno", "🎯", "Première victoire", "Gagner une partie de +4", lambda s: s["wins"] >= 1),
+    ("uno-win10", "uno", "🏆", "Dix victoires", "10 parties gagnées", lambda s: s["wins"] >= 10),
+    ("uno-win50", "uno", "👑", "Roi du +4", "50 parties gagnées", lambda s: s["wins"] >= 50),
+    ("uno-streak3", "uno", "🔥", "Série de 3", "3 victoires d'affilée", lambda s: s["best_streak"] >= 3),
+    ("uno-played25", "uno", "🃏", "Habitué", "25 parties jouées", lambda s: s["played"] >= 25),
+    ("pres-first", "president", "👑", "Président !", "Finir premier d'une manche", lambda s: s["president"] >= 1),
+    ("pres-streak3", "president", "🔥", "Règne de 3", "Président 3 manches d'affilée", lambda s: s["pres_streak"] >= 3),
+    ("pres-10", "president", "🏛️", "Dynastie", "10 fois président", lambda s: s["president"] >= 10),
+    ("pres-trouduc3", "president", "🧻", "Abonné au trou du cul", "Finir dernier 3 fois (c'est un titre)", lambda s: s["trouduc"] >= 3),
+    ("pres-played25", "president", "🎴", "Habitué", "25 manches jouées", lambda s: s["played"] >= 25),
+    ("vortex-1", "vortex", "🎯", "Première élimination", "Éliminer un adversaire", lambda s: s["kills"] >= 1),
+    ("vortex-round10", "vortex", "🔫", "Manche parfaite", "10 éliminations dans une seule manche", lambda s: s["best_kills"] >= 10),
+    ("vortex-50", "vortex", "💥", "50 éliminations", "50 éliminations au total", lambda s: s["kills"] >= 50),
+    ("vortex-250", "vortex", "☠️", "Terreur du vortex", "250 éliminations au total", lambda s: s["kills"] >= 250),
+    ("vortex-played25", "vortex", "🌀", "Habitué", "25 manches jouées", lambda s: s["played"] >= 25),
+    ("all-3", "all", "🎮", "Touche-à-tout", "Jouer à +4, au Président et à Vortex", lambda s: s["games"] >= 3),
+]
+
+
+def unlock_achievements(db):
+    """Rejoue l'historique des parties dans l'ordre : {clé du pseudo: {id du succès: date de déblocage}} et dernier pseudo vu."""
+    states, unlocked, names = {}, {}, {}
+    for ts, game, key, name, won, role, kills in db.execute("SELECT ts, game, key, name, won, role, kills FROM results ORDER BY ts, rowid"):
+        st = states.setdefault((key, game), {"played": 0, "wins": 0, "streak": 0, "best_streak": 0, "president": 0, "pres_streak": 0, "pres_run": 0,
+                                             "trouduc": 0, "kills": 0, "best_kills": 0, "games": 0})
+        names[key] = name
+        st["played"] += 1
+        st["wins"] += won
+        st["streak"] = st["streak"] + 1 if won else 0
+        st["best_streak"] = max(st["best_streak"], st["streak"])
+        if role == "president":
+            st["president"] += 1
+            st["pres_run"] += 1
+            st["pres_streak"] = max(st["pres_streak"], st["pres_run"])
+        else:
+            st["pres_run"] = 0
+        st["trouduc"] += 1 if role == "trouduc" else 0
+        st["kills"] += kills or 0
+        st["best_kills"] = max(st["best_kills"], kills or 0)
+        mine = unlocked.setdefault(key, {})
+        st["games"] = sum(1 for g in GAMES if (key, g) in states)
+        for aid, agame, _, _, _, cond in ACHIEVEMENTS:
+            if aid not in mine and (agame == game or agame == "all") and cond(st):
+                mine[aid] = ts
+    return unlocked, names
+
+
 def leaderboards(db, now, hidden):
     """Classements par jeu, sur 7 jours et depuis toujours. Version publique (filtrée) et version admin (tout, avec raisons)."""
     week = now - 7 * 86400
     public, admin = {"at": now, "games": {}}, {"at": now, "games": {}}
+    unlocked, last_names = unlock_achievements(db)
+    shown = {k for k in unlocked if k not in hidden and name_ok(k)}
     for game in GAMES:
         g_pub, g_adm = {}, {}
         for period, since in (("week", week), ("all", 0)):
@@ -713,6 +764,7 @@ def leaderboards(db, now, hidden):
                 why = "masqué" if key in hidden else None if name_ok(key) else "filtré"
                 review.append({**entry, "key": key, "last": last, "hidden": why})
                 if not why and len(board) < 10 and (entry["wins"] or entry.get("kills")):
+                    entry["badges"] = [a[0] for a in ACHIEVEMENTS if a[1] in (game, "all") and a[0] in unlocked.get(key, {})]
                     board.append(entry)
             g_pub[period] = {"matches": matches, "players": players, "top": board}
             g_adm[period] = {"matches": matches, "players": players, "names": review[:100]}
@@ -720,6 +772,11 @@ def leaderboards(db, now, hidden):
                 worst = sorted((e for e in review if not e["hidden"] and e["trouduc"]), key=lambda e: (-e["trouduc"], e["played"]))
                 g_pub[period]["trouduc"] = {k: worst[0][k] for k in ("name", "trouduc", "played")} if worst else None
         public["games"][game], admin["games"][game] = g_pub, g_adm
+    public["achievements"] = []
+    for aid, agame, emoji, label, desc, _ in ACHIEVEMENTS:
+        who = sorted(((unlocked[k][aid], last_names[k]) for k in shown if aid in unlocked[k]), reverse=True)
+        public["achievements"].append({"id": aid, "game": agame, "emoji": emoji, "name": label, "desc": desc, "count": len(who),
+                                       "recent": [{"name": n, "at": t} for t, n in who[:3]]})
     return public, admin
 
 # ---------------------------------------------------------------- récap Discord du lundi
