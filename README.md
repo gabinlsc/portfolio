@@ -44,6 +44,7 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - GitHub appelle `https://admin.glsc.fr/hooks/github` (webhook signé par HMAC-SHA256, secret dans `/etc/glsc-admin/github-webhook.secret`). PHP vérifie la signature et ne fait que déposer une demande dans `/var/lib/glsc-admin/deploy/`.
 - `glsc-deploy.path` réveille `glsc-deploy.service` (root), qui télécharge le dépôt et lance uniquement les scripts prévus pour la cible (liste blanche). Plusieurs pushes rapprochés sur un même dépôt ne donnent qu'un déploiement.
 - Historique, journaux complets, bouton « Déployer maintenant » et marche à suivre pour créer les webhooks : admin → GitHub & déploiements. Résultat sur Discord (alerte « déploiement »).
+- **Retour arrière automatique** : deploy4 garde l'image du jeu en service (`glsc/<jeu>:previous`) et la remet si le nouveau jeu ne répond pas dans les 40 s. Pour le portfolio, la sonde vérifie glsc.fr, admin.glsc.fr et status.glsc.fr après le déploiement ; en cas d'échec elle relance les scripts avec la dernière version qui avait réussi. Le déploiement apparaît « annulé, ancienne version remise » dans l'admin, et une alerte orange part sur Discord.
 - Journal système : `journalctl -u glsc-deploy -n 50`.
 
 ### Classements des jeux

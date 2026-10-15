@@ -34,6 +34,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
@@ -1016,6 +1017,9 @@ DEPLOY_PLANS = {  # cible → scripts du dépôt portfolio à lancer, avec leurs
     "vortex": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "vortex"})],
 }
 DEPLOY_STEP_TIMEOUT = 40 * 60
+# adresses qui doivent répondre après un déploiement du portfolio ; sinon on revient à la dernière version qui marchait
+DEPLOY_VERIFY = [u for u in os.environ.get("GLSC_DEPLOY_VERIFY", "https://glsc.fr/,https://admin.glsc.fr/,https://status.glsc.fr/").split(",") if u]
+ROLLBACK_CODE = 3  # code de sortie de deploy4 : « raté, mais l'ancienne version du jeu est remise en service »
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
@@ -1055,6 +1059,56 @@ def deploy_publish(args, runs, gid):
             os.remove(p)
 
 
+def fetch_source(work, url, name):
+    """Télécharge et extrait l'archive du dépôt ; renvoie (dossier, sha du commit si l'archive le dit)."""
+    import tarfile
+    tgz = os.path.join(work, name + ".tgz")
+    dest = os.path.join(work, name)
+    os.makedirs(dest)
+    urllib.request.urlretrieve(url, tgz)
+    with tarfile.open(tgz) as tar:
+        sha = str(tar.pax_headers.get("comment", "")).strip()
+        tar.extractall(dest, filter="data")
+    src = next(p for p in glob.glob(os.path.join(dest, "*")) if os.path.isdir(p))
+    return src, sha if re.fullmatch(r"[0-9a-f]{40}", sha) else ""
+
+
+def tgz_url(sha):
+    """Archive d'un commit précis (retour arrière) ; les tests, qui fixent l'archive, la gardent telle quelle."""
+    return REPO_TGZ.replace("refs/heads/main", sha) if "refs/heads/main" in REPO_TGZ else REPO_TGZ
+
+
+def deploy_verify():
+    """Adresses du portfolio qui ne répondent pas (code ≥ 400 ou aucune réponse) après un déploiement."""
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):
+            return None
+    opener = urllib.request.build_opener(NoRedirect)
+    bad = []
+    for url in DEPLOY_VERIFY:
+        code = None
+        for _ in range(3):
+            try:
+                code = opener.open(urllib.request.Request(url, headers={"User-Agent": "glsc-deploy"}), timeout=8).status
+            except urllib.error.HTTPError as e:
+                code = e.code
+            except Exception:
+                code = None
+            if code is not None and code < 400:
+                break
+            time.sleep(2)
+        if code is None or code >= 400:
+            bad.append(f"{url} ({code or 'pas de réponse'})")
+    return bad
+
+
+def last_good_commit(runs):
+    for r in runs:
+        if r.get("status") == "ok" and r.get("commit") and r.get("target") in ("portfolio", "portfolio-full"):
+            return r["commit"]
+    return ""
+
+
 def deploy_run(args, target, info, runs, gid, hook, alert_on):
     import tarfile
     import tempfile
@@ -1081,37 +1135,62 @@ def deploy_run(args, target, info, runs, gid, hook, alert_on):
         try:
             note(f"== {time.strftime('%d/%m/%Y %H:%M:%S')} · déploiement « {target} »" + (f" · {info['sha'][:7]} {info['message']}" if info.get("sha") else ""))
             note("== téléchargement du dépôt portfolio")
-            tgz = os.path.join(work, "src.tgz")
-            urllib.request.urlretrieve(REPO_TGZ, tgz)
-            with tarfile.open(tgz) as tar:
-                tar.extractall(work, filter="data")
-            src = next(p for p in glob.glob(os.path.join(work, "*")) if os.path.isdir(p))
+            src, commit = fetch_source(work, REPO_TGZ, "src")
+            entry["commit"] = commit
             env = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "HOME": "/root", "LANG": "C.UTF-8",
                    "TERM": "dumb", "GLSC_AUTO_DEPLOY": "1"}
-            for script, extra in DEPLOY_PLANS[target]:
-                entry["step"] = os.path.basename(script) + "".join(f" {k}={v}" for k, v in extra.items())
-                deploy_publish(args, runs, gid)
-                note(f"\n== {entry['step']}")
-                proc = subprocess.Popen(["bash", os.path.join(src, script)], cwd=work, env={**env, **extra}, stdin=subprocess.DEVNULL,
-                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
-                watchdog = threading.Timer(DEPLOY_STEP_TIMEOUT, lambda p=proc: os.killpg(p.pid, 9))  # script bloqué : on coupe tout
-                watchdog.start()
-                try:
-                    for line in proc.stdout:
-                        out.write(ANSI.sub("", line))
-                    code = proc.wait()
-                finally:
-                    watchdog.cancel()
-                if code == -9:
-                    note(f"!! délai de {DEPLOY_STEP_TIMEOUT // 60} min dépassé, script arrêté")
-                out.flush()
-                if code != 0:
-                    note(f"!! {os.path.basename(script)} a échoué (code {code})")
-                    break
+
+            def run_plan(src_dir):
+                last = 0
+                for script, extra in DEPLOY_PLANS[target]:
+                    entry["step"] = os.path.basename(script) + "".join(f" {k}={v}" for k, v in extra.items())
+                    deploy_publish(args, runs, gid)
+                    note(f"\n== {entry['step']}")
+                    proc = subprocess.Popen(["bash", os.path.join(src_dir, script)], cwd=work, env={**env, **extra}, stdin=subprocess.DEVNULL,
+                                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", start_new_session=True)
+                    watchdog = threading.Timer(DEPLOY_STEP_TIMEOUT, lambda p=proc: os.killpg(p.pid, 9))  # script bloqué : on coupe tout
+                    watchdog.start()
+                    try:
+                        for line in proc.stdout:
+                            out.write(ANSI.sub("", line))
+                        last = proc.wait()
+                    finally:
+                        watchdog.cancel()
+                    if last == -9:
+                        note(f"!! délai de {DEPLOY_STEP_TIMEOUT // 60} min dépassé, script arrêté")
+                    out.flush()
+                    if last != 0:
+                        note(f"!! {os.path.basename(script)} a échoué (code {last})")
+                        break
+                return last
+
+            portfolio_target = target in ("portfolio", "portfolio-full")
+            good = last_good_commit(runs[1:])  # dernière version qui a marché, avant ce déploiement
+            code = run_plan(src)
+            if code == ROLLBACK_CODE and not portfolio_target:
+                entry["rollback"] = True  # deploy4 a déjà remis l'ancienne version du jeu
+            elif portfolio_target:
+                problems = [] if code != 0 else deploy_verify()
+                if code == 0 and problems:
+                    note("!! après le déploiement, ne répond pas : " + ", ".join(problems))
+                if (code != 0 or problems) and good and good != commit:
+                    note(f"\n== retour arrière vers la version {good[:7]}")
+                    old_src, _ = fetch_source(work, tgz_url(good), "old")
+                    back = run_plan(old_src)
+                    again = [] if back != 0 else deploy_verify()
+                    if back == 0 and not again:
+                        note("== l'ancienne version est remise en service")
+                        entry["rollback"] = True
+                        code = ROLLBACK_CODE
+                    else:
+                        note("!! le retour arrière n'a pas suffi" + (" : " + ", ".join(again) if again else ""))
+                        code = code or 1
+                elif problems:
+                    code = 1
         except Exception as e:
             code = code or 1
             note(f"!! {type(e).__name__}: {e}")
-    entry.update(end=int(time.time()), status="ok" if code == 0 else "fail", code=code, step=None)
+    entry.update(end=int(time.time()), status="ok" if code == 0 else "rollback" if entry.get("rollback") else "fail", code=code, step=None)
     deploy_publish(args, runs, gid)
     took = entry["end"] - entry["start"]
     took_txt = f"{took // 60} min {took % 60:02d} s" if took >= 60 else f"{took} s"
@@ -1120,6 +1199,8 @@ def deploy_run(args, target, info, runs, gid, hook, alert_on):
     if alert_on:
         if code == 0:
             discord(hook, f"✅ {target} déployé", f"{what}\nDurée : {took_txt}", 0x22C55E)
+        elif entry["status"] == "rollback":
+            discord(hook, f"↩️ {target} : mise à jour annulée", f"{what}\nLa nouvelle version ne répondait pas : la précédente a été remise en service automatiquement.\nJournal dans l'admin (GitHub & déploiements).", 0xF59E0B)
         else:
             try:
                 with open(log_path, encoding="utf-8") as f:
