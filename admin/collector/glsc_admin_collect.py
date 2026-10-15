@@ -65,11 +65,11 @@ def run(cmd, timeout=20):
         return ""
 
 
-def write_json(path, data, group_gid=None):
+def write_json(path, data, group_gid=None, mode=0o640):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-    os.chmod(tmp, 0o640)
+    os.chmod(tmp, mode)
     if group_gid is not None:
         try:
             os.chown(tmp, 0, group_gid)
@@ -382,7 +382,51 @@ def fail2ban():
     return out
 
 
+# ---------------------------------------------------------------- activité publique pour share.glsc.fr
+def github_projects(user, repos, state, now):
+    """Langages et derniers commits de chaque dépôt public, pour la page Projets.
+
+    L'API sans jeton est limitée à 60 appels par heure : on ne redemande le détail d'un dépôt
+    (2 appels) que lorsque sa date de dernier push a changé. Le reste vient du cache (state).
+    """
+    cache = state.setdefault("projects", {})
+    since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 90 * 86400))
+    calls = 0
+    for r in repos:
+        if r.get("private"):
+            continue
+        name, c = r["name"], cache.get(r["name"], {})
+        if c.get("pushed") != r["pushed"] and calls < 24:  # au pire 26 appels par passage
+            langs = http_json(f"https://api.github.com/repos/{user}/{name}/languages")
+            commits = http_json(f"https://api.github.com/repos/{user}/{name}/commits?since={since}&per_page=100")
+            calls += 2
+            total = sum(langs.values()) or 1
+            c = {
+                "pushed": r["pushed"],
+                "languages": [[k, round(v * 100 / total, 1)] for k, v in sorted(langs.items(), key=lambda kv: -kv[1])][:4],
+                "dates": [iso_ts(x["commit"]["committer"]["date"]) for x in commits if not x["commit"]["message"].startswith("Merge ")],
+                "last": [{"message": x["commit"]["message"].splitlines()[0][:100], "sha": x["sha"][:7], "at": iso_ts(x["commit"]["committer"]["date"])}
+                         for x in commits if not x["commit"]["message"].startswith("Merge ")][:3],
+            }
+            cache[name] = c
+    out = []
+    for r in repos:
+        c = cache.get(r["name"])
+        if r.get("private") or not c:
+            continue
+        out.append({"name": r["name"], "url": r["url"], "stars": r["stars"], "pushed": r["pushed"], "languages": c["languages"],
+                    "commits30": sum(1 for d in c["dates"] if d >= now - 30 * 86400),
+                    "commits90": len(c["dates"]), "last": c["last"]})
+    # fil global : les derniers commits, tous dépôts confondus
+    recent = sorted(({**x, "repo": p["name"]} for p in out for x in p["last"]), key=lambda x: -x["at"])[:6]
+    return {"at": now, "user": user, "repos": out, "recent": recent}
+
+
 # ---------------------------------------------------------------- GitHub, sauvegardes, versions
+def iso_ts(s):
+    return int(dt.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp())
+
+
 def http_json(url, timeout=10):
     req = urllib.request.Request(url, headers={"User-Agent": "glsc-admin", "Accept": "application/vnd.github+json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -390,7 +434,7 @@ def http_json(url, timeout=10):
 
 
 def github(user):
-    repos = http_json(f"https://api.github.com/users/{user}/repos?sort=pushed&per_page=30")
+    repos = http_json(f"https://api.github.com/users/{user}/repos?sort=pushed&per_page=60")
     events = http_json(f"https://api.github.com/users/{user}/events/public?per_page=60")
     commits, feed = [], []
 
@@ -418,9 +462,10 @@ def github(user):
                          or (p.get("issue") or {}).get("title") or repo, "url": None, "at": at})
     return {
         "at": int(time.time()),
-        "repos": [{"name": r["name"], "description": r.get("description") or "", "url": r["html_url"], "language": r.get("language"),
-                   "stars": r.get("stargazers_count", 0), "pushed": ts(r["pushed_at"]), "private": r.get("private", False)}
-                  for r in repos if not r.get("fork")][:18],
+        # tous les dépôts (page Projets) ; l'admin n'en affiche que les 18 plus récents
+        "all": [{"name": r["name"], "description": r.get("description") or "", "url": r["html_url"], "language": r.get("language"),
+                 "stars": r.get("stargazers_count", 0), "pushed": ts(r["pushed_at"]), "private": r.get("private", False)}
+                for r in repos if not r.get("fork")],
         "commits": commits[:15], "events": feed[:15],
     }
 
@@ -600,7 +645,11 @@ def collect(args):
         gh = step("github", lambda: github(args.github_user))
         state["github_at"] = now  # même en échec : pas plus d'un essai par 15 min (limite de l'API)
         if gh:
-            write_json(pub("github"), gh, gid)
+            repos = gh.pop("all")
+            write_json(pub("github"), {**gh, "repos": repos[:18]}, gid)
+            pj = step("projets", lambda: github_projects(args.github_user, repos, state, now))
+            if pj and os.path.isdir(os.path.dirname(args.projects_json)):
+                write_json(args.projects_json, pj, mode=0o644)
     if now - state.get("deploys_at", 0) >= 600:
         dp = step("déploiements", lambda: deploys(state, args.backups, args.games_src, args.version_file, now))
         if dp:
@@ -668,6 +717,7 @@ def main():
     ap.add_argument("--version-file", default="/etc/glsc-admin/portfolio-version.json")
     ap.add_argument("--status-webhook", default="/etc/glsc-status/discord-webhook")
     ap.add_argument("--github-user", default="gabinlsc")
+    ap.add_argument("--projects-json", default="/var/www/share.glsc.fr/github.json", help="activité publique lue par la page Projets")
     ap.add_argument("--offline", action="store_true", help="ne pas appeler GitHub (tests)")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()

@@ -18,6 +18,8 @@ Fichiers communs copiés dans chaque racine : `assets/_glsc/` (polices, icônes,
 La page 404 (`errors/404.html`) sert à tous les sites : copiée dans chaque racine statique, et dans `/var/www/glsc-errors/` pour les jeux, l'admin et les liens courts (`deploy/nginx/glsc-404.inc`). Elle s'adapte au site et à l'adresse demandée, et cache quelques secrets (code Konami, terminal avec « : », chiffres à casser…). Elle est autonome : après l'avoir modifiée, `npm run build:404` recalcule les empreintes de sa CSP.
 Aucune ressource externe : tout est servi depuis le VPS.
 
+La page Projets affiche l'activité GitHub de chaque dépôt (dernier commit, langages, commits sur 30 jours) : la sonde de l'admin écrit `/var/www/share.glsc.fr/github.json` toutes les 15 minutes, sans jeton, en ne redemandant le détail d'un dépôt qu'après un nouveau push.
+
 ## Déployer
 
 En root sur le VPS (deploy5 inclut deploy4, qui inclut deploy3, qui inclut deploy2) :
