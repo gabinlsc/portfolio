@@ -57,6 +57,14 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - Chaque lundi à 9 h, la sonde envoie sur Discord le récap de la semaine écoulée : visites (et évolution), sources, CV et projets cliqués, parties et champions des jeux, commits et déploiements, incidents, tentatives SSH, disque et certificats. Désactivable dans l'admin (Réglages → « Récap de la semaine »).
 - À la demande, en root sur le serveur : `glsc-recap` (7 derniers jours), `glsc-recap --semaine` (semaine dernière complète), `glsc-recap --apercu` (affiche sans envoyer). Ou depuis l'admin : Réglages → « Récap des 7 derniers jours ».
 
+### Sauvegardes chiffrées
+
+- Chaque nuit vers 3 h 30 (`glsc-backup.timer`), la sonde archive la base de l'admin (copie SQLite cohérente), les classements des jeux, les identifiants et secrets de `/etc/glsc-admin`, la config nginx, les certificats Let's Encrypt et les unités systemd, puis chiffre le tout avec [age](https://age-encryption.org) et une clé **publique** (`/etc/glsc-backup/recipient`). Le serveur ne peut donc pas relire ses propres sauvegardes : la clé privée n'y reste jamais.
+- Mise en route, une seule fois, en root : `glsc-backup-setup` (affiche la clé privée une fois, à ranger dans ton gestionnaire de mots de passe) ou `glsc-backup-setup --recipient age1…` avec une clé générée chez toi.
+- Copie hors du serveur : `glsc-backup-setup --rclone mon-stockage:glsc` (tout stockage géré par rclone : S3, IONOS Object Storage, SFTP, Drive…) ou `--discord` (archives de 8 Mo maximum, sur le salon des alertes). 14 archives sont gardées sur le serveur (`/var/backups/glsc`), 60 jours chez rclone.
+- État, bouton « Sauvegarder maintenant » et alerte Discord en cas d'échec : admin → Réglages. En ligne de commande : `glsc-backup-setup --status`, `journalctl -u glsc-backup -n 30`.
+- Restaurer, sur n'importe quelle machine : `age -d -i cle.txt glsc-AAAAMMJJ-HHMMSS.tar.gz.age | tar -xz -C /tmp/restauration`, puis recopier ce qu'il faut (la base de l'admin est dans `bases/`).
+
 ## Modifier les pages
 
 - Le Hub utilise Tailwind compilé : après avoir changé des classes dans `index.html`, lancer `npm install` puis `npm run build:css`.

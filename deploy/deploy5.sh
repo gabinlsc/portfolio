@@ -51,9 +51,9 @@ else
   SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
 fi
 for f in deploy/deploy4.sh admin/lib/router.php admin/lib/click.php admin/public/index.php admin/public/assets/app.js \
-         admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py admin/bin/glsc-recap \
+         admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py admin/bin/glsc-recap admin/bin/glsc-backup-setup \
          admin/systemd/glsc-admin-collect.service admin/systemd/glsc-admin-collect.timer admin/systemd/glsc-admin-queue.path \
-         admin/systemd/glsc-admin-queue.service admin/systemd/glsc-deploy.path admin/systemd/glsc-deploy.service deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
+         admin/systemd/glsc-admin-queue.service admin/systemd/glsc-deploy.path admin/systemd/glsc-deploy.service admin/systemd/glsc-backup.service admin/systemd/glsc-backup.timer deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
          deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css \
          deploy/install-404.sh deploy/nginx/glsc-404.inc errors/404.html; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
@@ -103,6 +103,7 @@ rm -rf "${OPT:?}/lib.old"; mv "$OPT/lib" "$OPT/lib.old"; mv "$OPT/lib.new" "$OPT
 install -m 755 "$SRC/admin/collector/glsc_admin_collect.py" "$OPT/glsc_admin_collect.py"
 install -m 755 "$SRC/admin/bin/glsc-admin-setup" /usr/local/sbin/glsc-admin-setup
 install -m 755 "$SRC/admin/bin/glsc-recap" /usr/local/sbin/glsc-recap   # récap Discord à la demande
+install -m 755 "$SRC/admin/bin/glsc-backup-setup" /usr/local/sbin/glsc-backup-setup   # sauvegardes chiffrées
 ok "code dans $OPT, commande glsc-admin-setup installée"
 
 publish_root() {   # publish_root <dossier> <source index.php>
@@ -207,7 +208,8 @@ done
 
 # ---------------------------------------------------------------- 7. sonde
 info "7/8 Sonde (chaque minute) et file d'attente"
-for u in glsc-admin-collect.service glsc-admin-collect.timer glsc-admin-queue.path glsc-admin-queue.service glsc-deploy.path glsc-deploy.service; do
+install -d -m 700 /var/backups/glsc   # archives chiffrées (ReadWritePaths de glsc-backup.service)
+for u in glsc-admin-collect.service glsc-admin-collect.timer glsc-admin-queue.path glsc-admin-queue.service glsc-deploy.path glsc-deploy.service glsc-backup.service glsc-backup.timer; do
   save "/etc/systemd/system/$u"
   install -m 644 "$SRC/admin/systemd/$u" "/etc/systemd/system/$u"
 done
@@ -220,6 +222,12 @@ fi
 if systemctl start glsc-admin-collect.service; then ok "première mesure faite"; else warn "la sonde a échoué : journalctl -u glsc-admin-collect -n 30"; fi
 systemctl enable --now glsc-admin-collect.timer glsc-admin-queue.path glsc-deploy.path >/dev/null 2>&1
 ok "timer actif (1 mesure/min) et file d'attente surveillée"
+# sauvegardes chiffrées : le timer ne tourne qu'une fois la clé publique en place (glsc-backup-setup)
+if [ -s /etc/glsc-backup/recipient ]; then
+  systemctl enable --now glsc-backup.timer >/dev/null 2>&1 && ok "sauvegarde chiffrée chaque nuit (glsc-backup.timer)"
+else
+  warn "sauvegardes chiffrées pas encore activées : lance « glsc-backup-setup »"
+fi
 # déploiement automatique : secret partagé avec les webhooks GitHub (affiché dans l'admin, page GitHub)
 if [ ! -s "$ETC/github-webhook.secret" ]; then
   (umask 027; head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$ETC/github-webhook.secret")
@@ -254,5 +262,6 @@ info "Terminé. Sauvegardes : $BACKUP"
 echo "  Admin       : https://admin.glsc.fr  (mot de passe + code 2FA)"
 echo "  Identifiants: glsc-admin-setup [--password | --2fa | --recovery]"
 echo "  Sonde       : journalctl -u glsc-admin-collect -n 30"
+echo "  Sauvegardes : glsc-backup-setup [--status | --rclone remote:dossier | --discord]"
 echo "  Récap       : glsc-recap (7 derniers jours) · glsc-recap --semaine · glsc-recap --apercu"
 echo "  L'ancien glsc.fr/private reste en place tant que tu ne le supprimes pas."
