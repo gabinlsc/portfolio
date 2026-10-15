@@ -8,7 +8,7 @@
   <meta name="description" content="La salle de jeux de glsc.fr : UNO, Le Président et Vortex FPS, des jeux multijoueur faits maison, jouables dans le navigateur." />
   <meta name="theme-color" content="#FFFDF0" />
   <meta property="og:title" content="Salle de jeux · GLSC.fr" />
-  <meta property="og:description" content="UNO, Le Président, Vortex FPS… des jeux multijoueur faits maison, jouables dans le navigateur." />
+  <meta property="og:description" content="UNO, Le Président et Vortex FPS : des jeux multijoueur faits maison, jouables dans le navigateur." />
   <meta property="og:url" content="https://games.glsc.fr/" />
   <link rel="canonical" href="https://games.glsc.fr/" />
   <meta property="og:type" content="website" />
@@ -139,7 +139,7 @@
     .lead { margin-top: .9rem; font-size: 1.1rem; font-weight: 500; max-width: 38rem; }
     .soon {
       justify-self: start; display: flex; align-items: center; gap: .8rem;
-      background: var(--banana); border: var(--bd-lg); border-radius: 1.2rem; box-shadow: var(--sh-lg);
+      background: var(--mint); border: var(--bd-lg); border-radius: 1.2rem; box-shadow: var(--sh-lg);
       padding: .9rem 1.2rem; transform: rotate(-2deg); font-weight: 700; max-width: 18rem;
     }
     .soon-emoji { font-size: 2.2rem; line-height: 1; }
@@ -176,7 +176,8 @@
     }
     .act-code { background: #000; color: #fff; box-shadow: 2px 2px 0 var(--cream), 4px 4px 0 #000; transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
     .act-code:hover, .act-code:focus-visible { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--cream), 2px 2px 0 #000; }
-    .act-soon { background: #fff; color: #555; border-style: dashed; cursor: not-allowed; }
+    .act-play { background: var(--mint); color: var(--ink); box-shadow: 4px 4px 0 #000; transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .act-play:hover, .act-play:focus-visible { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
 
     /* Carte mystère */
     .mystery {
@@ -242,8 +243,8 @@
         <p class="lead">Des jeux multijoueur faits maison, qui tournent directement dans le navigateur. Seul contre des bots ou entre potes, sans rien installer.</p>
       </div>
       <div class="soon wiggle" role="status">
-        <span class="soon-emoji" aria-hidden="true">🚧</span>
-        <span><strong>Ouverture imminente</strong>Les tables sont en cours d'installation.</span>
+        <span class="soon-emoji" aria-hidden="true">🟢</span>
+        <span><strong>Les tables sont ouvertes</strong>Choisis un jeu, entre un pseudo et c'est parti.</span>
       </div>
     </header>
 
@@ -254,7 +255,7 @@
 
         <article class="game">
           <div class="cover" style="background-color:var(--coral)">
-            <span class="status">🔜 Bientôt</span>
+            <span class="status">🟢 En ligne</span>
             <svg class="art" viewBox="0 0 120 120" aria-hidden="true">
               <rect x="22" y="18" width="52" height="78" rx="10" fill="#8FD3FF" stroke="#000" stroke-width="5" transform="rotate(-16 48 57)"/>
               <rect x="46" y="20" width="52" height="78" rx="10" fill="#FFD84D" stroke="#000" stroke-width="5" transform="rotate(10 72 59)"/>
@@ -271,7 +272,7 @@
             </div>
             <p>Le classique, avec des règles maison à activer : empilement des +2 et +4, 7 et 0, contestation du +4…</p>
             <div class="actions">
-              <span class="act act-soon"><i data-lucide="hourglass" class="icon"></i> Bientôt jouable</span>
+              <a class="act act-play" href="https://uno.glsc.fr"><i data-lucide="play" class="icon"></i> Jouer</a>
               <a class="act act-code" href="https://github.com/gabinlsc/uno" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Le code</a>
             </div>
           </div>
@@ -279,7 +280,7 @@
 
         <article class="game">
           <div class="cover" style="background-color:var(--banana)">
-            <span class="status">🔜 Bientôt</span>
+            <span class="status">🟢 En ligne</span>
             <svg class="art" viewBox="0 0 120 120" aria-hidden="true">
               <path d="M18 84 26 36l20 22 14-30 14 30 20-22 8 48Z" fill="#FF9478" stroke="#000" stroke-width="5" stroke-linejoin="round"/>
               <rect x="16" y="82" width="88" height="16" rx="5" fill="#fff" stroke="#000" stroke-width="5"/>
@@ -297,7 +298,7 @@
             </div>
             <p>Vise la place de président et évite de finir dernier. Coupe hors tour possible pour compléter un carré.</p>
             <div class="actions">
-              <span class="act act-soon"><i data-lucide="hourglass" class="icon"></i> Bientôt jouable</span>
+              <a class="act act-play" href="https://president.glsc.fr"><i data-lucide="play" class="icon"></i> Jouer</a>
               <a class="act act-code" href="https://github.com/gabinlsc/president" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Le code</a>
             </div>
           </div>
@@ -305,7 +306,7 @@
 
         <article class="game">
           <div class="cover" style="background-color:var(--lilac)">
-            <span class="status">🔜 Bientôt</span>
+            <span class="status">🟢 En ligne</span>
             <svg class="art" viewBox="0 0 120 120" aria-hidden="true">
               <circle cx="60" cy="60" r="40" fill="#fff" stroke="#000" stroke-width="5"/>
               <circle cx="60" cy="60" r="22" fill="#FF9478" stroke="#000" stroke-width="5"/>
@@ -322,7 +323,7 @@
             </div>
             <p>Un FPS nerveux dans un canyon plein de grottes et de toits. Bunny hop, slide et deux armes à maîtriser.</p>
             <div class="actions">
-              <span class="act act-soon"><i data-lucide="hourglass" class="icon"></i> Bientôt jouable</span>
+              <a class="act act-play" href="https://vortex.glsc.fr"><i data-lucide="play" class="icon"></i> Jouer</a>
               <a class="act act-code" href="https://github.com/gabinlsc/vortex-fps" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Le code</a>
             </div>
           </div>
