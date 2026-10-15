@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+  <title>Statut · GLSC.fr</title>
+  <meta name="description" content="État en direct des services de glsc.fr : sites, bases de données, disponibilité sur 90 jours et incidents." />
+  <meta name="theme-color" content="#FFFDF0" />
+  <meta property="og:title" content="Statut · GLSC.fr" />
+  <meta property="og:description" content="État en direct des services de glsc.fr, disponibilité sur 90 jours et incidents." />
+  <meta property="og:url" content="https://status.glsc.fr/" />
+  <link rel="canonical" href="https://status.glsc.fr/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="GLSC.fr" />
+  <meta property="og:locale" content="fr_FR" />
+  <meta property="og:image" content="https://glsc.fr/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://glsc.fr/og.png" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%237BE0AD' stroke='%23000' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='11' fill='%23000'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
+
+  <style>
+    /* ================= TOKENS ================= */
+    :root {
+      --cream: #FFFDF0;
+      --ink: #111111;
+      --muted: #4a4a4a;
+      --banana: #FFD84D;
+      --mint: #7BE0AD;
+      --lilac: #C3A6FF;
+      --sky: #8FD3FF;
+      --coral: #FF9478;
+      --peach: #FFC9A8;
+      --red: #FF5A5A;
+      --nodata: #E4E1D3;
+
+      --font-display: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif;
+      --font-body: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+      --bd: 3px solid #000;
+      --bd-lg: 4px solid #000;
+      --sh-sm: 2px 2px 0 #000;
+      --sh: 4px 4px 0 #000;
+      --sh-lg: 6px 6px 0 #000;
+      --spring: cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background-color: var(--cream);
+      background-image: radial-gradient(#00000014 1.2px, transparent 1.2px);
+      background-size: 22px 22px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, p, ul { margin: 0; }
+    ul { padding: 0; list-style: none; }
+    a { color: inherit; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
+    .icon { width: 1.15em; height: 1.15em; flex-shrink: 0; }
+
+    /* ================= DÉCOR ================= */
+    .deco { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .deco svg { position: absolute; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+      50% { transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 6deg)); }
+    }
+    .doodle { transform: rotate(var(--r, 0deg)); animation: float var(--d, 7s) ease-in-out infinite; }
+    @media (max-width: 767px) {
+      .deco .md-only { display: none; }
+      .deco .blob-top { width: 9rem !important; height: 9rem !important; top: -4.5rem !important; right: -4.5rem !important; }
+      .deco .blob-bottom { width: 12rem !important; height: 12rem !important; bottom: -7rem !important; left: -7rem !important; }
+    }
+
+    /* ================= LAYOUT ================= */
+    .page { position: relative; z-index: 1; max-width: 62rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+    @media (min-width: 640px) { .page { padding: 2.5rem 1.5rem 4rem; } }
+
+    .press { box-shadow: var(--sh); transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .press:hover, .press:focus-visible { transform: translate(2px, 2px); box-shadow: var(--sh-sm); }
+    .press:active { transform: translate(4px, 4px); box-shadow: 0 0 0 #000; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font: 700 1rem/1 var(--font-display);
+      padding: .8rem 1.1rem;
+      border: var(--bd); border-radius: .9rem;
+      background: #fff; color: var(--ink); text-decoration: none; cursor: pointer;
+    }
+
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .updated { display: inline-flex; align-items: center; gap: .5rem; background: #fff; border: var(--bd); border-radius: 999px; padding: .35rem .85rem; box-shadow: var(--sh-sm); font-weight: 700; font-size: .9rem; font-variant-numeric: tabular-nums; }
+
+    .hero { margin-top: 2rem; }
+    .eyebrow { display: inline-block; transform: rotate(-2deg); background: var(--sky); border: var(--bd); border-radius: 999px; padding: .2rem .8rem; box-shadow: var(--sh-sm); font-weight: 700; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; }
+    .title { margin-top: .9rem; font: 700 clamp(2.4rem, 7.5vw, 4.5rem)/.95 var(--font-display); letter-spacing: -.01em; }
+    .hl { position: relative; display: inline-block; z-index: 0; }
+    .hl::after { content: ''; position: absolute; left: -.05em; right: -.05em; bottom: .06em; height: .34em; background: var(--mint); border-radius: 4px; transform: rotate(-1deg); z-index: -1; }
+
+    /* ---------- Bandeau global ---------- */
+    .overall {
+      margin-top: 2rem; display: flex; align-items: center; gap: 1.1rem;
+      padding: 1.25rem 1.5rem; border: var(--bd-lg); border-radius: 1.25rem; box-shadow: var(--sh-lg);
+      background: #fff;
+    }
+    .overall[data-state="up"] { background: var(--mint); }
+    .overall[data-state="degraded"] { background: var(--banana); }
+    .overall[data-state="partial"] { background: var(--coral); }
+    .overall[data-state="down"], .overall[data-state="error"] { background: var(--red); }
+    .overall-emoji { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; flex-shrink: 0; background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh-sm); font-size: 1.9rem; line-height: 1; transform: rotate(-4deg); }
+    .overall h2 { font: 700 clamp(1.3rem, 3.5vw, 1.8rem)/1.15 var(--font-display); }
+    .overall p { font-weight: 500; }
+
+    /* ---------- Serveur ---------- */
+    .server { margin-top: 1.5rem; display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    @media (min-width: 720px) { .server { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .metric { background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh); padding: .8rem 1rem; min-width: 0; }
+    .metric span { display: block; font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .metric strong { display: block; margin-top: .15rem; font: 700 1.6rem/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+    .gauge { margin-top: .5rem; height: .7rem; border: 2px solid #000; border-radius: 999px; background: var(--cream); overflow: hidden; }
+    .gauge i { display: block; height: 100%; width: 0; background: var(--mint); border-right: 2px solid #000; transition: width 400ms var(--spring); }
+    .gauge i.warn { background: var(--banana); }
+    .gauge i.bad { background: var(--coral); }
+
+    /* ---------- Services ---------- */
+    .group-title { display: flex; align-items: center; gap: .7rem; margin: 2.5rem 0 1rem; font: 700 clamp(1.4rem, 3.5vw, 1.8rem)/1.1 var(--font-display); }
+    .group-icon { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; border: var(--bd); border-radius: .75rem; box-shadow: var(--sh-sm); font-size: 1.2rem; line-height: 1; }
+    .services { display: flex; flex-direction: column; gap: 1rem; }
+
+    .svc { background: #fff; border: var(--bd-lg); border-radius: 1.1rem; box-shadow: var(--sh); padding: 1rem 1.15rem; min-width: 0; }
+    .svc-head { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+    .svc-name { flex: 1; min-width: 10rem; }
+    .svc-name h3 { font: 700 1.25rem/1.2 var(--font-display); }
+    .svc-name a { text-decoration: none; }
+    .svc-name a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--coral); }
+    .svc-name p { font-size: .88rem; font-weight: 500; color: var(--muted); }
+    .pill { display: inline-flex; align-items: center; gap: .4rem; border: 2px solid #000; border-radius: 999px; padding: .15rem .65rem; font-weight: 700; font-size: .85rem; white-space: nowrap; }
+    .pill::before { content: ''; width: .6rem; height: .6rem; border-radius: 999px; border: 2px solid #000; background: currentColor; }
+    .pill[data-state="up"] { background: var(--mint); color: #15803d; }
+    .pill[data-state="degraded"] { background: var(--banana); color: #a16207; }
+    .pill[data-state="down"] { background: var(--red); color: #7f1d1d; }
+    .pill span { color: var(--ink); }
+
+    .stats { margin-top: .75rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+    .stats span { background: var(--cream); border: 2px solid #000; border-radius: .5rem; padding: .05rem .5rem; font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .stats .warn { background: var(--banana); }
+    .stats .bad { background: var(--coral); }
+
+    .bars { margin-top: .85rem; display: flex; gap: 2px; height: 2.1rem; align-items: stretch; }
+    .bars i { flex: 1; min-width: 0; border-radius: 2px; background: var(--nodata); }
+    .bars i.b-ok { background: var(--mint); }
+    .bars i.b-warn { background: var(--banana); }
+    .bars i.b-bad { background: var(--red); }
+    .bars i:hover { outline: 2px solid #000; }
+    .bars-legend { margin-top: .3rem; display: flex; justify-content: space-between; font-size: .75rem; font-weight: 700; color: var(--muted); }
+    @media (max-width: 640px) { .bars i:nth-child(-n+60) { display: none; } .bars-legend .l90 { display: none; } }
+    @media (min-width: 641px) { .bars-legend .l30 { display: none; } }
+
+    /* ---------- Incidents ---------- */
+    .incidents { display: flex; flex-direction: column; gap: .75rem; }
+    .incident { display: flex; gap: .9rem; align-items: flex-start; background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh-sm); padding: .85rem 1rem; }
+    .incident.open { background: #FFE3E3; }
+    .incident .emoji { font-size: 1.4rem; line-height: 1.2; }
+    .incident strong { font-family: var(--font-display); font-size: 1.05rem; }
+    .incident p { font-size: .9rem; font-weight: 500; color: var(--muted); }
+    .empty { background: #fff; border: 3px dashed #000; border-radius: 1rem; padding: 1rem 1.2rem; font-weight: 600; }
+
+    .foot { margin-top: 3.5rem; padding-top: 1.5rem; border-top: 4px dashed #000; display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: flex-start; font-weight: 500; font-size: .92rem; }
+    .foot p { max-width: 36rem; }
+    .foot a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--coral); text-underline-offset: 4px; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
+    .live { width: .65rem; height: .65rem; border-radius: 999px; background: #22c55e; border: 2px solid #000; animation: pulse 2s ease-in-out infinite; }
+    .live.stale { background: var(--banana); animation: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="deco" aria-hidden="true">
+    <svg class="blob-top" style="top:-6rem;right:-6rem;width:22rem;height:22rem" viewBox="0 0 200 200"><path d="M150 40c30 25 35 75 10 110s-80 45-115 20S0 90 25 55 120 15 150 40Z" fill="#7BE0AD" stroke="#000" stroke-width="4"/></svg>
+    <svg class="blob-bottom" style="bottom:-13rem;left:-13rem;width:24rem;height:24rem" viewBox="0 0 200 200"><path d="M160 50c25 30 25 80-5 110s-85 30-115 0-25-90 10-120 85-20 110 10Z" fill="#FFD84D" stroke="#000" stroke-width="4"/></svg>
+    <!-- battement de cœur -->
+    <svg class="doodle md-only" style="top:30%;left:1.5%;width:5rem;height:3rem;--r:-6deg;--d:7s" viewBox="0 0 120 70"><rect x="3" y="3" width="114" height="64" rx="14" fill="#fff" stroke="#000" stroke-width="5"/><path d="M14 38h22l8-18 12 32 10-24 6 10h34" fill="none" stroke="#FF5A5A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <!-- serveur -->
+    <svg class="doodle md-only" style="top:62%;right:2%;width:3.6rem;height:4.4rem;--r:8deg;--d:8s" viewBox="0 0 80 100"><rect x="6" y="6" width="68" height="40" rx="8" fill="#8FD3FF" stroke="#000" stroke-width="5"/><rect x="6" y="54" width="68" height="40" rx="8" fill="#C3A6FF" stroke="#000" stroke-width="5"/><circle cx="58" cy="26" r="6" fill="#7BE0AD" stroke="#000" stroke-width="4"/><circle cx="58" cy="74" r="6" fill="#7BE0AD" stroke="#000" stroke-width="4"/><path d="M18 26h22M18 74h22" stroke="#000" stroke-width="5" stroke-linecap="round"/></svg>
+    <svg class="doodle" style="top:9%;right:10%;width:3.4rem;height:3.4rem;--r:12deg;--d:6s" viewBox="0 0 100 100"><path d="M50 5 61 38h34L67 58l11 34-28-21-28 21 11-34L5 38h34Z" fill="#FF9478" stroke="#000" stroke-width="5" stroke-linejoin="round"/></svg>
+  </div>
+
+  <div class="page">
+    <div class="topbar">
+      <a href="https://glsc.fr" class="btn press"><i data-lucide="arrow-left" class="icon"></i> Retour au Hub</a>
+      <span class="updated" aria-live="polite"><span class="live" id="live" aria-hidden="true"></span> <span id="updated">Chargement…</span></span>
+    </div>
+
+    <header class="hero">
+      <span class="eyebrow">status.glsc.fr</span>
+      <h1 class="title">STATUT DES <span class="hl">SERVICES</span></h1>
+    </header>
+
+    <section class="overall" id="overall" data-state="loading" aria-live="polite">
+      <span class="overall-emoji" id="overall-emoji" aria-hidden="true">⏳</span>
+      <div>
+        <h2 id="overall-title">Vérification en cours…</h2>
+        <p id="overall-text">Les données arrivent.</p>
+      </div>
+    </section>
+    <noscript><p class="empty" style="margin-top:1rem">Cette page a besoin de JavaScript pour afficher l'état des services.</p></noscript>
+
+    <section class="server" id="server" aria-label="Serveur" hidden>
+      <div class="metric"><span>En ligne depuis</span><strong id="m-uptime">–</strong></div>
+      <div class="metric"><span>Charge CPU</span><strong id="m-load">–</strong><div class="gauge"><i id="g-load"></i></div></div>
+      <div class="metric"><span>Mémoire</span><strong id="m-mem">–</strong><div class="gauge"><i id="g-mem"></i></div></div>
+      <div class="metric"><span>Disque</span><strong id="m-disk">–</strong><div class="gauge"><i id="g-disk"></i></div></div>
+    </section>
+
+    <main id="groups"></main>
+
+    <h2 class="group-title"><span class="group-icon" style="background:var(--peach)" aria-hidden="true">📋</span>Incidents récents</h2>
+    <div class="incidents" id="incidents"><p class="empty">Chargement…</p></div>
+
+    <footer class="foot">
+      <p>Chaque service est testé toutes les minutes depuis le serveur lui-même. Une panne complète du serveur ou de son réseau n'apparaîtrait donc pas ici : la page elle-même serait inaccessible. Code de la sonde : <a href="https://github.com/gabinlsc/portfolio/tree/main/status">GitHub</a>.</p>
+      <p>© <span id="year">2026</span> GLSC.fr</p>
+    </footer>
+  </div>
+
+  <template id="tpl-svc">
+    <article class="svc">
+      <div class="svc-head">
+        <div class="svc-name"><h3></h3><p></p></div>
+        <span class="pill"></span>
+      </div>
+      <div class="stats"></div>
+      <div class="bars" aria-hidden="true"></div>
+      <div class="bars-legend" aria-hidden="true"><span class="l90">il y a 90 jours</span><span class="l30">il y a 30 jours</span><span>aujourd'hui</span></div>
+    </article>
+  </template>
+
+  <script src="/_glsc/icons.js"></script>
+  <script src="/_glsc/status.js"></script>
+</body>
+</html>

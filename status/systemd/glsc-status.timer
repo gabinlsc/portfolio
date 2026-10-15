@@ -1,0 +1,10 @@
+[Unit]
+Description=Lance les sondes de status.glsc.fr chaque minute
+
+[Timer]
+OnCalendar=*:*:00
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
