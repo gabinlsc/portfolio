@@ -59,6 +59,10 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - Chaque lundi à 9 h, la sonde envoie sur Discord le récap de la semaine écoulée : visites (et évolution), sources, CV et projets cliqués, parties et champions des jeux, commits et déploiements, incidents, tentatives SSH, disque et certificats. Désactivable dans l'admin (Réglages → « Récap de la semaine »).
 - À la demande, en root sur le serveur : `glsc-recap` (7 derniers jours), `glsc-recap --semaine` (semaine dernière complète), `glsc-recap --apercu` (affiche sans envoyer). Ou depuis l'admin : Réglages → « Récap des 7 derniers jours ».
 
+### SSH
+
+`glsc-ssh-harden` (en root, installé par deploy5) coupe la connexion par mot de passe et met fail2ban au régime sévère (sshd : 4 essais → 1 h ; récidivistes : 3 bans en un jour → 1 semaine). Il refuse de s'appliquer sans clé valide dans `/root/.ssh/authorized_keys`, demande de confirmer qu'une connexion par clé a été testée dans un autre terminal, valide la config (`sshd -t`), recharge sans couper les sessions ouvertes et revient en arrière si le résultat n'est pas celui attendu. `--status` montre l'état, `--undo` remet le mot de passe, `--fail2ban` ne touche que fail2ban. Installer une clé (depuis ton PC) : `ssh-keygen -t ed25519`, puis `ssh-copy-id root@87.106.8.177` (sous Windows PowerShell : `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@87.106.8.177 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`).
+
 ### Sauvegardes chiffrées
 
 - Chaque nuit vers 3 h 30 (`glsc-backup.timer`), la sonde archive la base de l'admin (copie SQLite cohérente), les classements des jeux, les identifiants et secrets de `/etc/glsc-admin`, la config nginx, les certificats Let's Encrypt et les unités systemd, puis chiffre le tout avec [age](https://age-encryption.org) et une clé **publique** (`/etc/glsc-backup/recipient`). Le serveur ne peut donc pas relire ses propres sauvegardes : la clé privée n'y reste jamais.

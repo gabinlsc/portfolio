@@ -235,6 +235,7 @@ if [ ! -s "$ETC/github-webhook.secret" ]; then
 fi
 chown root:www-data "$ETC/github-webhook.secret"; chmod 640 "$ETC/github-webhook.secret"
 ok "déploiement automatique prêt (glsc-deploy.path)"
+install -m 755 "$SRC/admin/bin/glsc-ssh-harden" /usr/local/sbin/glsc-ssh-harden   # SSH par clé + fail2ban (à lancer à la main)
 
 # ---------------------------------------------------------------- 8. identifiants + vérification
 info "8/8 Identifiants et vérification"
