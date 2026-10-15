@@ -12,7 +12,7 @@
 #   glsc-backup-setup --status              montre l'état
 set -euo pipefail
 
-ETC=/etc/glsc-backup
+ETC="${GLSC_BACKUP_ETC:-/etc/glsc-backup}"
 die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*" >&2; exit 1; }
 ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
@@ -52,14 +52,17 @@ elif [ -s "$ETC/recipient" ]; then
 else
   [ -t 0 ] && [ -t 1 ] || die "Pas de terminal : lance la commande à la main, la clé privée doit être lue et recopiée."
   key="$(mktemp)"; trap 'shred -u "$key" 2>/dev/null || rm -f "$key"' EXIT
-  age-keygen -o "$key" 2>/dev/null
+  # sur la sortie standard : « age-keygen -o » refuse d'écrire dans un fichier qui existe déjà (celui de mktemp)
+  age-keygen >"$key" 2>/dev/null || die "age-keygen a échoué : la clé n'a pas pu être créée."
+  chmod 600 "$key"
   pub="$(grep -o 'age1[0-9a-z]*' "$key" | head -1)"
   printf '\n\033[1m  CLÉ PRIVÉE — affichée UNE SEULE fois, elle ne reste PAS sur le serveur\033[0m\n'
   printf '  Copie les deux dernières lignes dans ton gestionnaire de mots de passe (sans elle, plus aucune sauvegarde n'"'"'est lisible).\n\n'
   cat "$key"
   printf '\n'
   read -r -p "  Tape SAUVEGARDÉ quand c'est fait : " answer
-  [ "$answer" = "SAUVEGARDÉ" ] || die "Rien n'a été activé. Relance la commande quand tu es prêt."
+  case "${answer^^}" in "SAUVEGARDÉ"|"SAUVEGARDE") ;; *) die "Rien n'a été activé. Relance la commande quand tu es prêt." ;; esac
+  [ -n "$pub" ] || die "Clé publique introuvable : rien n'a été activé."
   printf '%s\n' "$pub" > "$ETC/recipient"
   ok "clé publique enregistrée (la privée est effacée du serveur)"
 fi
@@ -76,7 +79,7 @@ if [ "$discord" = 1 ]; then : > "$ETC/discord"; ok "envoi Discord activé (archi
 
 systemctl enable --now glsc-backup.timer >/dev/null 2>&1 || warn "timer glsc-backup absent : relance deploy5"
 if systemctl start glsc-backup.service; then ok "première sauvegarde faite"; else warn "la sauvegarde a échoué : journalctl -u glsc-backup -n 30"; fi
-ls -lh /var/backups/glsc | tail -3
+ls -lh /var/backups/glsc 2>/dev/null | tail -3 || true
 cat <<'TXT'
 
   Une sauvegarde part chaque nuit vers 3 h 30 (bouton « Sauvegarder maintenant » dans l'admin → Réglages).
