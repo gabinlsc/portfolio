@@ -244,7 +244,7 @@ for url in https://admin.glsc.fr/ https://click.glsc.fr/; do
 done
 # la 404 commune doit répondre partout (« s'est perdue » est dans errors/404.html)
 for host in glsc.fr cv.glsc.fr share.glsc.fr old.glsc.fr games.glsc.fr status.glsc.fr \
-            uno.glsc.fr president.glsc.fr vortex.glsc.fr admin.glsc.fr click.glsc.fr; do
+            plus4.glsc.fr president.glsc.fr vortex.glsc.fr admin.glsc.fr click.glsc.fr; do
   url="https://$host/cette-page-n-existe-pas.png"
   code="$(curl -s -o "$WORK/404" -w '%{http_code}' --max-time 8 "$url" || true)"
   if [ "$code" = 404 ] && grep -q "s'est perdue" "$WORK/404"; then ok "404 commune  $host"; else warn "404 : code $code  $host"; fi

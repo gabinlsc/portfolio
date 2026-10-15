@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- CSP : style et script en ligne autorisés par empreinte (npm run build:404 les recalcule) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'sha256-zwsv1WiZ6HkKZ9ALNvESWEbKsygD+Uh7QtPyHW7GGqU='; script-src 'sha256-nI9eMAz1dVdEBmEHqznnbmMSnj1rqqv1xeHBrz2qLaE='; img-src data:; font-src 'self'; base-uri 'none'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'sha256-zwsv1WiZ6HkKZ9ALNvESWEbKsygD+Uh7QtPyHW7GGqU='; script-src 'sha256-L0tEvblNNex2GIS7OE/FcHu19gvBaEhIg+sN8imP4Cc='; img-src data:; font-src 'self'; base-uri 'none'; form-action 'none'" />
   <title>Page introuvable · GLSC.fr</title>
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#FFFDF0" />
@@ -202,7 +202,7 @@
   const SITES = {
     hub: ['https://glsc.fr', 'Le Hub'], cv: ['https://cv.glsc.fr', 'Mon CV'], projets: ['https://share.glsc.fr', 'Projets'],
     archives: ['https://old.glsc.fr', 'Archives'], jeux: ['https://games.glsc.fr', 'Salle de jeux'], statut: ['https://status.glsc.fr', 'Statut'],
-    uno: ['https://uno.glsc.fr', 'UNO'], president: ['https://president.glsc.fr', 'Le Président'], vortex: ['https://vortex.glsc.fr', 'Vortex'],
+    plus4: ['https://plus4.glsc.fr', '+4'], president: ['https://president.glsc.fr', 'Le Président'], vortex: ['https://vortex.glsc.fr', 'Vortex'],
   };
   const link = (key) => { const a = document.createElement('a'); a.href = SITES[key][0]; a.textContent = SITES[key][1]; return a; };
 
@@ -221,7 +221,7 @@
     'old.glsc.fr': 'Même les archives n’en ont gardé aucune trace. Et pourtant, elles gardent tout.',
     'games.glsc.fr': 'Game over : cette page n’a plus de vies. Tu peux réessayer avec un autre jeu.',
     'status.glsc.fr': 'Statut de cette page : introuvable. Tous les autres services vont bien, promis.',
-    'uno.glsc.fr': 'Cette page a pris un +4 et a quitté la partie. Elle n’a même pas dit «\u00a0UNO\u00a0».',
+    'plus4.glsc.fr': 'Cette page a pris un +4 et a quitté la partie. Elle n’a même pas crié «\u00a0Dernière\u00a0!\u00a0».',
     'president.glsc.fr': 'Cette page a fini dernière. Elle est partie mélanger les cartes.',
     'vortex.glsc.fr': 'Cette page a été aspirée par le vortex. On a envoyé une équipe, sans grand espoir.',
     'click.glsc.fr': 'Ce lien court était un peu trop court : il n’en reste rien.',
@@ -245,7 +245,7 @@
     [/^\/404/, () => say('Tu cherchais la page 404 ? Bravo, tu l’as trouvée.')],
     [/cafe|coffee|teapot|the\b/, () => say('Erreur 418 : je suis une théière. Pas de café ici.')],
     [/alternan|recrut|hire|job|stage|contact|cv|resume|embauch/, () => say('Bonne idée ! Tout est sur', 'cv')],
-    [/uno/, () => say('Tu cherchais une partie de UNO ? C’est par ici :', 'uno')],
+    [/plus4|plus-4|\+4|uno|carte/, () => say('Tu cherchais une partie de +4 ? C’est par ici :', 'plus4')],
     [/presid/, () => say('Une partie de Président ? C’est par ici :', 'president')],
     [/vortex|fps/, () => say('Vortex, c’est par ici :', 'vortex')],
     [/jeu|game|play/, () => say('Les jeux sont rangés dans la', 'jeux')],
@@ -267,7 +267,7 @@
   const EXCUSES = [
     'Le stagiaire l’a rangée. Personne ne sait où.',
     'Elle est partie en alternance. Elle revient dans deux semaines.',
-    'Un bot du UNO l’a jouée en +4.',
+    'Un bot l’a jouée en +4. Sans prévenir.',
     'Elle a perdu au Président et doit distribuer les cartes.',
     'Elle a été aspirée par le Vortex.',
     'Elle a fait un git push --force sur elle-même.',
@@ -396,9 +396,9 @@
   }
   function closeTerm() { term.hidden = true; input.blur(); }
   const go = (key) => { print(`Direction ${SITES[key][1]}…`); setTimeout(() => { location.href = SITES[key][0]; }, 500); };
-  const ALIASES = { '..': 'hub', '~': 'hub', '/': 'hub', glsc: 'hub', 'cv.pdf': 'cv', share: 'projets', old: 'archives', games: 'jeux', status: 'statut', 'président': 'president' };
+  const ALIASES = { '..': 'hub', '~': 'hub', '/': 'hub', glsc: 'hub', 'cv.pdf': 'cv', share: 'projets', old: 'archives', games: 'jeux', status: 'statut', 'président': 'president', '+4': 'plus4', uno: 'plus4' };
   const COMMANDS = {
-    help: () => print('help, ls, cd <dossier>, pwd, whoami, cat <fichier>, echo, date, ping, history, clear, sudo, uno, party, exit'),
+    help: () => print('help, ls, cd <dossier>, pwd, whoami, cat <fichier>, echo, date, ping, history, clear, sudo, plus4, party, exit'),
     ls: (a) => print(Object.keys(SITES).filter((k) => k !== 'hub').map((k) => k + '/').join('  ') + (a.includes('-a') || a.includes('-la') ? '  .secret' : '')),
     cd: (a) => {
       const k = ALIASES[a[0]] || (a[0] || '').replace(/\/$/, '').toLowerCase();
@@ -422,7 +422,7 @@
     clear: () => { out.textContent = ''; },
     sudo: (a) => print(a.join(' ').startsWith('rm') ? 'Même avec sudo, non.' : 'visiteur n’est pas dans le fichier sudoers. Cet incident sera signalé.', 'err'),
     rm: (a) => print(a.join(' ').includes('-rf') ? 'Bien essayé. Le serveur a dit non.' : 'rm: rien à supprimer, la page n’existe déjà plus.', 'err'),
-    uno: () => print('UNO ! … ah non, il te reste six cartes. Tape «\u00a0cd uno\u00a0» pour une vraie partie.'),
+    plus4: () => print('Dernière ! … ah non, il te reste six cartes. Tape «\u00a0cd plus4\u00a0» pour une vraie partie.'),
     party: () => { print('C’est la fête.'); party(); },
     konami: () => print('Pas ici. Sur le clavier, hors du terminal.'),
     vim: () => print('Tu es maintenant coincé dans vim. Tape :q pour sortir.'),

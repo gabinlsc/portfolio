@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # deploy4 — tout ce que fait deploy3 (donc deploy2), plus les jeux en ligne :
-#   uno.glsc.fr, president.glsc.fr et vortex.glsc.fr, chacun dans un conteneur Docker durci.
+#   plus4.glsc.fr (+4), president.glsc.fr et vortex.glsc.fr, chacun dans un conteneur Docker durci.
+#   L'ancienne adresse uno.glsc.fr redirige vers plus4.glsc.fr.
 #
 # Usage (en root sur le VPS) :
 #   curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/deploy4.sh | bash
 #
-# Prérequis : un enregistrement DNS « A » vers le VPS pour uno, president et vortex (sans AAAA).
+# Prérequis : un enregistrement DNS « A » vers le VPS pour plus4, president et vortex (sans AAAA).
 # Un jeu dont le DNS n'est pas prêt est quand même installé ; seul son HTTPS est reporté.
 # Relançable à volonté : il met aussi les jeux à jour depuis GitHub.
 #
 # GLSC_ONLY_GAME=uno|president|vortex : ne met à jour que ce jeu (sources, image, conteneur), sans toucher
+# (« uno » reste l'identifiant interne de +4 : service Docker, résultats, déploiement automatique)
 # aux sites ni à nginx. C'est ce qu'utilise le déploiement automatique après un push sur le dépôt du jeu.
 
 set -euo pipefail
@@ -23,11 +25,15 @@ trap 'rm -rf "$WORK"' EXIT
 GAMES_DIR=/opt/glsc-games
 ACME_ROOT=/var/www/letsencrypt
 NGX=/etc/nginx
-# domaine | nom affiché | port local | dépôt GitHub | modèle nginx
+# domaine | nom affiché | port local | dépôt GitHub | modèle nginx | service Docker (identifiant interne)
 GAMES=(
-  "uno.glsc.fr|UNO|3101|uno|game-proxy"
-  "president.glsc.fr|Le Président|3102|president|game-proxy"
-  "vortex.glsc.fr|Vortex|3103|vortex-fps|game-vortex"
+  "plus4.glsc.fr|+4|3101|plus4|game-proxy|uno"
+  "president.glsc.fr|Le Président|3102|president|game-proxy|president"
+  "vortex.glsc.fr|Vortex|3103|vortex-fps|game-vortex|vortex"
+)
+# anciennes adresses : domaine | (inutilisé) | nouvelle adresse | - | modèle nginx | -
+REDIRECTS=(
+  "uno.glsc.fr|+4|plus4.glsc.fr|-|redirect|-"
 )
 
 ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
@@ -38,7 +44,7 @@ die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*"; exit 1; }
 [ "$(id -u)" -eq 0 ] || die "Lance ce script en root."
 ONLY="${GLSC_ONLY_GAME:-}"
 case "$ONLY" in ""|uno|president|vortex) ;; *) die "GLSC_ONLY_GAME doit valoir uno, president ou vortex." ;; esac
-wanted() { [ -z "$ONLY" ] || [ "${1%%.*}" = "$ONLY" ]; }   # wanted <domaine>
+wanted() { [ -z "$ONLY" ] || [ "$1" = "$ONLY" ]; }   # wanted <service Docker>
 mkdir -p "$BACKUP"
 
 save() {
@@ -97,8 +103,8 @@ done
 info "3/7 Sources des jeux (GitHub)"
 install -d -m 755 "$GAMES_DIR" "$GAMES_DIR/src" "$GAMES_DIR/dockerfiles"
 for entry in "${GAMES[@]}"; do
-  IFS='|' read -r domain name port repo tpl <<<"$entry"
-  wanted "$domain" || continue
+  IFS='|' read -r domain name port repo tpl svc <<<"$entry"
+  wanted "$svc" || continue
   dir="$GAMES_DIR/src/$repo"
   if [ -d "$dir/.git" ]; then
     git -C "$dir" fetch -q --depth 1 origin main && git -C "$dir" reset -q --hard origin/main
@@ -107,6 +113,8 @@ for entry in "${GAMES[@]}"; do
   fi
   ok "$name : $(git -C "$dir" log -1 --format='%h · %s' | cut -c1-70)"
 done
+# le dépôt « uno » est devenu « plus4 » : l'ancienne copie des sources ne sert plus
+if [ -d "$GAMES_DIR/src/plus4/.git" ] && [ -d "$GAMES_DIR/src/uno" ]; then rm -rf "${GAMES_DIR:?}/src/uno"; ok "anciennes sources « uno » retirées"; fi
 install -m 644 "$SRC/deploy/games/president.Dockerfile" "$SRC/deploy/games/vortex.Dockerfile" "$GAMES_DIR/dockerfiles/"
 # résultats des parties (classements) : seul dossier où les conteneurs peuvent écrire (utilisateur node, uid 1000)
 for svc in uno president vortex; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
@@ -156,7 +164,7 @@ fi
 docker image prune -f >/dev/null 2>&1 || true
 
 # client statique de Vortex → /var/www/vortex.glsc.fr (remplacement atomique)
-if wanted vortex.glsc.fr; then
+if wanted vortex; then
 tmp="$(mktemp -d /var/www/.vortex-XXXX)"
 cid="$(docker create glsc/vortex:latest)"
 docker cp "$cid:/app/public/." "$tmp/" && docker rm -f "$cid" >/dev/null
@@ -170,15 +178,15 @@ fi
 sleep 5
 health_ok=1
 for entry in "${GAMES[@]}"; do
-  IFS='|' read -r domain name port repo tpl <<<"$entry"
-  wanted "$domain" || continue
+  IFS='|' read -r domain name port repo tpl svc <<<"$entry"
+  wanted "$svc" || continue
   if [ "$repo" = vortex-fps ]; then
     code="$(curl -s -o /dev/null -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
             -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' -H "Origin: https://$domain" --max-time 3 "http://127.0.0.1:$port/play" || true)"
     [ "$code" = 101 ] && ok "$name répond en local (WebSocket)" || { health_ok=0; warn "$name ne répond pas en local (code $code) : docker logs glsc-games-vortex-1"; }
   else
     code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$port/health" || true)"
-    [ "$code" = 200 ] && ok "$name répond en local" || { health_ok=0; warn "$name ne répond pas en local (code $code) : docker logs glsc-games-$repo-1"; }
+    [ "$code" = 200 ] && ok "$name répond en local" || { health_ok=0; warn "$name ne répond pas en local (code $code) : docker logs glsc-games-$svc-1"; }
   fi
 done
 if [ -n "$ONLY" ]; then
@@ -204,10 +212,11 @@ fi
 # ---------------------------------------------------------------- 6. un site HTTPS par jeu
 info "6/7 nginx et HTTPS par jeu"
 LOCAL_IPS=" $(hostname -I 2>/dev/null) $(curl -4 -s --max-time 5 https://ifconfig.me 2>/dev/null || true) "
-render() { sed -e "s#__DOMAIN__#$2#g" -e "s#__PORT__#$3#g" -e "s#__NAME__#$4#g" "$SRC/deploy/nginx/$1.conf.tpl"; }
+# pour une redirection, le 3e champ (port) est la nouvelle adresse (__TARGET__)
+render() { sed -e "s#__DOMAIN__#$2#g" -e "s#__PORT__#$3#g" -e "s#__TARGET__#$3#g" -e "s#__NAME__#$4#g" "$SRC/deploy/nginx/$1.conf.tpl"; }
 
-for entry in "${GAMES[@]}"; do
-  IFS='|' read -r domain name port repo tpl <<<"$entry"
+for entry in "${GAMES[@]}" "${REDIRECTS[@]}"; do
+  IFS='|' read -r domain name port repo tpl svc <<<"$entry"
   avail="$NGX/sites-available/$domain"; enabled="$NGX/sites-enabled/$domain"
   others="$(grep -lsE "server_name[^;]*\b${domain//./\\.}\b" "$NGX"/sites-enabled/* | grep -v "/$domain\$" || true)"
   if [ -n "$others" ]; then warn "$domain déjà déclaré dans $others : ignoré."; continue; fi
@@ -246,7 +255,7 @@ for entry in "${GAMES[@]}"; do
     fi
   fi
   if apply "$(render "$tpl" "$domain" "$port" "$name")"; then
-    ok "$domain : en ligne en HTTPS"
+    [ "$tpl" = redirect ] && ok "$domain : redirigé vers https://$port" || ok "$domain : en ligne en HTTPS"
   else
     warn "$domain : nginx refuse la config HTTPS, ancienne config restaurée."
   fi
@@ -256,9 +265,14 @@ done
 info "7/7 Vérification"
 "${COMPOSE[@]}" ps --format '{{.Service}}|{{.Status}}' 2>/dev/null | while IFS='|' read -r s st; do printf '    %-10s %s\n' "$s" "$st"; done
 for entry in "${GAMES[@]}"; do
-  IFS='|' read -r domain name port repo tpl <<<"$entry"
+  IFS='|' read -r domain name port repo tpl svc <<<"$entry"
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "https://$domain/" || true)"
   [ "$code" = 200 ] && ok "$code  https://$domain" || warn "$code  https://$domain"
+done
+for entry in "${REDIRECTS[@]}"; do
+  IFS='|' read -r domain name target repo tpl svc <<<"$entry"
+  where="$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 8 "https://$domain/salon" || true)"
+  [ "$where" = "301 https://$target/salon" ] && ok "https://$domain → https://$target" || warn "redirection $domain : $where"
 done
 
 info "Terminé. Sauvegardes : $BACKUP"

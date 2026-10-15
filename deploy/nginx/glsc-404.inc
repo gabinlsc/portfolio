@@ -1,5 +1,5 @@
 # Page 404 commune (errors/404.html du dépôt), pour les sites qui n'ont pas de 404.html dans leur racine :
-# jeux (uno, president, vortex), admin.glsc.fr et click.glsc.fr. Installée par deploy2.sh et deploy5.sh.
+# jeux (plus4, president, vortex), admin.glsc.fr et click.glsc.fr. Installée par deploy2.sh et deploy5.sh.
 # Les sites statiques (glsc.fr, cv, share, old, games, status) gardent leur copie de 404.html.
 error_page 404 /404.html;
 proxy_intercept_errors on;   # jeux : remplace les 404 des conteneurs par cette page

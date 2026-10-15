@@ -66,12 +66,12 @@
     },
     {
       "id": "uno",
-      "name": "UNO",
+      "name": "+4",
       "group": "Jeux",
       "type": "http",
-      "url": "https://uno.glsc.fr/health",
-      "link": "https://uno.glsc.fr",
-      "description": "uno.glsc.fr"
+      "url": "https://plus4.glsc.fr/health",
+      "link": "https://plus4.glsc.fr",
+      "description": "plus4.glsc.fr"
     },
     {
       "id": "president",

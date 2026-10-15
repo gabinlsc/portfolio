@@ -9,14 +9,15 @@ declare(strict_types=1);
 /** Dépôt GitHub → cible de déploiement (la sonde accepte les mêmes cibles, rien d'autre). */
 const DEPLOY_REPOS = [
     'gabinlsc/portfolio' => 'portfolio',
-    'gabinlsc/uno' => 'uno',
+    'gabinlsc/plus4' => 'uno',   // +4 (« uno » reste l'identifiant interne)
+    'gabinlsc/uno' => 'uno',     // ancien nom du dépôt
     'gabinlsc/president' => 'president',
     'gabinlsc/vortex-fps' => 'vortex',
 ];
 const DEPLOY_TARGETS = [
     'portfolio' => 'Sites, status et admin (deploy3 + deploy5 admin)',
     'portfolio-full' => 'Tout, jeux compris (deploy5 complet)',
-    'uno' => 'UNO (image reconstruite)',
+    'uno' => '+4 (image reconstruite)',
     'president' => 'Le Président (image reconstruite)',
     'vortex' => 'Vortex (image reconstruite)',
 ];

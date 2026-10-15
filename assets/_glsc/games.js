@@ -8,7 +8,7 @@
 (function () {
   'use strict';
   var GAMES = {
-    uno: { label: 'UNO', url: 'https://uno.glsc.fr' },
+    uno: { label: '+4', url: 'https://plus4.glsc.fr' }, // « uno » : identifiant interne de +4
     president: { label: 'Le Président', url: 'https://president.glsc.fr' },
     vortex: { label: 'Vortex', url: 'https://vortex.glsc.fr' }
   };
