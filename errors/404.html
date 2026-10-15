@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <!-- CSP : style et script en ligne autorisés par empreinte (npm run build:404 les recalcule) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'sha256-zwsv1WiZ6HkKZ9ALNvESWEbKsygD+Uh7QtPyHW7GGqU='; script-src 'sha256-nI9eMAz1dVdEBmEHqznnbmMSnj1rqqv1xeHBrz2qLaE='; img-src data:; font-src 'self'; base-uri 'none'; form-action 'none'" />
   <title>Page introuvable · GLSC.fr</title>
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#FFFDF0" />
@@ -14,15 +15,17 @@
       --cream: #FFFDF0; --ink: #111111; --banana: #FFD84D; --mint: #7BE0AD; --lilac: #C3A6FF; --sky: #8FD3FF; --coral: #FF9478; --peach: #FFC9A8;
       --font-display: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif;
       --font-body: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
       --spring: cubic-bezier(.34, 1.56, .64, 1);
     }
     *, *::before, *::after { box-sizing: border-box; }
+    html { overflow-x: hidden; }
     body {
       margin: 0; min-height: 100vh; display: grid; place-items: center;
       font-family: var(--font-body); color: var(--ink); line-height: 1.5;
       background-color: var(--cream);
       background-image: radial-gradient(#00000014 1.2px, transparent 1.2px); background-size: 22px 22px;
-      padding: 2rem 1rem;
+      padding: 2rem 1rem 3rem; overflow-x: hidden;
     }
     :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
     .card {
@@ -30,45 +33,439 @@
       background: var(--lilac); border: 4px solid #000; border-radius: 1.5rem; box-shadow: 8px 8px 0 #000;
       padding: 2.5rem 1.5rem 2rem;
     }
+    .party .digit { animation: hue 1.2s linear infinite; }
+    @keyframes hue { to { filter: hue-rotate(360deg); } }
+
+    /* 4 0 4 */
     .code { display: flex; justify-content: center; gap: .6rem; }
-    .code span {
-      display: grid; place-items: center; width: 5.5rem; height: 6.5rem;
-      font: 700 4.5rem/1 var(--font-display);
+    .digit {
+      position: relative; display: grid; place-items: center; width: 5.5rem; height: 6.5rem; padding: 0;
+      font: 700 4.5rem/1 var(--font-display); color: var(--ink); cursor: pointer;
       background: #fff; border: 4px solid #000; border-radius: 1.1rem; box-shadow: 5px 5px 0 #000;
+      transition: transform 200ms var(--spring);
     }
-    .code span:nth-child(1) { background: var(--banana); transform: rotate(-6deg); }
-    .code span:nth-child(2) { background: var(--mint); transform: translateY(-.6rem) rotate(3deg); }
-    .code span:nth-child(3) { background: var(--coral); transform: rotate(7deg); }
-    @keyframes wobble { 0%, 100% { rotate: 0deg; } 25% { rotate: -5deg; } 75% { rotate: 5deg; } }
-    .code span:hover { animation: wobble 400ms ease-in-out; }
+    .digit:nth-child(1) { background: var(--banana); transform: rotate(-6deg); }
+    .digit:nth-child(2) { background: var(--mint); transform: translateY(-.6rem) rotate(3deg); }
+    .digit:nth-child(3) { background: var(--coral); transform: rotate(7deg); }
+    .digit.hit { animation: wobble 400ms ease-in-out; }
+    @keyframes wobble { 0%, 100% { rotate: 0deg; } 25% { rotate: -12deg; } 75% { rotate: 12deg; } }
+    .digit.fall { animation: fall 1s cubic-bezier(.5, 0, .9, .5) forwards; pointer-events: none; }
+    @keyframes fall { to { translate: 0 120vh; rotate: 200deg; } }
+
+    /* les yeux du 0 */
+    .eyes { position: absolute; left: 50%; top: 42%; display: flex; gap: 2px; translate: -50% -50%; pointer-events: none; }
+    .eye {
+      position: relative; width: 15px; height: 15px; background: #fff; border: 2.5px solid #000; border-radius: 50%;
+      overflow: hidden; transition: height 180ms ease-out, margin 180ms ease-out;
+    }
+    .pupil { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; background: #000; border-radius: 50%; }
+    .sleep .eye { height: 3.5px; margin-top: 6px; }
+    .sleep .pupil { opacity: 0; }
+    .zzz {
+      position: absolute; right: -.6rem; top: -1.4rem; font: 700 1.1rem/1 var(--font-display); opacity: 0; pointer-events: none;
+    }
+    .sleep .zzz { animation: zzz 2.4s ease-in-out infinite; }
+    @keyframes zzz { 0% { opacity: 0; translate: 0 6px; } 40% { opacity: 1; } 100% { opacity: 0; translate: 10px -14px; } }
+
     h1 { margin: 1.75rem 0 .5rem; font: 700 clamp(1.8rem, 6vw, 2.6rem)/1.1 var(--font-display); }
-    p { margin: 0 auto; max-width: 28rem; font-weight: 500; font-size: 1.05rem; }
-    .links { margin-top: 1.75rem; display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
-    .links a {
-      display: inline-flex; align-items: center; gap: .45rem;
+    p { margin: 0 auto; max-width: 30rem; font-weight: 500; font-size: 1.05rem; }
+    .where {
+      display: inline-block; max-width: 100%; margin: 1rem 0 0; padding: .35rem .7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font: 600 .9rem/1.3 var(--font-mono); background: #fff; border: 3px solid #000; border-radius: .6rem; vertical-align: top;
+    }
+    .note { margin-top: .6rem; font-size: .98rem; }
+    .note a { color: inherit; font-weight: 700; }
+
+    /* excuse officielle */
+    .excuse {
+      margin: 1.4rem auto 0; max-width: 30rem; padding: .9rem 1rem; text-align: left;
+      background: var(--cream); border: 3px solid #000; border-radius: 1rem; box-shadow: 4px 4px 0 #000;
+    }
+    .excuse b { display: block; font: 700 .8rem/1.2 var(--font-display); letter-spacing: .06em; text-transform: uppercase; }
+    .excuse span { display: block; margin-top: .25rem; min-height: 3em; font-weight: 500; }
+    .excuse button { margin-top: .5rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .45rem; cursor: pointer;
       font: 700 1rem/1 var(--font-display); text-decoration: none; color: var(--ink);
       padding: .8rem 1.1rem; background: #fff; border: 3px solid #000; border-radius: .9rem; box-shadow: 4px 4px 0 #000;
       transition: transform 150ms var(--spring), box-shadow 150ms ease-out;
     }
-    .links a:first-child { background: var(--banana); }
-    .links a:hover, .links a:focus-visible { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
-    .icon { width: 1.15em; height: 1.15em; }
-    @media (max-width: 420px) { .code span { width: 4.4rem; height: 5.4rem; font-size: 3.6rem; } }
-    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; } }
+    .btn.small { padding: .5rem .8rem; font-size: .9rem; border-radius: .7rem; box-shadow: 3px 3px 0 #000; }
+    .btn:hover, .btn:focus-visible { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+    .btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 #000; }
+    .links { margin-top: 1.6rem; display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
+    .links .btn:first-child { background: var(--banana); }
+    .btn.hint { background: var(--sky); }
+    .icon { width: 1.15em; height: 1.15em; flex: none; }
+
+    .foot { margin-top: 1.4rem; font-size: .85rem; font-weight: 600; opacity: .75; user-select: none; -webkit-user-select: none; }
+
+    /* message éphémère */
+    .toast {
+      position: fixed; left: 50%; bottom: 1.25rem; z-index: 30; max-width: calc(100% - 2rem); translate: -50% 0;
+      padding: .7rem 1rem; font: 700 1rem/1.3 var(--font-display); text-align: center;
+      background: var(--banana); border: 3px solid #000; border-radius: .9rem; box-shadow: 4px 4px 0 #000;
+      opacity: 0; transform: translateY(1rem); transition: opacity 200ms, transform 250ms var(--spring); pointer-events: none;
+    }
+    .toast.on { opacity: 1; transform: none; }
+
+    /* confettis */
+    .confetti { position: fixed; top: -2rem; z-index: 20; width: 12px; height: 16px; border: 2px solid #000; pointer-events: none;
+      animation: drop linear forwards; }
+    @keyframes drop { to { translate: var(--dx, 0) 115vh; rotate: var(--r, 540deg); } }
+
+    /* terminal caché */
+    .term {
+      position: fixed; left: 50%; bottom: 1rem; z-index: 40; width: min(42rem, calc(100% - 1.5rem)); translate: -50% 0;
+      background: #111; color: #E8FFE8; border: 4px solid #000; border-radius: 1rem; box-shadow: 8px 8px 0 #000;
+      font: 500 .9rem/1.45 var(--font-mono); text-align: left; overflow: hidden;
+    }
+    .term[hidden] { display: none; }
+    .term-bar {
+      display: flex; align-items: center; gap: .4rem; padding: .45rem .7rem; background: var(--banana); color: var(--ink);
+      border-bottom: 3px solid #000; font: 700 .85rem/1 var(--font-display);
+    }
+    .term-bar i { width: .8rem; height: .8rem; border: 2px solid #000; border-radius: 50%; background: var(--coral); }
+    .term-bar i + i { background: #fff; }
+    .term-bar i + i + i { background: var(--mint); }
+    .term-bar span { margin-left: .4rem; }
+    .term-bar button { margin-left: auto; padding: .15rem .45rem; font: 700 .8rem/1 var(--font-display); background: #fff; border: 2px solid #000; border-radius: .4rem; cursor: pointer; }
+    .term-out { max-height: min(16rem, 45vh); overflow-y: auto; padding: .7rem .85rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .term-out a { color: var(--banana); }
+    .term-out .cmd { color: var(--mint); }
+    .term-out .err { color: var(--coral); }
+    .term-line { display: flex; gap: .5rem; padding: .3rem .85rem .75rem; }
+    .term-line label { color: var(--mint); white-space: nowrap; }
+    .term-line input { flex: 1; min-width: 0; font: inherit; color: inherit; background: none; border: 0; outline: 0; caret-color: var(--banana); }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    @media (max-width: 420px) {
+      .digit { width: 4.4rem; height: 5.4rem; font-size: 3.6rem; }
+      .eye { width: 13px; height: 13px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+      .confetti { display: none; }
+    }
   </style>
 </head>
 <body>
   <main class="card">
-    <div class="code" aria-hidden="true"><span>4</span><span>0</span><span>4</span></div>
+    <div class="code" aria-label="Erreur 404">
+      <button class="digit" type="button" aria-label="Le chiffre 4">4</button>
+      <button class="digit" type="button" aria-label="Le chiffre 0, qui te regarde" id="zero">0<span class="eyes" aria-hidden="true"><span class="eye"><span class="pupil"></span></span><span class="eye"><span class="pupil"></span></span><span class="zzz">z</span></span></button>
+      <button class="digit" type="button" aria-label="Le chiffre 4, l'autre">4</button>
+    </div>
     <h1>Cette page s'est perdue</h1>
-    <p>Elle a peut-être déménagé, ou elle n'a jamais existé. Voici de quoi retrouver ton chemin.</p>
+    <p id="joke">Elle a peut-être déménagé, ou elle n'a jamais existé. Voici de quoi retrouver ton chemin.</p>
+    <code class="where" id="where" hidden></code>
+    <p class="note" id="note" hidden></p>
+
+    <div class="excuse" id="excuse" hidden aria-live="polite">
+      <b id="excuse-title">Excuse officielle</b>
+      <span id="excuse-text"></span>
+      <button class="btn small" type="button" id="excuse-next">Une autre excuse</button>
+    </div>
+
     <nav class="links" aria-label="Pages principales">
-      <a href="https://glsc.fr"><i data-lucide="house" class="icon"></i> Le Hub</a>
-      <a href="https://share.glsc.fr"><i data-lucide="folder-git-2" class="icon"></i> Projets</a>
-      <a href="https://cv.glsc.fr"><i data-lucide="file-user" class="icon"></i> CV</a>
-      <a href="https://old.glsc.fr"><i data-lucide="archive" class="icon"></i> Archives</a>
+      <a class="btn" href="https://glsc.fr"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Le Hub</a>
+      <a class="btn" href="https://share.glsc.fr"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg> Projets</a>
+      <a class="btn" href="https://cv.glsc.fr"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="12" cy="13" r="2.5"/><path d="M8 19a4 4 0 0 1 8 0"/></svg> CV</a>
+      <a class="btn" href="https://games.glsc.fr"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></svg> Jeux</a>
     </nav>
+
+    <p class="foot" id="foot">Psst : cette page cache au moins quatre secrets.</p>
   </main>
-  <script src="/_glsc/icons.js"></script>
+
+  <section class="term" id="term" hidden aria-label="Terminal">
+    <div class="term-bar"><i></i><i></i><i></i><span>visiteur@glsc ~ 404</span><button type="button" id="term-close" aria-label="Fermer le terminal">✕</button></div>
+    <div class="term-out" id="term-out" aria-live="polite"></div>
+    <form class="term-line" id="term-form" autocomplete="off">
+      <label for="term-in">$</label>
+      <input id="term-in" name="cmd" spellcheck="false" autocapitalize="off" enterkeyhint="send" />
+    </form>
+  </section>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const host = location.hostname.replace(/^www\./, '');
+  const path = decodeURI(location.pathname + location.search).slice(0, 120);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } },
+  };
+  const SITES = {
+    hub: ['https://glsc.fr', 'Le Hub'], cv: ['https://cv.glsc.fr', 'Mon CV'], projets: ['https://share.glsc.fr', 'Projets'],
+    archives: ['https://old.glsc.fr', 'Archives'], jeux: ['https://games.glsc.fr', 'Salle de jeux'], statut: ['https://status.glsc.fr', 'Statut'],
+    uno: ['https://uno.glsc.fr', 'UNO'], president: ['https://president.glsc.fr', 'Le Président'], vortex: ['https://vortex.glsc.fr', 'Vortex'],
+  };
+  const link = (key) => { const a = document.createElement('a'); a.href = SITES[key][0]; a.textContent = SITES[key][1]; return a; };
+
+  let toastTimer;
+  function toast(text) {
+    const t = $('toast');
+    t.textContent = text; t.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 3200);
+  }
+
+  // ---- 1. une blague selon le site
+  const HOST_JOKES = {
+    'glsc.fr': 'Même le Hub ne sait pas où elle est passée. Et pourtant, il connaît tout le monde.',
+    'cv.glsc.fr': 'Mon CV tient sur une page. Celle-ci n’en fait pas partie.',
+    'share.glsc.fr': 'Ce projet n’existe pas… encore. Reviens dans quelques commits.',
+    'old.glsc.fr': 'Même les archives n’en ont gardé aucune trace. Et pourtant, elles gardent tout.',
+    'games.glsc.fr': 'Game over : cette page n’a plus de vies. Tu peux réessayer avec un autre jeu.',
+    'status.glsc.fr': 'Statut de cette page : introuvable. Tous les autres services vont bien, promis.',
+    'uno.glsc.fr': 'Cette page a pris un +4 et a quitté la partie. Elle n’a même pas dit «\u00a0UNO\u00a0».',
+    'president.glsc.fr': 'Cette page a fini dernière. Elle est partie mélanger les cartes.',
+    'vortex.glsc.fr': 'Cette page a été aspirée par le vortex. On a envoyé une équipe, sans grand espoir.',
+    'click.glsc.fr': 'Ce lien court était un peu trop court : il n’en reste rien.',
+    'admin.glsc.fr': 'Rien à voir ici. Circulez.',
+  };
+  if (HOST_JOKES[host]) $('joke').textContent = HOST_JOKES[host];
+
+  // ---- 2. une réponse selon l'adresse demandée
+  if (path.length > 1) { $('where').textContent = host + path; $('where').hidden = false; }
+  const p = path.toLowerCase();
+  const note = $('note');
+  const say = (text, key) => {
+    note.textContent = text;
+    if (key) note.append(' ', link(key), '.');
+    note.hidden = false;
+  };
+  const RULES = [
+    [/wp-|wordpress|xmlrpc/, () => say('Pas de WordPress ici : tout est fait main, à l’ancienne.')],
+    [/\.env|\.git|passwd|secret|config|backup|\.sql|\.bak/, () => say('Mes secrets sont mieux rangés que ça. Bien essayé quand même.')],
+    [/phpmyadmin|admin|login|dashboard/, () => say('L’administration, ce n’est pas ici. Et elle a une double authentification, de toute façon.')],
+    [/^\/404/, () => say('Tu cherchais la page 404 ? Bravo, tu l’as trouvée.')],
+    [/cafe|coffee|teapot|the\b/, () => say('Erreur 418 : je suis une théière. Pas de café ici.')],
+    [/alternan|recrut|hire|job|stage|contact|cv|resume|embauch/, () => say('Bonne idée ! Tout est sur', 'cv')],
+    [/uno/, () => say('Tu cherchais une partie de UNO ? C’est par ici :', 'uno')],
+    [/presid/, () => say('Une partie de Président ? C’est par ici :', 'president')],
+    [/vortex|fps/, () => say('Vortex, c’est par ici :', 'vortex')],
+    [/jeu|game|play/, () => say('Les jeux sont rangés dans la', 'jeux')],
+    [/projet|project|github|code/, () => say('Les projets sont tous dans', 'projets')],
+    [/old|archiv|ancien|geofrance|pixel/, () => say('Les vieux trucs sont aux', 'archives')],
+    [/status|statut|uptime|health/, () => say('L’état des services est sur', 'statut')],
+  ];
+  const rule = RULES.find(([re]) => re.test(p));
+  if (rule) rule[1]();
+
+  // ---- 3. compteur de pages perdues (dans ce navigateur)
+  const lost = Number(store.get('glsc404') || 0) + 1;
+  store.set('glsc404', String(lost));
+  if (lost === 2) toast('Deuxième page perdue. Ça commence à faire beaucoup.');
+  else if (lost >= 3 && lost < 10) toast(`${lost}e page perdue. Tu le fais exprès ?`);
+  else if (lost >= 10) toast(`${lost} pages perdues : titre «\u00a0Explorateur des 404\u00a0» débloqué.`);
+
+  // ---- 4. l'excuse officielle
+  const EXCUSES = [
+    'Le stagiaire l’a rangée. Personne ne sait où.',
+    'Elle est partie en alternance. Elle revient dans deux semaines.',
+    'Un bot du UNO l’a jouée en +4.',
+    'Elle a perdu au Président et doit distribuer les cartes.',
+    'Elle a été aspirée par le Vortex.',
+    'Elle a fait un git push --force sur elle-même.',
+    'Elle est en pause café depuis 2019.',
+    'Pourtant, elle marchait sur ma machine.',
+    'Le pare-feu l’a prise pour un robot et l’a bannie dix minutes.',
+    'Elle a raté sa double authentification cinq fois de suite.',
+    'Elle s’est perdue dans un dossier node_modules. Paix à son âme.',
+    'Un rayon cosmique a inversé un bit. Ça arrive, paraît-il.',
+    'Ce n’est pas un bug, c’est une fonctionnalité.',
+    'Elle a été déplacée dans /dev/null pour raisons personnelles.',
+    'Elle n’a pas passé la revue de code.',
+    'Son certificat HTTPS a expiré. Elle n’ose plus sortir.',
+    'Elle a été mergée sans test. On ne l’a jamais revue.',
+    'Elle attend toujours que le CSS soit centré.',
+  ];
+  let excuse = Math.floor(Math.random() * EXCUSES.length), excuseCount = 1;
+  const showExcuse = () => {
+    $('excuse-title').textContent = `Excuse officielle n°${excuseCount}`;
+    $('excuse-text').textContent = EXCUSES[excuse];
+  };
+  showExcuse();
+  $('excuse').hidden = false;
+  $('excuse-next').addEventListener('click', () => {
+    excuse = (excuse + 1 + Math.floor(Math.random() * (EXCUSES.length - 1))) % EXCUSES.length;
+    excuseCount++;
+    showExcuse();
+    if (excuseCount === EXCUSES.length) toast('Tu as lu toutes les excuses. Respect.');
+  });
+
+  // ---- 5. le 0 te regarde (et s'endort)
+  const zero = $('zero');
+  const pupils = zero.querySelectorAll('.pupil');
+  let idle;
+  const wake = () => {
+    zero.classList.remove('sleep');
+    clearTimeout(idle);
+    idle = setTimeout(() => zero.classList.add('sleep'), 15000);
+  };
+  const look = (x, y) => {
+    for (const pupil of pupils) {
+      const r = pupil.parentElement.getBoundingClientRect();
+      const a = Math.atan2(y - (r.top + r.height / 2), x - (r.left + r.width / 2));
+      pupil.style.transform = `translate(${Math.cos(a) * 2.6}px, ${Math.sin(a) * 2.6}px)`;
+    }
+  };
+  addEventListener('pointermove', (e) => { look(e.clientX, e.clientY); wake(); }, { passive: true });
+  addEventListener('keydown', wake);
+  wake();
+
+  // ---- 6. taper sur les chiffres finit par les casser
+  const digits = [...document.querySelectorAll('.digit')];
+  let hits = 0, broken = false;
+  const HIT_LINES = { 3: 'Aïe.', 6: 'Arrête, ça chatouille.', 9: 'Encore un et je casse tout.' };
+  digits.forEach((d) => d.addEventListener('click', () => {
+    if (broken) return;
+    if (d === zero && zero.classList.contains('sleep')) { wake(); toast('Hé ! Je dormais.'); return; }
+    d.classList.remove('hit'); void d.offsetWidth; d.classList.add('hit');
+    hits++;
+    if (HIT_LINES[hits]) toast(HIT_LINES[hits]);
+    if (hits >= 10) breakDigits();
+  }));
+  function breakDigits() {
+    broken = true;
+    digits.forEach((d, i) => setTimeout(() => d.classList.add('fall'), i * 160));
+    setTimeout(() => {
+      toast('Bravo, tu as cassé la 404.');
+      const fix = document.createElement('button');
+      fix.type = 'button'; fix.className = 'btn small'; fix.textContent = 'Réparer';
+      fix.addEventListener('click', () => {
+        digits.forEach((d) => d.classList.remove('fall', 'hit'));
+        fix.remove(); hits = 0; broken = false;
+        toast('Réparée. Enfin, elle reste introuvable.');
+      });
+      $('foot').before(fix);
+      fix.focus();
+    }, reduce ? 50 : 1100);
+  }
+
+  // ---- 7. code Konami : la fête
+  const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+  let kpos = 0;
+  addEventListener('keydown', (e) => {
+    if (e.target.closest && e.target.closest('input')) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    kpos = k === KONAMI[kpos] ? kpos + 1 : (k === KONAMI[0] ? 1 : 0);
+    if (kpos === KONAMI.length) { kpos = 0; party(); }
+  });
+  function party() {
+    document.body.classList.add('party');
+    toast('Code Konami accepté : +30 vies (inutilisables ici).');
+    if (!reduce) {
+      const colors = ['--banana', '--mint', '--lilac', '--sky', '--coral', '--peach'];
+      for (let i = 0; i < 90; i++) {
+        const c = document.createElement('i');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + 'vw';
+        c.style.background = `var(${colors[i % colors.length]})`;
+        c.style.animationDuration = 1.8 + Math.random() * 2.2 + 's';
+        c.style.animationDelay = Math.random() * .8 + 's';
+        c.style.setProperty('--dx', (Math.random() * 30 - 15) + 'vw');
+        c.style.setProperty('--r', (Math.random() * 900 - 450) + 'deg');
+        document.body.append(c);
+        c.addEventListener('animationend', () => c.remove());
+      }
+    }
+    setTimeout(() => document.body.classList.remove('party'), 5000);
+  }
+
+  // ---- 8. le terminal caché (touche «\u00a0:\u00a0» ou «\u00a0`\u00a0», ou 5 tapes sur le pied de page)
+  const term = $('term'), out = $('term-out'), input = $('term-in');
+  const history = [];
+  let hpos = 0;
+  function print(text, cls) {
+    const line = document.createElement('div');
+    if (cls) line.className = cls;
+    if (text instanceof Node) line.append(text); else line.textContent = text;
+    out.append(line);
+    out.scrollTop = out.scrollHeight;
+  }
+  function openTerm() {
+    if (!term.hidden) return input.focus();
+    term.hidden = false;
+    if (!out.childElementCount) print('Terminal de secours de glsc.fr. Tape «\u00a0help\u00a0» pour la liste des commandes.');
+    input.focus();
+  }
+  function closeTerm() { term.hidden = true; input.blur(); }
+  const go = (key) => { print(`Direction ${SITES[key][1]}…`); setTimeout(() => { location.href = SITES[key][0]; }, 500); };
+  const ALIASES = { '..': 'hub', '~': 'hub', '/': 'hub', glsc: 'hub', 'cv.pdf': 'cv', share: 'projets', old: 'archives', games: 'jeux', status: 'statut', 'président': 'president' };
+  const COMMANDS = {
+    help: () => print('help, ls, cd <dossier>, pwd, whoami, cat <fichier>, echo, date, ping, history, clear, sudo, uno, party, exit'),
+    ls: (a) => print(Object.keys(SITES).filter((k) => k !== 'hub').map((k) => k + '/').join('  ') + (a.includes('-a') || a.includes('-la') ? '  .secret' : '')),
+    cd: (a) => {
+      const k = ALIASES[a[0]] || (a[0] || '').replace(/\/$/, '').toLowerCase();
+      if (!a[0]) return go('hub');
+      if (SITES[k]) return go(k);
+      print(`cd: ${a[0]}: aucun dossier de ce nom. Comme cette page.`, 'err');
+    },
+    pwd: () => print(host + path),
+    whoami: () => print('visiteur égaré (et curieux, visiblement)'),
+    cat: (a) => {
+      const f = (a[0] || '').toLowerCase();
+      if (f === '.secret') print('Il n’y a pas de secret. Enfin… essaie ↑ ↑ ↓ ↓ ← → ← → B A, hors du terminal.');
+      else if (f === 'cv' || f === 'cv.pdf') { const s = document.createElement('span'); s.append('Gabin LESCOAT, développeur. La version complète : ', link('cv')); print(s); }
+      else if (!f) print('cat: il manque un nom de fichier (un chat, aussi).', 'err');
+      else print(`cat: ${a[0]}: fichier introuvable. Décidément.`, 'err');
+    },
+    echo: (a) => print(a.join(' ')),
+    date: () => print(new Date().toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })),
+    ping: () => print('pong (temps = 404 ms)'),
+    history: () => print(history.map((c, i) => `${i + 1}  ${c}`).join('\n') || '(vide)'),
+    clear: () => { out.textContent = ''; },
+    sudo: (a) => print(a.join(' ').startsWith('rm') ? 'Même avec sudo, non.' : 'visiteur n’est pas dans le fichier sudoers. Cet incident sera signalé.', 'err'),
+    rm: (a) => print(a.join(' ').includes('-rf') ? 'Bien essayé. Le serveur a dit non.' : 'rm: rien à supprimer, la page n’existe déjà plus.', 'err'),
+    uno: () => print('UNO ! … ah non, il te reste six cartes. Tape «\u00a0cd uno\u00a0» pour une vraie partie.'),
+    party: () => { print('C’est la fête.'); party(); },
+    konami: () => print('Pas ici. Sur le clavier, hors du terminal.'),
+    vim: () => print('Tu es maintenant coincé dans vim. Tape :q pour sortir.'),
+    ':q': () => closeTerm(), ':wq': () => closeTerm(), ':q!': () => closeTerm(),
+    exit: () => closeTerm(),
+    coffee: () => print('418 : je suis une théière.'),
+    hire: () => { const s = document.createElement('span'); s.append('Excellente décision. Tout est sur ', link('cv'), '.'); print(s); },
+    404: () => print('Tu y es déjà.'),
+    hello: () => print('Salut ! Tape «\u00a0help\u00a0» si tu es perdu. Enfin, encore plus perdu.'),
+  };
+  Object.assign(COMMANDS, { quit: COMMANDS.exit, q: COMMANDS.exit, cafe: COMMANDS.coffee, 'café': COMMANDS.coffee, alternance: COMMANDS.hire, recrute: COMMANDS.hire, salut: COMMANDS.hello, bonjour: COMMANDS.hello, man: COMMANDS.help, aide: COMMANDS.help, dir: COMMANDS.ls, cls: COMMANDS.clear, nano: COMMANDS.vim, emacs: COMMANDS.vim });
+  $('term-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const line = input.value.trim();
+    input.value = '';
+    if (!line) return;
+    history.push(line); hpos = history.length;
+    print('$ ' + line, 'cmd');
+    const [cmd, ...args] = line.split(/\s+/);
+    const run = COMMANDS[cmd.toLowerCase()];
+    if (run) run(args);
+    else print(`${cmd} : commande introuvable. Comme cette page, en fait.`, 'err');
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTerm();
+    if (e.key === 'ArrowUp' && hpos > 0) { input.value = history[--hpos]; e.preventDefault(); }
+    if (e.key === 'ArrowDown') { hpos = Math.min(history.length, hpos + 1); input.value = history[hpos] || ''; e.preventDefault(); }
+  });
+  $('term-close').addEventListener('click', closeTerm);
+  addEventListener('keydown', (e) => {
+    if (e.target.closest && e.target.closest('input')) return;
+    if ((e.key === ':' || e.key === '`') && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); openTerm(); }
+  });
+  let taps = 0, tapTimer;
+  $('foot').addEventListener('click', () => {
+    taps++; clearTimeout(tapTimer); tapTimer = setTimeout(() => { taps = 0; }, 1500);
+    if (taps >= 5) { taps = 0; openTerm(); }
+  });
+
+  // ---- 9. pour celles et ceux qui ouvrent la console
+  console.log('%c404', 'font: 700 48px Fredoka, sans-serif; color: #111; background: #FFD84D; padding: 4px 16px; border: 4px solid #111; border-radius: 12px');
+  console.log('Tu fouilles ? Bonne idée. Indices : tape «\u00a0:\u00a0» sur la page, ou ↑ ↑ ↓ ↓ ← → ← → B A. Sur mobile, tape cinq fois sur le pied de page.');
+})();
+  </script>
 </body>
 </html>

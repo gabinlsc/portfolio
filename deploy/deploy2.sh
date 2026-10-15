@@ -75,7 +75,7 @@ common_files() {              # common_files <racine> <dossier seo>
 info "1/6 Téléchargement du dépôt"
 curl -fsSL "$REPO_TGZ" | tar -xz -C "$WORK"
 SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
-for f in index.html cv/index.html old/index.html projets/index.html games/index.html errors/404.html \
+for f in index.html cv/index.html old/index.html projets/index.html games/index.html errors/404.html deploy/install-404.sh \
          assets/_glsc/icons.js assets/_glsc/hub.css assets/_glsc/fonts.css deploy/nginx/glsc-security.conf deploy/nginx/games.glsc.fr.conf; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
@@ -116,6 +116,8 @@ put games/index.html "$GAMES/index.html"
 common_files "$GAMES" games.glsc.fr
 chown -R www-data:www-data "$GAMES"
 ok "Salle de jeux (games.glsc.fr)"
+bash "$SRC/deploy/install-404.sh" "$SRC"
+ok "page 404 commune (jeux, admin, liens courts) dans /var/www/glsc-errors"
 
 # ---------------------------------------------------------------- 4. nginx
 info "4/6 Configuration nginx"

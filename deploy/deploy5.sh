@@ -54,7 +54,8 @@ for f in deploy/deploy4.sh admin/lib/router.php admin/lib/click.php admin/public
          admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py \
          admin/systemd/glsc-admin-collect.service admin/systemd/glsc-admin-collect.timer admin/systemd/glsc-admin-queue.path \
          admin/systemd/glsc-admin-queue.service deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
-         deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css; do
+         deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css \
+         deploy/install-404.sh deploy/nginx/glsc-404.inc errors/404.html; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
 ok "archive complète"
@@ -143,6 +144,7 @@ cp -a "$NGX/conf.d" "$WORK/conf.d.before"
 save "$LOGCONF"; save "$INC"
 install -m 644 "$SRC/deploy/nginx/glsc-log.conf" "$LOGCONF"
 sed "s#__PHP_SOCK__#$PHP_SOCK#g" "$SRC/deploy/nginx/glsc-admin-php.inc.tpl" > "$INC"; chmod 644 "$INC"
+bash "$SRC/deploy/install-404.sh" "$SRC"   # 404 commune, incluse par les vhosts admin et click
 if nginx -t >/dev/null 2>&1; then
   systemctl reload nginx
   ok "toutes les requêtes sont aussi écrites dans /var/log/nginx/glsc-access.log"
@@ -229,6 +231,13 @@ fi
 for url in https://admin.glsc.fr/ https://click.glsc.fr/; do
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$url" || true)"
   case "$code" in 200|302) ok "$code  $url" ;; *) warn "$code  $url" ;; esac
+done
+# la 404 commune doit répondre partout (« s'est perdue » est dans errors/404.html)
+for host in glsc.fr cv.glsc.fr share.glsc.fr old.glsc.fr games.glsc.fr status.glsc.fr \
+            uno.glsc.fr president.glsc.fr vortex.glsc.fr admin.glsc.fr click.glsc.fr; do
+  url="https://$host/cette-page-n-existe-pas.png"
+  code="$(curl -s -o "$WORK/404" -w '%{http_code}' --max-time 8 "$url" || true)"
+  if [ "$code" = 404 ] && grep -q "s'est perdue" "$WORK/404"; then ok "404 commune  $host"; else warn "404 : code $code  $host"; fi
 done
 
 info "Terminé. Sauvegardes : $BACKUP"

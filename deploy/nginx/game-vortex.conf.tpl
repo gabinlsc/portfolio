@@ -2,6 +2,7 @@
 server {
     listen 443 ssl;
     server_name __DOMAIN__;
+    include /etc/nginx/glsc-404.inc;
 
     root /var/www/__DOMAIN__;
     index index.html;
@@ -18,7 +19,9 @@ server {
         proxy_read_timeout 1h;
         proxy_send_timeout 1h;
     }
-    location /assets/ { expires 7d; try_files $uri =404; }
+    location ^~ /assets/ { expires 7d; try_files $uri =404; }
+    # un fichier absent (wp-login.php, .env, image…) donne la 404 commune ; le reste retombe sur le jeu
+    location ~* "\.[a-z0-9]{1,5}$" { try_files $uri =404; }
     location / { try_files $uri $uri/ /index.html; }
 
     ssl_certificate /etc/letsencrypt/live/__DOMAIN__/fullchain.pem;

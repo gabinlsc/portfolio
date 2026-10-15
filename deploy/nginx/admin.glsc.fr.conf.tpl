@@ -3,6 +3,7 @@
 server {
     listen 443 ssl;
     server_name admin.glsc.fr;
+    include /etc/nginx/glsc-404.inc;
     root /var/www/admin.glsc.fr;
     client_max_body_size 2m;
 
@@ -34,7 +35,9 @@ post_max_size=210M
 max_execution_time=300";
     }
     location ~ /\. { return 404; }
-    location / { include /etc/nginx/glsc-admin-php.inc; }
+    # l'API garde ses erreurs JSON ; les pages, elles, affichent la 404 commune
+    location ^~ /api/ { include /etc/nginx/glsc-admin-php.inc; }
+    location / { fastcgi_intercept_errors on; include /etc/nginx/glsc-admin-php.inc; }
 
     ssl_certificate /etc/letsencrypt/live/admin.glsc.fr/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/admin.glsc.fr/privkey.pem;

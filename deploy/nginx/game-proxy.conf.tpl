@@ -2,6 +2,7 @@
 server {
     listen 443 ssl;
     server_name __DOMAIN__;
+    include /etc/nginx/glsc-404.inc;
 
     location / {
         limit_req zone=glsc_games burst=120 nodelay;
