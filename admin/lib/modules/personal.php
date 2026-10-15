@@ -12,6 +12,7 @@ const ALERTS = [
     'memory' => 'Mémoire presque saturée',
     'cert' => 'Certificat HTTPS qui expire dans moins de 14 jours',
     'ssh' => 'Connexion SSH réussie au serveur',
+    'deploy' => 'Fin d’un déploiement automatique (réussi ou raté)',
 ];
 
 function vault_state(): array

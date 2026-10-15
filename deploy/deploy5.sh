@@ -53,7 +53,7 @@ fi
 for f in deploy/deploy4.sh admin/lib/router.php admin/lib/click.php admin/public/index.php admin/public/assets/app.js \
          admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py \
          admin/systemd/glsc-admin-collect.service admin/systemd/glsc-admin-collect.timer admin/systemd/glsc-admin-queue.path \
-         admin/systemd/glsc-admin-queue.service deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
+         admin/systemd/glsc-admin-queue.service admin/systemd/glsc-deploy.path admin/systemd/glsc-deploy.service deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
          deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css \
          deploy/install-404.sh deploy/nginx/glsc-404.inc errors/404.html; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
@@ -125,6 +125,8 @@ ok "pages : $WEB et $CLICK"
 info "4/8 Données"
 install -d -m 750 -o root -g www-data "$VAR" "$VAR/pub" "$ETC"
 install -d -m 700 -o www-data -g www-data "$VAR/app" "$VAR/app/files" "$VAR/queue"
+install -d -m 770 -o root -g www-data "$VAR/deploy"        # demandes de déploiement (écrites par PHP, lues par root)
+install -d -m 750 -o root -g www-data "$VAR/pub/deploy-logs"
 install -d -m 700 -o root -g root "$VAR/collector"
 [ -f "$ETC/auth.json" ] && { chown root:www-data "$ETC/auth.json"; chmod 640 "$ETC/auth.json"; }
 sha_json="$(curl -fsS --max-time 8 -H 'Accept: application/vnd.github+json' https://api.github.com/repos/gabinlsc/portfolio/commits/main 2>/dev/null || true)"
@@ -204,7 +206,7 @@ done
 
 # ---------------------------------------------------------------- 7. sonde
 info "7/8 Sonde (chaque minute) et file d'attente"
-for u in glsc-admin-collect.service glsc-admin-collect.timer glsc-admin-queue.path glsc-admin-queue.service; do
+for u in glsc-admin-collect.service glsc-admin-collect.timer glsc-admin-queue.path glsc-admin-queue.service glsc-deploy.path glsc-deploy.service; do
   save "/etc/systemd/system/$u"
   install -m 644 "$SRC/admin/systemd/$u" "/etc/systemd/system/$u"
 done
@@ -215,8 +217,15 @@ if [ ! -f "$VAR/app/app.db" ]; then
     && ok "base de l'admin créée" || warn "création de la base impossible pour l'instant (elle le sera à la première visite)"
 fi
 if systemctl start glsc-admin-collect.service; then ok "première mesure faite"; else warn "la sonde a échoué : journalctl -u glsc-admin-collect -n 30"; fi
-systemctl enable --now glsc-admin-collect.timer glsc-admin-queue.path >/dev/null 2>&1
+systemctl enable --now glsc-admin-collect.timer glsc-admin-queue.path glsc-deploy.path >/dev/null 2>&1
 ok "timer actif (1 mesure/min) et file d'attente surveillée"
+# déploiement automatique : secret partagé avec les webhooks GitHub (affiché dans l'admin, page GitHub)
+if [ ! -s "$ETC/github-webhook.secret" ]; then
+  (umask 027; head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$ETC/github-webhook.secret")
+  ok "secret du webhook GitHub créé (à copier depuis l'admin → GitHub & déploiements)"
+fi
+chown root:www-data "$ETC/github-webhook.secret"; chmod 640 "$ETC/github-webhook.secret"
+ok "déploiement automatique prêt (glsc-deploy.path)"
 
 # ---------------------------------------------------------------- 8. identifiants + vérification
 info "8/8 Identifiants et vérification"
