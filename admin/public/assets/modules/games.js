@@ -1,13 +1,15 @@
-// Jeux en direct : état des conteneurs, joueurs connectés, ressources, et bouton de redémarrage.
-import { h, clear, api, attempt, sectionHead, card, num, bytes, pill, btn, confirmBox, emptyState, lineChart, ago, icon } from '../lib.js';
+// Jeux en direct : état des conteneurs, joueurs connectés, ressources, bouton de redémarrage et modération des classements.
+import { h, clear, api, attempt, sectionHead, card, num, bytes, pill, btn, confirmBox, emptyState, lineChart, ago, icon, segmented } from '../lib.js';
 
 const GAMES = { uno: 'UNO', president: 'Le Président', vortex: 'Vortex' };
 
 export async function render(root) {
   const box = h('div', {});
-  root.append(box);
+  const boards = h('div', {});
+  root.append(box, boards);
   const load = async () => clear(box, view(await api('games/live'), load));
   await load();
+  moderation(boards).catch(() => {});
   const timer = setInterval(() => { if (!document.hidden && root.isConnected) load().catch(() => {}); }, 30000);
   return () => clearInterval(timer);
 }
@@ -40,4 +42,32 @@ function gameCard(c, pending, reload) {
         if (!(await confirmBox(`Redémarrer ${c.label} ? Les parties en cours seront coupées.`, { ok: 'Redémarrer' }))) return;
         if (await attempt(() => api('games/restart', { body: { game: c.service } }), (r) => r.message)) setTimeout(reload, 1500);
       }, { kind: 'danger', iconName: 'rotate-cw' })));
+}
+
+// ---------------------------------------------------------------- classements (games.glsc.fr)
+async function moderation(box) {
+  let game = 'uno';
+  let period = 'all';
+  const draw = (d) => {
+    const g = d.board?.games?.[game]?.[period];
+    const names = g?.names || [];
+    const rows = names.length ? h('ul', { class: 'rows' }, names.map((n) => h('li', {},
+      h('span', { class: 'grow' }, h('b', {}, n.name), ' ',
+        h('small', { class: 'muted' }, `${num(n.played)} partie${n.played > 1 ? 's' : ''} · ${num(n.wins)} victoire${n.wins > 1 ? 's' : ''}` +
+          (n.kills != null ? ` · ${num(n.kills)} élim.` : '') + ` · ${ago(n.last)}`)),
+      n.hidden === 'filtré' ? pill('filtré automatiquement', 'paper', 'pill-sm') : null,
+      n.hidden === 'filtré' ? null : btn(n.hidden ? 'Réafficher' : 'Masquer', async () => {
+        const r = await attempt(() => api('games/hide', { body: { key: n.key, hidden: !n.hidden } }), n.hidden ? 'Pseudo réaffiché' : 'Pseudo masqué');
+        if (r) { n.hidden = n.hidden ? null : 'masqué'; draw(d); }
+      }, n.hidden ? { iconName: 'eye' } : { kind: 'danger', iconName: 'eye-off' }))))
+      : h('p', { class: 'muted' }, 'Aucune partie enregistrée pour l’instant.');
+    clear(box, card('Classements de games.glsc.fr', h('div', { class: 'stack-sm' },
+      h('p', { class: 'muted small' }, 'Tous les pseudos qui ont joué sur la période (100 au plus). Un pseudo masqué disparaît du classement public à la prochaine mesure (1 min). Les pseudos injurieux et les pseudos par défaut (« Joueur 2 »…) sont filtrés automatiquement.'),
+      h('div', { class: 'row' },
+        segmented(Object.entries(GAMES), game, (v) => { game = v; draw(d); }, 'Jeu'),
+        segmented([['week', '7 jours'], ['all', 'Depuis toujours']], period, (v) => { period = v; draw(d); }, 'Période')),
+      g ? h('p', {}, pill(`${num(g.matches)} parties`, 'banana'), ' ', pill(`${num(g.players)} joueurs`, 'sky')) : null,
+      rows), { cls: 'span-2', actions: h('a', { class: 'more', href: 'https://games.glsc.fr/#classements', target: '_blank', rel: 'noopener' }, 'Voir', icon('external-link')) }));
+  };
+  draw(await api('games/board'));
 }

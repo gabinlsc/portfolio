@@ -46,6 +46,12 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - Historique, journaux complets, bouton « Déployer maintenant » et marche à suivre pour créer les webhooks : admin → GitHub & déploiements. Résultat sur Discord (alerte « déploiement »).
 - Journal système : `journalctl -u glsc-deploy -n 50`.
 
+### Classements des jeux
+
+- UNO, Président et Vortex écrivent chaque partie (ou manche) terminée dans `/var/lib/glsc-games/<jeu>/results.jsonl` (variable `RESULTS_FILE`, seul dossier modifiable des conteneurs). Seuls les humains encore à la table sont comptés.
+- La sonde de l'admin lit ces fichiers chaque minute et publie `/var/www/games.glsc.fr/leaderboard.json` : top 10 par jeu, sur 7 jours et depuis toujours (victoires ; places de président et « abonné au trou du cul » ; éliminations pour Vortex).
+- Pseudos par défaut (« Joueur 2 »…) et injurieux filtrés automatiquement ; n'importe quel pseudo peut être masqué depuis l'admin (Jeux en direct → Classements).
+
 ## Modifier les pages
 
 - Le Hub utilise Tailwind compilé : après avoir changé des classes dans `index.html`, lancer `npm install` puis `npm run build:css`.

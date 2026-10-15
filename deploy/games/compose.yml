@@ -1,5 +1,7 @@
 # Jeux de games.glsc.fr — un conteneur par jeu, accessible uniquement depuis le serveur (127.0.0.1).
 # Installé dans /opt/glsc-games par deploy4.sh ; les sources sont dans /opt/glsc-games/src/<jeu>.
+# Chaque jeu écrit ses parties terminées dans /var/lib/glsc-games/<jeu>/results.jsonl (seul dossier modifiable),
+# lu par la sonde de admin.glsc.fr pour les classements de games.glsc.fr.
 name: glsc-games
 
 x-durcissement: &durcissement
@@ -21,6 +23,8 @@ services:
       context: ./src/uno           # Dockerfile fourni par le dépôt uno
     environment:
       CORS_ORIGIN: https://uno.glsc.fr
+      RESULTS_FILE: /data/results.jsonl
+    volumes: ["/var/lib/glsc-games/uno:/data"]
     ports: ["127.0.0.1:3101:3001"]
     mem_limit: 512m
 
@@ -32,6 +36,8 @@ services:
       dockerfile: /opt/glsc-games/dockerfiles/president.Dockerfile
     environment:
       CLIENT_ORIGIN: https://president.glsc.fr
+      RESULTS_FILE: /data/results.jsonl
+    volumes: ["/var/lib/glsc-games/president:/data"]
     ports: ["127.0.0.1:3102:3001"]
     mem_limit: 512m
 
@@ -49,4 +55,6 @@ services:
     environment:
       PORT: "3103"
       ALLOWED_ORIGINS: https://vortex.glsc.fr
+      RESULTS_FILE: /data/results.jsonl
+    volumes: ["/var/lib/glsc-games/vortex:/data"]
     mem_limit: 1g
