@@ -26,6 +26,33 @@
   function n(x) { return Number(x || 0).toLocaleString('fr-FR'); }
   function plural(x, word) { return n(x) + '\u00a0' + word + (x > 1 ? 's' : ''); }
 
+  function achievement(id) {
+    return ((data && data.achievements) || []).filter(function (a) { return a.id === id; })[0];
+  }
+
+  // Succès du jeu affiché (et ceux qui valent pour tous les jeux) : qui les a débloqués, et le dernier à l'avoir fait.
+  function drawAchievements() {
+    var host = document.getElementById('board-ach');
+    if (!host) return;
+    host.textContent = '';
+    var list = ((data && data.achievements) || []).filter(function (a) { return a.game === state.game || a.game === 'all'; });
+    if (!list.length) return;
+    host.append(el('h3', 'ach-title', 'Succès'));
+    var grid = el('div', 'ach-grid');
+    list.forEach(function (a) {
+      var card = el('div', 'ach' + (a.count ? ' got' : ''));
+      card.append(el('span', 'ach-emoji', a.emoji));
+      var txt = el('div', 'ach-text');
+      txt.append(el('strong', null, a.name), el('span', 'ach-desc', a.desc));
+      txt.append(el('span', 'ach-who', a.count
+        ? plural(a.count, 'joueur') + ' · dernier : ' + a.recent[0].name
+        : 'Personne pour l’instant'));
+      card.append(txt);
+      grid.append(card);
+    });
+    host.append(grid);
+  }
+
   function tabs(host, options, key) {
     host.textContent = '';
     Object.keys(options).forEach(function (k) {
@@ -51,7 +78,15 @@
     var body = el('tbody');
     top.forEach(function (p, i) {
       var tr = el('tr', i < 3 ? 'podium' : null);
-      tr.append(el('td', 'pos', MEDALS[i] || String(i + 1)), el('td', 'who', p.name));
+      var who = el('td', 'who', p.name);
+      var shown = (p.badges || []).map(achievement).filter(Boolean);
+      if (shown.length) {
+        var bs = el('span', 'badges', shown.map(function (a) { return a.emoji; }).join(''));
+        bs.title = shown.map(function (a) { return a.name; }).join(' · ');
+        bs.setAttribute('aria-label', 'Succès : ' + bs.title);
+        who.append(' ', bs);
+      }
+      tr.append(el('td', 'pos', MEDALS[i] || String(i + 1)), who);
       cols.forEach(function (c) {
         var v = c[1] === 'kd' ? (p.deaths ? (p.kills / p.deaths).toFixed(2).replace('.', ',') : n(p.kills))
           : c[1] === 'rate' ? Math.round((p.wins / Math.max(1, p.played)) * 100) + ' %'
@@ -88,6 +123,7 @@
       : state.game === 'president'
         ? 'Chaque manche compte : finir premier rapporte une place de président.'
         : 'Parties gagnées, contre les bots comme entre joueurs.') + ' Avec le pseudo choisi en jouant, mis à jour chaque minute.';
+    drawAchievements();
     if (state.game === 'president' && g.trouduc) {
       host.append(el('p', 'board-shame', '🧻 Abonné au trou du cul : ' + g.trouduc.name + ', ' + n(g.trouduc.trouduc) + ' fois' + ' sur ' + plural(g.trouduc.played, 'manche') + '.'));
     }

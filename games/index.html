@@ -237,6 +237,15 @@
     .board-empty a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--coral); }
     .board-shame { background: var(--peach); border: 2px solid #000; border-radius: .8rem; padding: .6rem .8rem; font-weight: 600; }
     .board-note { font-size: .82rem; opacity: .75; }
+    .badges { white-space: nowrap; font-size: .85em; letter-spacing: .1em; cursor: help; }
+    .ach-title { font: 700 1.05rem/1 var(--font-display); }
+    .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: .6rem; margin-top: .6rem; }
+    .ach { display: flex; gap: .6rem; align-items: center; background: #fff; border: 2px dashed #0005; border-radius: .8rem; padding: .55rem .7rem; opacity: .6; min-width: 0; }
+    .ach.got { opacity: 1; border: 2px solid #000; background: #FFFBE0; box-shadow: var(--sh-sm); }
+    .ach-emoji { font-size: 1.6rem; line-height: 1; }
+    .ach-text { display: grid; gap: .1rem; min-width: 0; }
+    .ach-desc, .ach-who { font-size: .8rem; opacity: .8; overflow-wrap: anywhere; }
+    .ach-who { font-weight: 600; }
     @media (max-width: 560px) { .board-table .opt { display: none; } .board { padding: 1rem .8rem; } }
   </style>
 </head>
@@ -377,6 +386,7 @@
           <div class="board-stats" id="board-stats"></div>
           <div id="board-body"></div>
           <p class="board-note" id="board-note"></p>
+          <div id="board-ach"></div>
         </div>
       </section>
 
