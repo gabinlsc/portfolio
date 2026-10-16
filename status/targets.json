@@ -83,6 +83,15 @@
       "description": "president.glsc.fr"
     },
     {
+      "id": "petitbac",
+      "name": "Petit Bac",
+      "group": "Jeux",
+      "type": "http",
+      "url": "https://petitbac.glsc.fr/health",
+      "link": "https://petitbac.glsc.fr",
+      "description": "petitbac.glsc.fr"
+    },
+    {
       "id": "vortex",
       "name": "Vortex",
       "group": "Jeux",

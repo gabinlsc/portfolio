@@ -10,6 +10,7 @@
   var GAMES = {
     uno: { label: '+4', url: 'https://plus4.glsc.fr' }, // « uno » : identifiant interne de +4
     president: { label: 'Le Président', url: 'https://president.glsc.fr' },
+    petitbac: { label: 'Petit Bac', url: 'https://petitbac.glsc.fr' },
     vortex: { label: 'Vortex', url: 'https://vortex.glsc.fr' }
   };
   var PERIODS = { week: '7 derniers jours', all: 'Depuis toujours' };
@@ -106,7 +107,7 @@
     var g = (data.games[state.game] || {})[state.period] || { matches: 0, players: 0, top: [] };
     var stats = document.getElementById('board-stats');
     stats.textContent = '';
-    stats.append(el('span', null, plural(g.matches, state.game === 'uno' ? 'partie' : 'manche') + ' jouée' + (g.matches > 1 ? 's' : '')),
+    stats.append(el('span', null, plural(g.matches, state.game === 'uno' || state.game === 'petitbac' ? 'partie' : 'manche') + ' jouée' + (g.matches > 1 ? 's' : '')),
       el('span', null, plural(g.players, 'joueur')));
     var host = document.getElementById('board-body');
     host.textContent = '';
@@ -123,7 +124,9 @@
       ? 'Éliminations cumulées sur les manches de 10 minutes, en FFA comme en équipes.'
       : state.game === 'president'
         ? 'Chaque manche compte : finir premier rapporte une place de président.'
-        : 'Parties gagnées, contre les bots comme entre joueurs.') + ' Avec le pseudo choisi en jouant, mis à jour chaque minute.';
+        : state.game === 'petitbac'
+          ? 'Parties gagnées au total des points sur toutes les manches.'
+          : 'Parties gagnées, contre les bots comme entre joueurs.') + ' Avec le pseudo choisi en jouant, mis à jour chaque minute.';
     drawAchievements();
     if (state.game === 'president' && g.trouduc) {
       host.append(el('p', 'board-shame', '🧻 Abonné au trou du cul : ' + g.trouduc.name + ', ' + n(g.trouduc.trouduc) + ' fois' + ' sur ' + plural(g.trouduc.played, 'manche') + '.'));

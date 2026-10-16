@@ -1,7 +1,7 @@
 // Jeux en direct : état des conteneurs, joueurs connectés, ressources, bouton de redémarrage et modération des classements.
 import { h, clear, api, attempt, sectionHead, card, num, bytes, pill, btn, confirmBox, emptyState, lineChart, ago, icon, segmented } from '../lib.js';
 
-const GAMES = { uno: '+4', president: 'Le Président', vortex: 'Vortex' };
+const GAMES = { uno: '+4', president: 'Le Président', petitbac: 'Petit Bac', vortex: 'Vortex' };
 
 export async function render(root) {
   const box = h('div', {});

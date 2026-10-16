@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # deploy4 — tout ce que fait deploy3 (donc deploy2), plus les jeux en ligne :
-#   plus4.glsc.fr (+4), president.glsc.fr et vortex.glsc.fr, chacun dans un conteneur Docker durci.
+#   plus4.glsc.fr (+4), president.glsc.fr, petitbac.glsc.fr et vortex.glsc.fr, chacun dans un conteneur Docker durci.
 #   L'ancienne adresse uno.glsc.fr redirige vers plus4.glsc.fr.
 #
 # Usage (en root sur le VPS) :
 #   curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/deploy4.sh | bash
 #
-# Prérequis : un enregistrement DNS « A » vers le VPS pour plus4, president et vortex (sans AAAA).
+# Prérequis : un enregistrement DNS « A » vers le VPS pour plus4, president, petitbac et vortex (sans AAAA).
 # Un jeu dont le DNS n'est pas prêt est quand même installé ; seul son HTTPS est reporté.
 # Relançable à volonté : il met aussi les jeux à jour depuis GitHub.
 #
-# GLSC_ONLY_GAME=uno|president|vortex : ne met à jour que ce jeu (sources, image, conteneur), sans toucher
+# GLSC_ONLY_GAME=uno|president|petitbac|vortex : ne met à jour que ce jeu (sources, image, conteneur), sans toucher
 # (« uno » reste l'identifiant interne de +4 : service Docker, résultats, déploiement automatique)
 # aux sites ni à nginx. C'est ce qu'utilise le déploiement automatique après un push sur le dépôt du jeu.
 #
@@ -33,6 +33,7 @@ NGX=/etc/nginx
 GAMES=(
   "plus4.glsc.fr|+4|3101|plus4|game-proxy|uno"
   "president.glsc.fr|Le Président|3102|president|game-proxy|president"
+  "petitbac.glsc.fr|Petit Bac|3104|petitbac|game-proxy|petitbac"
   "vortex.glsc.fr|Vortex|3103|vortex-fps|game-vortex|vortex"
 )
 # anciennes adresses : domaine | (inutilisé) | nouvelle adresse | - | modèle nginx | -
@@ -47,9 +48,9 @@ die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*"; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "Lance ce script en root."
 ONLY="${GLSC_ONLY_GAME:-}"
-case "$ONLY" in ""|uno|president|vortex) ;; *) die "GLSC_ONLY_GAME doit valoir uno, president ou vortex." ;; esac
+case "$ONLY" in ""|uno|president|petitbac|vortex) ;; *) die "GLSC_ONLY_GAME doit valoir uno, president, petitbac ou vortex." ;; esac
 wanted() { [ -z "$ONLY" ] || [ "$1" = "$ONLY" ]; }   # wanted <service Docker>
-image_of() { case "$1" in profiles) echo glsc/profiles;; uno) echo glsc/plus4;; president) echo glsc/president;; vortex) echo glsc/vortex;; esac; }
+image_of() { case "$1" in profiles) echo glsc/profiles;; uno) echo glsc/plus4;; president) echo glsc/president;; petitbac) echo glsc/petitbac;; vortex) echo glsc/vortex;; esac; }
 mkdir -p "$BACKUP"
 
 save() {
@@ -123,7 +124,7 @@ done
 if [ -d "$GAMES_DIR/src/plus4/.git" ] && [ -d "$GAMES_DIR/src/uno" ]; then rm -rf "${GAMES_DIR:?}/src/uno"; ok "anciennes sources « uno » retirées"; fi
 install -m 644 "$SRC/deploy/games/president.Dockerfile" "$SRC/deploy/games/vortex.Dockerfile" "$GAMES_DIR/dockerfiles/"
 # résultats des parties (classements) : seul dossier où les conteneurs peuvent écrire (utilisateur node, uid 1000)
-for svc in uno president vortex profiles; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
+for svc in uno president petitbac vortex profiles; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
 # service de profils : son code vient de ce dépôt (portfolio), pas d'un dépôt de jeu
 install -d -m 755 "$GAMES_DIR/profiles"
 install -m 644 "$SRC/deploy/games/profiles/server.mjs" "$SRC/deploy/games/profiles/Dockerfile" "$GAMES_DIR/profiles/"
@@ -155,7 +156,7 @@ fi
 # ---------------------------------------------------------------- 4. build + lancement
 info "4/7 Construction des images (quelques minutes la première fois)"
 cd "$GAMES_DIR"
-for svc in ${ONLY:-profiles uno president vortex}; do
+for svc in ${ONLY:-profiles uno president petitbac vortex}; do
   img="$(image_of "$svc")"
   if docker image inspect "$img:latest" >/dev/null 2>&1; then
     docker tag "$img:latest" "$img:previous"   # version en service : de quoi revenir en arrière
@@ -331,4 +332,4 @@ done
 
 info "Terminé. Sauvegardes : $BACKUP"
 echo "  Mettre les jeux à jour plus tard : relance simplement deploy4."
-echo "  Logs d'un jeu : docker logs -f glsc-games-uno-1 (ou president-1, vortex-1)"
+echo "  Logs d'un jeu : docker logs -f glsc-games-uno-1 (ou president-1, petitbac-1, vortex-1)"
