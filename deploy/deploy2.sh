@@ -105,7 +105,7 @@ if grep -A3 -E '^\s*location\s+/\s*\{' "$NGX/sites-enabled/share.glsc.fr" 2>/dev
 else
   reset_site_dir "$SHARE" "Projets · Gabin Lescoat"
   put projets/index.html "$SHARE/index.html"
-  for e in salle-de-jeux plus4 president petit-bac; do mkdir -p "$SHARE/etudes/$e"; put "projets/etudes/$e/index.html" "$SHARE/etudes/$e/index.html"; done
+  for e in salle-de-jeux plus4 president petit-bac; do mkdir -p "$SHARE/etudes/$e"; put "projets/etudes/$e/index.html" "$SHARE/etudes/$e/index.html"; install -m 644 "$SHARE/etudes/$e/index.html" "$SHARE/etudes/$e/index.php"; done   # index.php comme à la racine : ce site ne cherche que lui dans un dossier
   install -m 644 "$SHARE/index.html" "$SHARE/index.php"
   common_files "$SHARE" share.glsc.fr
   chown -R www-data:www-data "$SHARE"
