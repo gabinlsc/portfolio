@@ -68,6 +68,10 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - **Signalements de bugs** : le bouton « 🐞 Un bug ? » des jeux envoie un message (3 à 600 caractères, connecté ou non) à `POST /api/profile/report`, avec le jeu, le code du salon, la phase et le navigateur, **jamais l'adresse IP** (5 par 10 min et par adresse). Le service les écrit dans `reports.jsonl` ; la sonde les relaie sur Discord (alerte « Un joueur signale un bug », désactivable ; texte neutralisé : pas de mention, pas de blocs de code cassés) et garde les 60 derniers pour l'admin.
 - Test : `node --test deploy/games/profiles/server.test.mjs`. Données : `/var/lib/glsc-games/profiles/profiles.json` (incluses dans les sauvegardes chiffrées).
 
+### Journal des nouveautés
+
+[games.glsc.fr/nouveautes](https://games.glsc.fr/nouveautes/) liste les pull requests fusionnées des dépôts `portfolio`, `plus4`, `president`, `petitbac` et `vortex-fps` (titre, jeu, date, lien), avec un filtre par jeu et un flux Atom (`/nouveautes.xml`). La sonde interroge GitHub toutes les 40 minutes (5 appels, sans jeton) et écrit `changelog.json` et le flux ; un dépôt injoignable est ignoré. Les titres des PR servent d'annonces : on les écrit pour les joueurs.
+
 ### Récap Discord
 
 - Chaque lundi à 9 h, la sonde envoie sur Discord le récap de la semaine écoulée : visites (et évolution), sources, CV et projets cliqués, parties et champions des jeux, commits et déploiements, incidents, tentatives SSH, disque et certificats. Désactivable dans l'admin (Réglages → « Récap de la semaine »).

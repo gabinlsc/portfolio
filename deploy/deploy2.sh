@@ -75,7 +75,7 @@ common_files() {              # common_files <racine> <dossier seo>
 info "1/6 Téléchargement du dépôt"
 curl -fsSL "$REPO_TGZ" | tar -xz -C "$WORK"
 SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
-for f in index.html cv/index.html old/index.html projets/index.html games/index.html games/profil/index.html errors/404.html deploy/install-404.sh \
+for f in index.html cv/index.html old/index.html projets/index.html games/index.html games/profil/index.html games/nouveautes/index.html errors/404.html deploy/install-404.sh \
          assets/_glsc/icons.js assets/_glsc/hub.css assets/_glsc/fonts.css deploy/nginx/glsc-security.conf deploy/nginx/games.glsc.fr.conf; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
@@ -115,6 +115,8 @@ reset_site_dir "$GAMES" "Salle de jeux · GLSC.fr"
 put games/index.html "$GAMES/index.html"
 mkdir -p "$GAMES/profil"
 put games/profil/index.html "$GAMES/profil/index.html"
+mkdir -p "$GAMES/nouveautes"
+put games/nouveautes/index.html "$GAMES/nouveautes/index.html"
 common_files "$GAMES" games.glsc.fr
 chown -R www-data:www-data "$GAMES"
 ok "Salle de jeux (games.glsc.fr)"
