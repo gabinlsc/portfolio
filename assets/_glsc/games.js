@@ -13,7 +13,7 @@
     petitbac: { label: 'Petit Bac', url: 'https://petitbac.glsc.fr' },
     vortex: { label: 'Vortex', url: 'https://vortex.glsc.fr' }
   };
-  var PERIODS = { week: '7 derniers jours', all: 'Depuis toujours' };
+  var PERIODS = { week: '7 derniers jours', month: 'Ce mois-ci', all: 'Depuis toujours' };
   var MEDALS = ['🥇', '🥈', '🥉'];
   var state = { game: 'uno', period: 'week' };
   var data = null;
@@ -45,7 +45,7 @@
       card.append(el('span', 'ach-emoji', a.emoji));
       var txt = el('div', 'ach-text');
       txt.append(el('strong', null, a.name), el('span', 'ach-desc', a.desc));
-      txt.append(el('span', 'ach-who', a.count
+      txt.append(el('span', 'ach-who', a.count && a.recent && a.recent[0]
         ? plural(a.count, 'joueur') + ' · dernier : ' + a.recent[0].name
         : 'Personne pour l’instant'));
       card.append(txt);
@@ -133,6 +133,58 @@
     }
   }
 
+  var MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function monthName(label) {
+    var parts = label.split('-');
+    return MONTHS[Number(parts[1]) - 1] + ' ' + parts[0];
+  }
+
+  // Défi du jour : le même pour tout le monde ; connecté, on voit sa série et sa progression.
+  function daily() {
+    var host = document.getElementById('daily');
+    if (!host || !data.daily) return;
+    host.textContent = '';
+    host.append(el('strong', null, '🎯 Défi du jour : '), el('span', null, data.daily.text + '.'));
+    host.hidden = false;
+    fetch('/api/profile/me', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (me) {
+      if (!me || !me.profile) {
+        host.append(' ', el('a', null, 'Crée ton profil pour suivre ta série.'));
+        host.lastChild.href = '/profil/';
+        return null;
+      }
+      return fetch('/players.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (pj) {
+        var me2 = pj && pj.players && pj.players[me.profile.pid];
+        if (!me2 || !me2.daily) return;
+        var dl = me2.daily;
+        host.append(' ', el('span', 'daily-chip', dl.done ? '✅ Relevé !' : Math.min(dl.progress, data.daily.goal) + ' / ' + data.daily.goal),
+          ' ', el('span', 'daily-chip', '🔥 ' + dl.streak + ' jour' + (dl.streak > 1 ? 's' : '') + ' d’affilée'));
+      });
+    }).catch(function () { });
+  }
+
+  // Hall des champions : le meilleur joueur de chaque jeu, pour chaque mois écoulé.
+  function hall() {
+    var host = document.getElementById('hall');
+    var list = data.seasons || [];
+    if (!host || !list.length) return;
+    var body = document.getElementById('hall-body');
+    body.textContent = '';
+    var months = [];
+    list.forEach(function (c) { if (months.indexOf(c.month) < 0) months.push(c.month); });
+    months.forEach(function (m) {
+      var row = el('div', 'hall-month');
+      row.append(el('h3', null, monthName(m)));
+      list.filter(function (c) { return c.month === m; }).forEach(function (c) {
+        var what = c.game === 'vortex' ? plural(c.kills, 'élimination') : plural(c.wins, 'victoire');
+        var chip = el('span', 'hall-chip');
+        chip.append(el('b', null, GAMES[c.game] ? GAMES[c.game].label : c.game), ' 🏅 ' + c.name + (c.profil ? ' ✓' : '') + ' · ' + what);
+        row.append(chip);
+      });
+      body.append(row);
+    });
+    host.hidden = false;
+  }
+
   // Sur chaque carte de jeu : le meilleur joueur des 7 derniers jours.
   function champions() {
     document.querySelectorAll('.game').forEach(function (card) {
@@ -151,9 +203,12 @@
   fetch('/leaderboard.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d || !d.games) return;
     data = d;
-    if (!(d.games.uno && d.games.uno.week.top.length) && d.games.uno && d.games.uno.all.top.length) state.period = 'all';
+    var u = d.games.uno;
+    if (u && !u.week.top.length) state.period = u.month && u.month.top.length ? 'month' : (u.all.top.length ? 'all' : 'week');
     draw();
     champions();
+    daily();
+    hall();
     document.getElementById('classements').hidden = false;
-  }).catch(function () { /* pas encore de classement : la section reste cachée */ });
+  }).catch(function (e) { /* pas encore de classement : la section reste cachée */ if (window.console) console.warn('classements :', e); });
 })();

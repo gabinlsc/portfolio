@@ -717,6 +717,8 @@ ACHIEVEMENTS = [
     ("vortex-50", "vortex", "💥", "50 éliminations", "50 éliminations au total", lambda s: s["kills"] >= 50),
     ("vortex-250", "vortex", "☠️", "Terreur du vortex", "250 éliminations au total", lambda s: s["kills"] >= 250),
     ("vortex-played25", "vortex", "🌀", "Habitué", "25 manches jouées", lambda s: s["played"] >= 25),
+    ("daily-1", "all", "📅", "Défi relevé", "Réussir un défi du jour", lambda s: False),  # débloqué par compute_extras
+    ("daily-7", "all", "🔥", "Assidu", "7 défis du jour d'affilée", lambda s: False),
     ("all-3", "all", "🎮", "Touche-à-tout", "Jouer à trois jeux différents avec le même profil ou pseudo", lambda s: s["games"] >= 3),
 ]
 
@@ -787,7 +789,7 @@ def unlock_achievements(db, ids):
     return unlocked, names
 
 
-def leaderboards(db, now, hidden, profiles=None):
+def leaderboards(db, now, hidden, profiles=None, extra_unlocks=None):
     """Classements par jeu, sur 7 jours et depuis toujours. Version publique (filtrée) et version admin (tout, avec raisons).
     Un profil regroupe toutes ses parties (renommer ne perd rien) ; sans profil, le pseudo fait foi comme avant."""
     ids = identities(profiles or ({}, set(), set()))
@@ -795,11 +797,14 @@ def leaderboards(db, now, hidden, profiles=None):
     week = now - 7 * 86400
     public, admin = {"at": now, "games": {}}, {"at": now, "games": {}}
     unlocked, last_names = unlock_achievements(db, ids)
+    for who, got in (extra_unlocks or {}).items():
+        if who in last_names or who in unlocked:
+            unlocked.setdefault(who, {}).update(got)
     key_of = lambda who: live[who[2:]]["key"] if who.startswith("p:") else who  # noqa: E731
     shown = {w for w in unlocked if key_of(w) not in hidden and name_ok(key_of(w))}
     for game in GAMES:
         g_pub, g_adm = {}, {}
-        for period, since in (("week", week), ("all", 0)):
+        for period, since in (("week", week), ("month", month_start(now)), ("all", 0)):
             agg, matches, players = {}, set(), set()
             for ts, match, key, name, won, role, kills, deaths, assists, pid in db.execute(
                     "SELECT ts, match, key, name, won, role, kills, deaths, assists, pid FROM results WHERE game = ? AND ts >= ? ORDER BY ts",
@@ -852,11 +857,14 @@ def leaderboards(db, now, hidden, profiles=None):
     return public, admin
 
 
-def players_page(db, now, hidden, profiles):
+def players_page(db, now, hidden, profiles, extras=None):
     """Fiches publiques des profils (players.json) : statistiques par jeu et succès, sans rien de privé."""
     ids = identities(profiles)
     live, by_key, deleted, gone_keys = ids
     unlocked, _ = unlock_achievements(db, ids)
+    extras = extras or {}
+    for who, got in extras.get("unlocks", {}).items():
+        unlocked.setdefault(who, {}).update(got)
     out = {}
     for pid, p in live.items():
         if p["key"] in hidden or not name_ok(p["key"]):
@@ -876,8 +884,153 @@ def players_page(db, now, hidden, profiles):
         g["last"] = ts
     for pid, entry in out.items():
         entry["achievements"] = sorted(({"id": a, "at": t} for a, t in unlocked.get("p:" + pid, {}).items()), key=lambda x: x["at"])
+        entry["titles"] = extras.get("titles", {}).get(pid, [])
+        entry["daily"] = extras.get("daily", {}).get(pid, {"streak": 0, "best": 0, "done": False, "progress": 0})
+        entry["history"] = extras.get("history", {}).get(pid, [])
+        for game, st in extras.get("month_stats", {}).get(pid, {}).items():
+            if game in entry["games"]:
+                entry["games"][game]["month"] = st
     return {"at": now, "players": out}
 
+
+
+# ---------------------------------------------------------------- saisons, historique, défis du jour
+def paris_day(ts):
+    return dt.datetime.fromtimestamp(ts, TZ).date()
+
+
+def day_start(day):
+    return int(dt.datetime(day.year, day.month, day.day, tzinfo=TZ).timestamp())
+
+
+def month_start(ts):
+    d = paris_day(ts)
+    return day_start(d.replace(day=1))
+
+
+CHALLENGES = [  # (jeu ou « any », genre, objectif, texte) ; un défi par jour, tiré selon la date (le même pour tout le monde)
+    ("uno", "win", 1, "Gagne une partie de +4"),
+    ("president", "play", 3, "Joue 3 manches du Président"),
+    ("petitbac", "play", 1, "Joue une partie de Petit Bac"),
+    ("any", "play", 3, "Joue 3 parties, tous jeux confondus"),
+    ("vortex", "kills", 5, "Fais 5 éliminations à Vortex"),
+    ("uno", "play", 2, "Joue 2 parties de +4"),
+    ("petitbac", "win", 1, "Gagne une partie de Petit Bac"),
+    ("president", "president", 1, "Finis président une fois"),
+]
+
+
+def challenge_for(day):
+    game, kind, goal, text = CHALLENGES[day.toordinal() % len(CHALLENGES)]
+    return {"game": game, "kind": kind, "goal": goal, "text": text}
+
+
+def challenge_progress(rows, ch):
+    """rows : (jeu, gagné, rôle, éliminations) des parties du jour."""
+    mine = [r for r in rows if ch["game"] == "any" or r[0] == ch["game"]]
+    if ch["kind"] == "win":
+        return sum(r[1] for r in mine)
+    if ch["kind"] == "kills":
+        return sum(r[3] for r in mine)
+    if ch["kind"] == "president":
+        return sum(1 for r in mine if r[2] == "president")
+    return len(mine)
+
+
+def compute_extras(db, now, hidden, profiles):
+    """Tout ce qui se calcule en rejouant les résultats : champions des mois passés, titres, historique des parties,
+    défis du jour (série de jours) et succès associés, statistiques du mois en cours par profil."""
+    ids = identities(profiles)
+    live, by_key, deleted, gone_keys = ids
+    today = paris_day(now)
+    month_now = today.strftime("%Y-%m")
+    per_month, shown_names, days, matches = {}, {}, {}, {}
+    for ts, game, match, key, name, rank, won, role, kills, pid in db.execute(
+            "SELECT ts, game, match, key, name, rank, won, role, kills, pid FROM results ORDER BY ts"):
+        who = ident_of(pid, key, live, by_key, deleted, gone_keys)
+        if who is None:
+            continue
+        profile = who.startswith("p:") and who[2:] in live
+        shown_names[who] = live[who[2:]]["name"] if profile else name
+        day = paris_day(ts)
+        st = per_month.setdefault((day.strftime("%Y-%m"), game, who), {"played": 0, "wins": 0, "kills": 0})
+        st["played"] += 1
+        st["wins"] += won
+        st["kills"] += kills or 0
+        if profile:
+            days.setdefault(who, {}).setdefault(day, []).append((game, won, role, kills or 0))
+        m = matches.setdefault(match, {"game": game, "t": ts, "players": []})
+        m["players"].append((who, rank, won))
+
+    def visible(who):
+        k = live[who[2:]]["key"] if who.startswith("p:") else who
+        return k not in hidden and name_ok(k)
+
+    # champions des mois écoulés (au moins 3 parties et une victoire / une élimination)
+    champions, titles = [], {}
+    months = sorted({m for (m, _, _) in per_month if m < month_now}, reverse=True)[:18]
+    for month in months:
+        for game in GAMES:
+            rows = [(who, st) for (m, g, who), st in per_month.items() if m == month and g == game and visible(who)
+                    and st["played"] >= 3 and (st["kills"] if game == "vortex" else st["wins"]) >= 1]
+            if not rows:
+                continue
+            key = (lambda r: (-r[1]["kills"], r[1]["played"])) if game == "vortex" else (lambda r: (-r[1]["wins"], r[1]["played"]))
+            who, st = sorted(rows, key=key)[0]
+            champions.append({"month": month, "game": game, "name": shown_names[who], "wins": st["wins"], "kills": st["kills"],
+                              "played": st["played"], "profil": who.startswith("p:")})
+            if who.startswith("p:"):
+                titles.setdefault(who[2:], []).append({"game": game, "month": month})
+
+    # statistiques du mois en cours, par profil
+    month_stats = {}
+    for (m, game, who), st in per_month.items():
+        if m == month_now and who.startswith("p:") and who[2:] in live:
+            month_stats.setdefault(who[2:], {})[game] = st
+
+    # historique : 20 dernières parties de chaque profil
+    history = {}
+    for m in sorted(matches.values(), key=lambda x: x["t"]):
+        pids = [w[2:] for (w, _, _) in m["players"] if w.startswith("p:") and w[2:] in live]
+        for who, rank, won in m["players"]:
+            if not (who.startswith("p:") and who[2:] in live):
+                continue
+            others = [shown_names[w] for (w, _, _) in m["players"] if w != who and w.startswith("p:") and w[2:] in live and visible(w)]
+            history.setdefault(who[2:], []).append({"game": m["game"], "t": m["t"], "rank": rank, "won": bool(won),
+                                                    "n": len(m["players"]), "with": others[:5]})
+    history = {pid: rows[-20:][::-1] for pid, rows in history.items()}
+
+    # défis du jour
+    ch_today = challenge_for(today)
+    daily, unlocks = {}, {}
+    for who, per_day in days.items():
+        done = sorted(d for d, rows in per_day.items() if challenge_progress(rows, challenge_for(d)) >= challenge_for(d)["goal"])
+        done_set = set(done)
+        cursor = today if today in done_set else today - dt.timedelta(days=1)
+        streak = 0
+        while cursor in done_set:
+            streak += 1
+            cursor -= dt.timedelta(days=1)
+        best = run = 0
+        got7 = None
+        previous = None
+        for d in done:
+            run = run + 1 if previous is not None and (d - previous).days == 1 else 1
+            if run >= 7 and got7 is None:
+                got7 = d
+            best = max(best, run)
+            previous = d
+        daily[who[2:]] = {"streak": streak, "best": best, "done": today in done_set,
+                          "progress": challenge_progress(per_day.get(today, []), ch_today)}
+        got = {}
+        if done:
+            got["daily-1"] = day_start(done[0] + dt.timedelta(days=1))
+        if got7:
+            got["daily-7"] = day_start(got7 + dt.timedelta(days=1))
+        if got:
+            unlocks[who] = got
+    return {"challenge": {**ch_today, "date": today.isoformat()}, "champions": champions, "titles": titles,
+            "month_stats": month_stats, "history": history, "daily": daily, "unlocks": unlocks}
 
 # ---------------------------------------------------------------- récap Discord du lundi
 SITE_NAMES = {"glsc.fr": "Hub", "cv.glsc.fr": "CV", "share.glsc.fr": "Projets", "old.glsc.fr": "Archives", "games.glsc.fr": "Salle de jeux",
@@ -1091,12 +1244,16 @@ def collect(args):
     step("résultats des jeux", lambda: ingest_results(db, state, args.games_data, now))
     hidden = set(json.loads(app_settings(args.app_db).get("games_hidden") or "[]"))
     profiles = load_profiles(args.games_data)
-    boards = step("classements", lambda: leaderboards(db, now, hidden, profiles))
+    extras = step("saisons et défis", lambda: compute_extras(db, now, hidden, profiles)) or {}
+    boards = step("classements", lambda: leaderboards(db, now, hidden, profiles, extras.get("unlocks")))
     if boards:
+        if extras:
+            boards[0]["seasons"] = extras["champions"]
+            boards[0]["daily"] = extras["challenge"]
         write_json(pub("leaderboard"), boards[1], gid)
         if os.path.isdir(os.path.dirname(args.leaderboard_json)):
             write_json(args.leaderboard_json, boards[0], mode=0o644)
-    fiches = step("profils", lambda: players_page(db, now, hidden, profiles))
+    fiches = step("profils", lambda: players_page(db, now, hidden, profiles, extras))
     if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
         write_json(os.path.join(os.path.dirname(args.leaderboard_json), "players.json"), fiches, mode=0o644)
     sec = {"at": now, "fail2ban": step("fail2ban", fail2ban)}

@@ -239,6 +239,13 @@
     .board-shame { background: var(--peach); border: 2px solid #000; border-radius: .8rem; padding: .6rem .8rem; font-weight: 600; }
     .board-note { font-size: .82rem; opacity: .75; }
     .verif { font-size: .8em; cursor: help; }
+    .daily { background: var(--lilac); border: var(--bd-lg); border-radius: 1.25rem; box-shadow: var(--sh); padding: .8rem 1.1rem; display: flex; flex-wrap: wrap; gap: .4rem .6rem; align-items: center; font-weight: 600; }
+    .daily a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 3px; text-decoration-color: var(--coral); }
+    .daily-chip { background: #fff; border: 2px solid #000; border-radius: 999px; padding: .05rem .6rem; font-weight: 700; font-size: .85rem; }
+    .hall-month { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding: .4rem 0; border-bottom: 2px dashed #0002; }
+    .hall-month:last-child { border-bottom: 0; }
+    .hall-month h3 { font: 700 1.05rem/1 var(--font-display); min-width: 9rem; text-transform: capitalize; }
+    .hall-chip { background: var(--cream); border: 2px solid #000; border-radius: .6rem; padding: .15rem .6rem; font-size: .88rem; }
     .badges { white-space: nowrap; font-size: .85em; letter-spacing: .1em; cursor: help; }
     .ach-title { font: 700 1.05rem/1 var(--font-display); }
     .ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: .6rem; margin-top: .6rem; }
@@ -405,6 +412,8 @@
         </div>
       </div>
 
+      <div id="daily" class="daily" hidden></div>
+
       <section id="classements" hidden aria-labelledby="board-title">
         <h2 class="sec-title" id="board-title"><span class="sec-icon" style="background:var(--banana)" aria-hidden="true">🏆</span>Classements</h2>
         <div class="board">
@@ -417,6 +426,11 @@
           <p class="board-note" id="board-note"></p>
           <div id="board-ach"></div>
         </div>
+      </section>
+
+      <section id="hall" hidden aria-labelledby="hall-title">
+        <h2 class="sec-title" id="hall-title"><span class="sec-icon" style="background:var(--lilac)" aria-hidden="true">🏅</span>Hall des champions</h2>
+        <div class="board" id="hall-body"></div>
       </section>
 
       <h2 class="sec-title"><span class="sec-icon" style="background:var(--peach)" aria-hidden="true">🕹️</span>Les classiques des archives</h2>
