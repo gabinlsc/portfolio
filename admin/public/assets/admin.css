@@ -379,3 +379,11 @@ mark { background: var(--banana); border-radius: 3px; padding: 0 1px; }
 .steps .row { flex-wrap: nowrap; min-width: 0; }
 .steps .row > code { min-width: 0; flex: 1 1 auto; }
 .code.log { max-height: min(65vh, 560px); overflow: auto; white-space: pre-wrap; word-break: break-word; color: #e8ffe8; font-size: .8rem; }
+
+/* ── Joueurs : tuiles de chiffres clés ── */
+.kpi-grid { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); }
+.kpi-tile { display: grid; gap: .15rem; align-content: start; padding: .8rem .9rem; border: 3px solid var(--ink); border-radius: 1rem; box-shadow: var(--shadow-sm, 2px 2px 0 #000); min-width: 0; }
+.kpi-tile b { font: 700 2rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.kpi-tile span { font-size: .85rem; font-weight: 600; }
+.big { font: 700 2rem/1 var(--font-display); }
+.report-text { overflow-wrap: anywhere; white-space: pre-wrap; }

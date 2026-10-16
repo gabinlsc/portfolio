@@ -264,6 +264,7 @@ return [
         return ['docker' => $docker, 'history' => $history, 'pending' => $pending];
     },
     // Classements de games.glsc.fr : la sonde publie tous les pseudos ; masquer l'un d'eux le retire du classement public.
+    'GET players/stats' => fn () => snapshot('players-stats') ?? ['empty' => true],
     'GET games/board' => fn () => [
         'board' => snapshot('leaderboard'),
         'hidden' => json_decode((string) setting('games_hidden', '[]'), true) ?: [],
