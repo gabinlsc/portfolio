@@ -1,16 +1,17 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { checkName, createProfileService, newRecoveryCode, nameKey, normalizeCode, parseCookie } from './server.mjs';
+import { checkCrewName, checkName, createProfileService, newCrewCode, newRecoveryCode, nameKey, normalizeCode, normalizeCrewCode, parseCookie } from './server.mjs';
 
 const ORIGIN = 'https://plus4.glsc.fr';
-let svc, dir, api, internal;
+let svc, dir, siteDir, api, internal;
 
 before(async () => {
   dir = mkdtempSync(join(tmpdir(), 'profils-'));
-  svc = createProfileService({ dataDir: dir, secureCookies: true });
+  siteDir = mkdtempSync(join(tmpdir(), 'site-'));
+  svc = createProfileService({ dataDir: dir, siteDir, secureCookies: true });
   await svc.listen(0, 0, '127.0.0.1', '127.0.0.1');
   api = `http://127.0.0.1:${svc.publicServer.address().port}`;
   internal = `http://127.0.0.1:${svc.internalServer.address().port}`;
@@ -165,5 +166,98 @@ test('entrées abusives : trop gros, mauvais type, JSON cassé', async () => {
 test('création : limitation par adresse', async () => {
   let last;
   for (let i = 0; i < 7; i++) last = await post('/create', { name: `Spam ${i}x` }, { ip: '13.0.0.1' });
+  assert.equal(last.status, 429);
+});
+
+// ---------------------------------------------------------------- équipes
+const get = (path, { cookie, base = api } = {}) => fetch(base + path, { headers: { ...(cookie ? { cookie } : {}) } });
+const player = async (name, ip) => {
+  const res = await post('/create', { name }, { ip });
+  const body = await res.json();
+  return { cookie: `glsc_sid=${sidOf(res)}`, pid: body.profile.pid, name };
+};
+
+test('équipes : noms et codes', () => {
+  assert.ok(checkCrewName('Les Zébrés & co').name);
+  for (const bad of ['a', 'x'.repeat(25), '<b>', 'bande de connards']) assert.ok(checkCrewName(bad).error, bad);
+  assert.equal(checkCrewName('ok\u202eevil').name, 'okevil', 'les caractères de direction du texte sont retirés');
+  const c = newCrewCode();
+  assert.match(c, /^EQ(-[0-9A-HJKMNP-TV-Z]{4}){2}$/);
+  assert.equal(normalizeCrewCode(c.toLowerCase().replaceAll('-', ' ')), normalizeCrewCode(c));
+  assert.equal(normalizeCrewCode(c).length, 8);
+});
+
+test('équipes : créer, rejoindre avec un code approximatif, classement privé avec les statistiques de la sonde', async () => {
+  const ana = await player('Crew Ana', '20.0.0.1');
+  const ben = await player('Crew Ben', '20.0.0.2');
+  const out = await player('Crew Out', '20.0.0.3');
+  assert.equal((await post('/crews/create', { name: 'x' }, { cookie: ana.cookie })).status, 422);
+  assert.equal((await post('/crews/create', { name: 'Les copains' })).status, 401);
+  const created = await (await post('/crews/create', { name: 'Les copains' }, { cookie: ana.cookie })).json();
+  const id = created.crew.id;
+  assert.match(created.crew.code, /^EQ-/);
+  assert.equal((await post('/crews/join', { code: 'EQ-0000-0000' }, { cookie: ben.cookie, ip: '20.0.1.1' })).status, 404);
+  const joined = await post('/crews/join', { code: created.crew.code.toLowerCase().replaceAll('-', ' ') }, { cookie: ben.cookie, ip: '20.0.1.2' });
+  assert.equal(joined.status, 200);
+  // statistiques publiées par la sonde
+  writeFileSync(join(siteDir, 'players.json'), JSON.stringify({ players: {
+    [ana.pid]: { games: { uno: { played: 10, wins: 6, month: { played: 4, wins: 3 } }, petitbac: { played: 2, wins: 2, month: { played: 2, wins: 2 } } }, titles: [{ game: 'uno', month: '2026-09' }] },
+    [ben.pid]: { games: { uno: { played: 5, wins: 1, month: { played: 1, wins: 0 } } }, titles: [] } } }));
+  const detail = await (await get(`/crews/${id}`, { cookie: ben.cookie })).json();
+  assert.deepEqual(detail.crew.ranking.map((r) => [r.name, r.month.wins, r.all.wins, r.titles]), [['Crew Ana', 5, 8, 1], ['Crew Ben', 0, 1, 0]]);
+  assert.equal(detail.crew.ranking.find((r) => r.me).name, 'Crew Ben');
+  // le classement est privé : un non-membre ne sait même pas si l'équipe existe
+  assert.equal((await get(`/crews/${id}`, { cookie: out.cookie })).status, 404);
+  assert.equal((await get(`/crews/${'0'.repeat(16)}`, { cookie: out.cookie })).status, 404);
+  assert.equal((await get(`/crews/${id}`)).status, 401);
+  assert.equal((await get('/crews', { cookie: ben.cookie }).then((r) => r.json())).crews[0].name, 'Les copains');
+});
+
+test('équipes : retirer, quitter, passer la main, supprimer, nouveau code', async () => {
+  const [a, b, c] = [await player('Crew A1', '21.0.0.1'), await player('Crew B1', '21.0.0.2'), await player('Crew C1', '21.0.0.3')];
+  const { crew } = await (await post('/crews/create', { name: 'Trio' }, { cookie: a.cookie })).json();
+  for (const [i, p] of [b, c].entries()) assert.equal((await post('/crews/join', { code: crew.code }, { cookie: p.cookie, ip: `21.0.1.${i}` })).status, 200);
+  assert.equal((await post('/crews/kick', { id: crew.id, pid: c.pid }, { cookie: b.cookie })).status, 403, 'seul le créateur retire');
+  assert.equal((await post('/crews/kick', { id: crew.id, pid: a.pid }, { cookie: a.cookie })).status, 422, 'on ne se retire pas soi-même');
+  assert.equal((await post('/crews/kick', { id: crew.id, pid: c.pid }, { cookie: a.cookie })).status, 200);
+  assert.equal((await get(`/crews/${crew.id}`, { cookie: c.cookie })).status, 404, 'un membre retiré perd l’accès');
+  // nouveau code : l'ancien ne marche plus
+  const fresh = await (await post('/crews/new-code', { id: crew.id }, { cookie: a.cookie })).json();
+  assert.notEqual(fresh.crew.code, crew.code);
+  assert.equal((await post('/crews/join', { code: crew.code }, { cookie: c.cookie, ip: '21.0.2.1' })).status, 404);
+  assert.equal((await post('/crews/new-code', { id: crew.id }, { cookie: b.cookie })).status, 404, 'réservé au créateur');
+  // le créateur part : le plus ancien membre prend la suite
+  assert.equal((await post('/crews/leave', { id: crew.id }, { cookie: a.cookie })).status, 200);
+  const after = await (await get(`/crews/${crew.id}`, { cookie: b.cookie })).json();
+  assert.equal(after.crew.owner, true);
+  assert.equal((await post('/crews/delete', { id: crew.id, confirm: 'faux' }, { cookie: b.cookie })).status, 422);
+  assert.equal((await post('/crews/delete', { id: crew.id, confirm: 'Trio' }, { cookie: b.cookie })).status, 200);
+  assert.equal((await get('/crews', { cookie: b.cookie }).then((r) => r.json())).crews.length, 0);
+});
+
+test('équipes : limites (5 par profil, 20 membres) et suppression d’un profil', async () => {
+  const boss = await player('Crew Boss', '22.0.0.1');
+  for (let i = 0; i < 5; i++) assert.equal((await post('/crews/create', { name: `Equipe ${i}x` }, { cookie: boss.cookie })).status, 201);
+  assert.equal((await post('/crews/create', { name: 'Sixieme' }, { cookie: boss.cookie })).status, 409);
+  const crews = (await get('/crews', { cookie: boss.cookie }).then((r) => r.json())).crews;
+  const full = crews[0];
+  for (let i = 0; i < 19; i++) {
+    const p = await player(`Membre ${i}z`, `22.1.${i}.1`);
+    assert.equal((await post('/crews/join', { code: full.code }, { cookie: p.cookie, ip: `22.2.${i}.1` })).status, 200);
+  }
+  const late = await player('Crew Late', '22.0.0.9');
+  assert.equal((await post('/crews/join', { code: full.code }, { cookie: late.cookie, ip: '22.3.0.1' })).status, 409);
+  // supprimer son profil : on quitte ses équipes, la dernière personne fait disparaître l'équipe
+  const solo = await player('Crew Solo', '22.0.0.10');
+  const { crew } = await (await post('/crews/create', { name: 'Solo team' }, { cookie: solo.cookie })).json();
+  assert.equal((await post('/delete', { confirm: 'Crew Solo' }, { cookie: solo.cookie })).status, 200);
+  const owner2 = await player('Crew Boss2', '22.0.0.11');
+  assert.equal((await post('/crews/join', { code: crew.code }, { cookie: owner2.cookie, ip: '22.3.0.2' })).status, 404, 'équipe disparue');
+});
+
+test('équipes : essais de code limités', async () => {
+  const p = await player('Crew Brute', '23.0.0.1');
+  let last;
+  for (let i = 0; i < 12; i++) last = await post('/crews/join', { code: 'EQ-ZZZZ-ZZZZ' }, { cookie: p.cookie, ip: '23.9.9.9' });
   assert.equal(last.status, 429);
 });

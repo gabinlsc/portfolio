@@ -252,6 +252,13 @@
     .tile .t-name { font: 700 1rem/1.1 var(--font-display); }
     .tile .t-big { font: 700 2.4rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
     .tile .t-sub { font-size: .8rem; font-weight: 600; opacity: .85; }
+    .span-2 { grid-column: 1 / -1; }
+    .crew { display: grid; gap: .6rem; background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh-sm); padding: .7rem .8rem; }
+    .crew-head { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+    .crew-name { font: 700 1.15rem/1 var(--font-display); overflow-wrap: anywhere; }
+    .crew-panel { overflow-x: auto; }
+    .crew-form { display: grid; gap: .6rem; align-content: start; background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh-sm); padding: .7rem .8rem; }
+    .kick { border: 2px solid #000; border-radius: .5rem; background: #fff; cursor: pointer; font-weight: 700; padding: 0 .4rem; }
     .meter { height: 14px; border: 2px solid #000; border-radius: 999px; background: #fff; overflow: hidden; }
     .meter-fill { height: 100%; background: var(--mint); transition: width .3s ease-out; }
     .history { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
