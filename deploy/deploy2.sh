@@ -75,7 +75,7 @@ common_files() {              # common_files <racine> <dossier seo>
 info "1/6 Téléchargement du dépôt"
 curl -fsSL "$REPO_TGZ" | tar -xz -C "$WORK"
 SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
-for f in index.html cv/index.html old/index.html projets/index.html games/index.html games/profil/index.html games/nouveautes/index.html errors/404.html deploy/install-404.sh \
+for f in index.html cv/index.html old/index.html projets/index.html projets/etudes/salle-de-jeux/index.html projets/etudes/plus4/index.html projets/etudes/president/index.html projets/etudes/petit-bac/index.html games/index.html games/profil/index.html games/nouveautes/index.html errors/404.html deploy/install-404.sh \
          assets/_glsc/icons.js assets/_glsc/hub.css assets/_glsc/fonts.css deploy/nginx/glsc-security.conf deploy/nginx/games.glsc.fr.conf; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
@@ -105,6 +105,7 @@ if grep -A3 -E '^\s*location\s+/\s*\{' "$NGX/sites-enabled/share.glsc.fr" 2>/dev
 else
   reset_site_dir "$SHARE" "Projets · Gabin Lescoat"
   put projets/index.html "$SHARE/index.html"
+  for e in salle-de-jeux plus4 president petit-bac; do mkdir -p "$SHARE/etudes/$e"; put "projets/etudes/$e/index.html" "$SHARE/etudes/$e/index.html"; done
   install -m 644 "$SHARE/index.html" "$SHARE/index.php"
   common_files "$SHARE" share.glsc.fr
   chown -R www-data:www-data "$SHARE"

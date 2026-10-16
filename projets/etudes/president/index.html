@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <title>Le Président, une machine à états · Étude de cas</title>
+  <meta name="description" content="Le jeu de cartes du Président en ligne, de 2 à 8 joueurs. Ici le sujet, c’est la rigueur : un état de jeu qui ne peut pas devenir incohérent." />
+  <link rel="canonical" href="https://share.glsc.fr/etudes/president/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Le Président, une machine à états · Étude de cas" />
+  <meta property="og:description" content="Le jeu de cartes du Président en ligne, de 2 à 8 joueurs. Ici le sujet, c’est la rigueur : un état de jeu qui ne peut pas devenir incohérent." />
+  <meta property="og:url" content="https://share.glsc.fr/etudes/president/" />
+  <meta property="og:image" content="https://glsc.fr/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="#FFFDF0" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
+  <style>
+    :root { --cream: #FFFDF0; --ink: #111; --banana: #FFD84D; --mint: #7BE0AD; --lilac: #C3A6FF; --sky: #8FD3FF; --coral: #FF9478; --peach: #FFC9A8;
+      --font-display: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif; --font-body: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --bd: 3px solid #000; --sh: 4px 4px 0 #000; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font-body); color: var(--ink); background-color: var(--cream); background-image: radial-gradient(#00000014 1.2px, transparent 1.2px); background-size: 22px 22px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    h1, h2, h3, p, ul { margin: 0; } ul { padding: 0; list-style: none; } a { color: inherit; }
+    :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
+    .wrap { max-width: 56rem; margin: 0 auto; padding: 1.25rem 1rem 4rem; }
+    .back { display: inline-block; font: 700 .95rem/1 var(--font-display); text-decoration: none; background: #fff; border: var(--bd); border-radius: 999px; padding: .6rem 1rem; box-shadow: 2px 2px 0 #000; }
+    .back:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
+    header.hero { margin-top: 1.5rem; padding: 1.5rem; background: var(--banana); border: var(--bd); border-radius: 1.25rem; box-shadow: 6px 6px 0 #000; }
+    .eyebrow { font: 700 .8rem/1 var(--font-display); text-transform: uppercase; letter-spacing: .08em; }
+    h1 { font: 700 clamp(1.9rem, 6vw, 3rem)/1.1 var(--font-display); margin: .6rem 0 .8rem; }
+    .lead { font-size: 1.1rem; max-width: 42rem; }
+    .stack { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 1rem; }
+    .stack span { font: 700 .8rem/1 var(--font-display); background: #fff; border: 2px solid #000; border-radius: 999px; padding: .35rem .7rem; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+    .fact { background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh); padding: .9rem 1rem; }
+    .fact:nth-child(2) { background: var(--sky); } .fact:nth-child(3) { background: var(--lilac); }
+    .fact strong { display: block; font: 700 1.9rem/1.1 var(--font-display); }
+    .fact span { font-size: .9rem; }
+    .block { margin-top: 2.25rem; }
+    h2 { font: 700 1.6rem/1.2 var(--font-display); margin-bottom: 1rem; }
+    .prose { display: grid; gap: .9rem; max-width: 44rem; }
+    .choices { display: grid; gap: 1rem; }
+    .choice { background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh); padding: 1rem 1.15rem; }
+    .choice:nth-child(4n+1) { background: var(--peach); } .choice:nth-child(4n+2) { background: #fff; } .choice:nth-child(4n+3) { background: var(--sky); } .choice:nth-child(4n) { background: var(--mint); }
+    .choice h3 { font: 700 1.15rem/1.3 var(--font-display); margin-bottom: .35rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: #0000000f; border-radius: .3em; padding: .05em .3em; }
+    .links { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2.5rem; }
+    .links a { font: 700 1rem/1 var(--font-display); text-decoration: none; background: var(--mint); border: var(--bd); border-radius: 999px; padding: .8rem 1.2rem; box-shadow: var(--sh); }
+    .links a + a { background: #fff; }
+    .links a:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+    nav.more { margin-top: 2.5rem; font-size: .95rem; }
+    nav.more a { font-weight: 700; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">← Tous les projets</a>
+    <header class="hero">
+      <p class="eyebrow">Étude de cas</p>
+      <h1>Le Président, une machine à états</h1>
+      <p class="lead">Le jeu de cartes du Président en ligne, de 2 à 8 joueurs. Ici le sujet, c’est la rigueur : un état de jeu qui ne peut pas devenir incohérent.</p>
+      <div class="stack"><span>TypeScript</span><span>Vue 3</span><span>Pinia</span><span>Tailwind CSS</span><span>Socket.IO</span><span>Zod</span><span>Playwright</span></div>
+    </header>
+    <div class="facts">
+      <div class="fact"><strong>88</strong><span>tests</span></div>
+      <div class="fact"><strong>5</strong><span>phases d’une manche</span></div>
+      <div class="fact"><strong>3</strong><span>tailles d’écran testées</span></div>
+    </div>
+    <main>
+      <section class="block">
+        <h2>Le point de départ</h2>
+        <div class="prose">
+        <p>Le Président a beaucoup de règles qui se croisent : qui peut jouer quoi, quand on est coupé, comment on échange ses cartes avec la manche d’avant. Je voulais que ces règles tiennent dans un seul endroit lisible, et qu’un coup interdit soit refusé avec la raison.</p>
+        </div>
+      </section>
+      <section class="block">
+        <h2>Les choix qui comptent</h2>
+        <div class="choices">
+        <div class="choice"><h3>Un réducteur pur</h3><p>Le moteur est une fonction <code>transition(état, action)</code> qui ne modifie jamais son entrée et renvoie soit le nouvel état avec ses événements, soit la règle violée. Ça se teste en trois lignes, et ça rend impossible l’état « à moitié modifié ».</p></div>
+        <div class="choice"><h3>Un état par phase</h3><p>Lobby, distribution, échanges, jeu, fin de manche : chaque phase a sa propre forme de données. Une action n’a de sens que dans la bonne phase, et le compilateur me le rappelle.</p></div>
+        <div class="choice"><h3>Un client sans règles</h3><p>Le client Vue affiche ce qu’il reçoit. Il ne sait pas ce qui est jouable : le serveur le lui dit. Les schémas Zod valident chaque message entrant, et le protocole est documenté dans le dépôt.</p></div>
+        <div class="choice"><h3>Reprise de session</h3><p>Recharger l’onglet restaure la partie. Pendant une absence, un bot joue à la place du joueur ; au retour, il récupère sa main telle qu’elle est. Quitter explicitement révoque la session.</p></div>
+        </div>
+      </section>
+      <section class="block">
+        <h2>Ce qui a été difficile</h2>
+        <div class="prose">
+        <p>Le rythme des bots. Un bot qui joue instantanément est illisible ; un bot trop lent énerve. Le serveur cadence les coups pour que la table reste suivable.</p>
+        <p>Les tests de bout en bout : deux navigateurs qui jouent en même temps, la reprise après rechargement, une manche solo complète. Ils tournent sur trois largeurs (1440, 390 et 320 px) et sauvegardent des captures, pour voir si l’interface tient réellement sur mobile.</p>
+        </div>
+      </section>
+      <section class="block">
+        <h2>Ce que je ferais autrement</h2>
+        <div class="prose">
+        <p>Les salons sont en mémoire, comme pour mes autres jeux. Et le moteur gagnerait à exposer l’historique des coups : il rendrait un rejeu de partie presque gratuit.</p>
+        </div>
+      </section>
+    </main>
+    <div class="links"><a href="https://president.glsc.fr" target="_blank" rel="noopener noreferrer">Jouer</a><a href="https://github.com/gabinlsc/president" target="_blank" rel="noopener noreferrer">Voir le code</a></div>
+    <nav class="more" aria-label="Autres études de cas">Autres études de cas : <a href="/etudes/salle-de-jeux/">La salle de jeux GLSC</a> · <a href="/etudes/plus4/">+4, un jeu de cartes en temps réel</a> · <a href="/etudes/petit-bac/">Petit Bac, des règles partagées</a></nav>
+  </div>
+</body>
+</html>
