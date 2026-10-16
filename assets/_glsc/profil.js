@@ -53,7 +53,7 @@
     var createBox = el('div', 'box');
     createBox.append(el('h3', null, 'Créer mon profil'),
       el('p', null, 'Ton pseudo est réservé : personne d’autre ne peut le prendre. Tes parties, tes stats et tes succès te suivent d’un jeu à l’autre.'));
-    var name = field('Pseudo (2 à 20 caractères)', { type: 'text', maxlength: '20', minlength: '2', autocomplete: 'nickname', required: 'required' });
+    var name = field('Pseudo (2 à 16 caractères)', { type: 'text', maxlength: '16', minlength: '2', autocomplete: 'nickname', required: 'required' });
     createBox.append(name.wrap, button('Créer mon profil', 'primary', function () {
       return api('/create', { name: name.input.value }).then(function (r) { state.profile = r.profile; viewCode(r.recoveryCode, true); }, function (e) { fail(createBox, e); });
     }));
@@ -141,7 +141,7 @@
     // gestion
     var manage = el('div', 'box');
     manage.append(el('h3', null, 'Mon compte'));
-    var rn = field('Changer de pseudo', { type: 'text', maxlength: '20', minlength: '2', autocomplete: 'off' });
+    var rn = field('Changer de pseudo', { type: 'text', maxlength: '16', minlength: '2', autocomplete: 'off' });
     var wait = p.canRenameAt > Date.now();
     manage.append(rn.wrap);
     var rnBtn = button('Renommer', null, function () {

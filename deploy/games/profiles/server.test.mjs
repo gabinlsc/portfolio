@@ -29,7 +29,8 @@ test('pseudos : clé identique à la sonde, filtres, alphabets', () => {
   assert.equal(nameKey('  Éléa   Dupont '), 'elea dupont');
   assert.equal(nameKey('GABIN'), 'gabin');
   assert.ok(checkName('Éléa').name);
-  for (const bad of ['a', 'x'.repeat(21), 'Joueur 2', 'Admin', 'conn4rd', 'Gаbin' /* a cyrillique */, '<b>x</b>', 'ok‮evil', 'a​b']) {
+  assert.equal(checkName('L’as').name, "L'as", 'apostrophe typographique → ASCII (les jeux n’acceptent que celle-là)');
+  for (const bad of ['a', 'x'.repeat(17), 'Joueur 2', 'Admin', 'conn4rd', 'Gаbin' /* a cyrillique */, '<b>x</b>', 'ok‮evil', 'a​b']) {
     assert.ok(checkName(bad).error, `devrait refuser « ${bad} »`);
   }
 });

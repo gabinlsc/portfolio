@@ -18,6 +18,7 @@ const SESSION_TTL = 400 * DAY; // plafond des navigateurs pour un cookie
 const RENAME_COOLDOWN = 7 * DAY;
 const MAX_SESSIONS = 10;
 const MAX_BODY = 2048;
+export const MAX_NAME = 16; // la limite la plus basse des jeux (+4)
 
 // ---- pseudos (même esprit que le filtre des classements, admin/collector/glsc_admin_collect.py)
 const INSULTS = ['connard', 'connasse', 'salope', 'putain', 'encule', 'batard', 'bougnoul', 'nazi', 'hitler', 'fuck', 'bitch',
@@ -27,7 +28,7 @@ const INSULT_WORDS = new Set(['pd', 'tg', 'fdp', 'ntm', 'con', 'conne', 'pute', 
 const DEFAULT_NAMES = /^(joueur|joueuse|player|invite|guest|anonyme|anonymous|moi|test|bot|hote|host|toto|admin|administrateur|modo|moderateur)\s*\d*$/;
 const LEET = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't', '@': 'a', $: 's' };
 // Lettres latines, chiffres, espace et quelques signes : pas d'alphabet qui imiterait un autre pseudo (« Gаbin » en cyrillique).
-const NAME_RE = /^[\p{Script=Latin}\p{N}][\p{Script=Latin}\p{N} ._'’-]*$/u;
+const NAME_RE = /^[\p{Script=Latin}\p{N}][\p{Script=Latin}\p{N} ._'-]*$/u;
 
 /** Clé d'un pseudo, identique à name_key() de la sonde : sans accents ni majuscules, espaces réduits. */
 export function nameKey(name) {
@@ -38,8 +39,8 @@ export function nameKey(name) {
 /** Renvoie le pseudo nettoyé, ou { error } s'il est refusé. */
 export function checkName(raw) {
   if (typeof raw !== 'string') return { error: 'Pseudo invalide.' };
-  const name = raw.normalize('NFC').split(/\s+/).filter(Boolean).join(' ');
-  if (name.length < 2 || name.length > 20) return { error: 'Le pseudo doit faire entre 2 et 20 caractères.' };
+  const name = raw.normalize('NFC').replace(/’/g, "'").split(/\s+/).filter(Boolean).join(' ');
+  if (name.length < 2 || name.length > MAX_NAME) return { error: `Le pseudo doit faire entre 2 et ${MAX_NAME} caractères.` };
   if (!NAME_RE.test(name)) return { error: 'Lettres latines, chiffres, espaces et . _ \' - seulement.' };
   const key = nameKey(name);
   if (key.replace(/[^a-z0-9]/g, '').length < 2) return { error: 'Pseudo trop court.' };
