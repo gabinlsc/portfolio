@@ -1,12 +1,12 @@
 // Coquille de admin.glsc.fr : menu, navigation par #ancre, chargement des modules à la demande.
 import { h, clear, icon, toast } from './lib.js';
 
-// icônes du menu : layout-dashboard kanban sticky-note graduation-cap chart-column eye link activity shield gamepad-2 github upload lock wrench settings
+// icônes du menu : layout-dashboard kanban sticky-note graduation-cap chart-column eye link activity shield gamepad-2 users github upload lock wrench settings
 const NAV = [
   { group: null, items: [['dashboard', 'Accueil', 'layout-dashboard']] },
   { group: 'Organisation', items: [['kanban', 'Kanban', 'kanban'], ['notes', 'Notes & liens', 'sticky-note'], ['school', 'Alternance', 'graduation-cap']] },
   { group: 'Sites & stats', items: [['traffic', 'Trafic', 'chart-column'], ['cvstats', 'Stats CV & Projets', 'eye'], ['short', 'Liens courts', 'link']] },
-  { group: 'Serveur', items: [['health', 'Santé', 'activity'], ['security', 'Sécurité', 'shield'], ['games', 'Jeux en direct', 'gamepad-2'], ['github', 'GitHub & déploiements', 'github']] },
+  { group: 'Serveur', items: [['health', 'Santé', 'activity'], ['security', 'Sécurité', 'shield'], ['games', 'Jeux en direct', 'gamepad-2'], ['players', 'Joueurs', 'users'], ['github', 'GitHub & déploiements', 'github']] },
   { group: 'Outils', items: [['files', 'Fichiers', 'upload'], ['vault', 'Coffre', 'lock'], ['tools', 'Mini-outils', 'wrench']] },
   { group: null, items: [['settings', 'Réglages', 'settings']] },
 ];

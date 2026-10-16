@@ -1032,6 +1032,74 @@ def compute_extras(db, now, hidden, profiles):
     return {"challenge": {**ch_today, "date": today.isoformat()}, "champions": champions, "titles": titles,
             "month_stats": month_stats, "history": history, "daily": daily, "unlocks": unlocks}
 
+# ---------------------------------------------------------------- tableau de bord des joueurs (admin)
+def player_stats(db, now, hidden, profiles, pub_dir):
+    """Qui joue, quand et à quoi : nouveaux et habitués, parties par jour, heures de pointe, jeux, meilleurs joueurs, signalements.
+    Un « joueur » est un profil, ou à défaut un pseudo (comme dans les classements)."""
+    live, by_key, deleted, gone_keys = identities(profiles)
+    today = paris_day(now)
+    days30 = [today - dt.timedelta(days=i) for i in range(29, -1, -1)]
+    first, played_days, names = {}, {}, {}
+    per_day = {d: {"matches": set(), "players": set()} for d in days30}
+    hours, games_30, games_all, hour_seen = [0] * 24, {}, {}, set()
+    top = {}
+    share_profile = share_total = 0
+    since30 = now - 30 * 86400
+    for ts, game, match, key, name, won, pid in db.execute("SELECT ts, game, match, key, name, won, pid FROM results ORDER BY ts"):
+        who = ident_of(pid, key, live, by_key, deleted, gone_keys)
+        if who is None:
+            continue
+        profile = who.startswith("p:") and who[2:] in live
+        names[who] = live[who[2:]]["name"] if profile else name
+        day = paris_day(ts)
+        first.setdefault(who, day)
+        played_days.setdefault(who, set()).add(day)
+        ga = games_all.setdefault(game, {"matches": set(), "players": set()})
+        ga["matches"].add(match)
+        if ts >= since30:
+            g = games_30.setdefault(game, {"matches": set(), "players": set(), "rows": 0})
+            g["matches"].add(match)
+            g["players"].add(who)
+            g["rows"] += 1
+            if day in per_day:
+                per_day[day]["matches"].add(match)
+                per_day[day]["players"].add(who)
+            if match not in hour_seen:  # heures de pointe : une fois par partie
+                hour_seen.add(match)
+                hours[dt.datetime.fromtimestamp(ts, TZ).hour] += 1
+            t = top.setdefault(who, {"matches": 0, "wins": 0})
+            t["matches"] += 1
+            t["wins"] += won
+            share_total += 1
+            share_profile += 1 if profile else 0
+    everyone = set(first)
+    active7 = {w for w, ds in played_days.items() if any((today - d).days < 7 for d in ds)}
+    active30 = {w for w, ds in played_days.items() if any((today - d).days < 30 for d in ds)}
+    new7 = {w for w in active7 if (today - first[w]).days < 7}
+    # fidélité : parmi les joueurs apparus il y a 8 à 30 jours, ceux qui ont rejoué un autre jour que leur premier
+    cohort = [w for w in everyone if 8 <= (today - first[w]).days <= 30]
+    back = [w for w in cohort if len(played_days[w]) > 1]
+    reports = load_json(os.path.join(pub_dir, "reports.json"), {}).get("reports", [])
+    labels = {g: v[0] for g, v in GAMES.items()}
+    return {
+        "at": now,
+        "totals": {"players": len(everyone), "profiles": len(live), "active7": len(active7), "active30": len(active30),
+                   "new7": len(new7), "returning7": len(active7) - len(new7),
+                   "profile_share30": round(100 * share_profile / share_total) if share_total else 0,
+                   "reports7": sum(1 for r in reports if (r.get("t") or 0) >= now - 7 * 86400)},
+        "retention": {"cohort": len(cohort), "back": len(back), "pct": round(100 * len(back) / len(cohort)) if cohort else None},
+        "daily": [{"day": d.isoformat(), "matches": len(v["matches"]), "players": len(v["players"])} for d, v in per_day.items()],
+        "hours": hours,
+        "games": sorted(({"game": g, "label": labels.get(g, g), "matches30": len(v["matches"]), "players30": len(v["players"]),
+                          "avg_players": round(v["rows"] / max(1, len(v["matches"])), 1), "matches_all": len(games_all.get(g, {"matches": ()})["matches"])}
+                         for g, v in games_30.items()), key=lambda x: -x["matches30"]),
+        "top": [{"name": names[w], "matches": t["matches"], "wins": t["wins"], "profil": w.startswith("p:"),
+                 "hidden": (live[w[2:]]["key"] if w.startswith("p:") else w) in hidden}
+                for w, t in sorted(top.items(), key=lambda kv: (-kv[1]["matches"], -kv[1]["wins"]))[:10]],
+        "reports": reports[:15],
+    }
+
+
 # ---------------------------------------------------------------- journal des nouveautés (PR fusionnées → page + flux Atom)
 CHANGELOG_REPOS = {"portfolio": "Site", "plus4": "+4", "president": "Le Président", "petitbac": "Petit Bac", "vortex-fps": "Vortex"}
 
@@ -1344,6 +1412,9 @@ def collect(args):
         if os.path.isdir(os.path.dirname(args.leaderboard_json)):
             write_json(args.leaderboard_json, boards[0], mode=0o644)
     step("signalements", lambda: process_reports(args, state, app_settings(args.app_db), now))
+    stats = step("joueurs", lambda: player_stats(db, now, hidden, profiles, args.pub_dir))
+    if stats:
+        write_json(pub("players-stats"), stats, gid)
     fiches = step("profils", lambda: players_page(db, now, hidden, profiles, extras))
     if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
         write_json(os.path.join(os.path.dirname(args.leaderboard_json), "players.json"), fiches, mode=0o644)
