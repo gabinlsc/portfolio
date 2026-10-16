@@ -9,7 +9,7 @@
 //   interne  (réseau Docker, port 3301) : « identify », appelée par les serveurs de jeu pour savoir qui se connecte.
 import { createServer } from 'node:http';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const COOKIE_NAME = 'glsc_sid';
@@ -17,7 +17,8 @@ const DAY = 86_400_000;
 const SESSION_TTL = 400 * DAY; // plafond des navigateurs pour un cookie
 const RENAME_COOLDOWN = 7 * DAY;
 const MAX_SESSIONS = 10;
-const MAX_BODY = 2048;
+const MAX_BODY = 4096;
+const REPORT_GAMES = new Set(['plus4', 'president', 'petitbac', 'vortex', 'site']);
 const MAX_CREW_MEMBERS = 20;
 const MAX_CREWS_PER_PROFILE = 5;
 const CREW_NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._'&!-]*$/u;
@@ -232,6 +233,16 @@ export function createProfileService(options = {}) {
     else if (c.owner === pid) c.owner = c.members[0]; // le plus ancien membre prend la suite
   }
 
+  // ---------------------------------------------------------------- signalements de bugs
+  /** Texte libre d'un joueur : sans caractères de contrôle ni de direction, au plus 2 sauts de ligne d'affilée, borné. */
+  const cleanText = (raw, max) =>
+    String(raw ?? '')
+      .normalize('NFC')
+      .replace(/[\p{Cc}\p{Cf}]/gu, (c) => (c === '\n' ? '\n' : ''))
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+      .slice(0, max);
+
   // ---------------------------------------------------------------- routes publiques
   const routes = {
     'GET /health': () => ({ body: { ok: true } }),
@@ -296,6 +307,31 @@ export function createProfileService(options = {}) {
       for (const [h, x] of Object.entries(data.sessions)) if (x.pid === s.profile.pid) delete data.sessions[h];
       store.saveNow();
       return { body: { ok: true }, setCookie: cookie('', 0) };
+    },
+    'POST /report': (ctx) => {
+      // pas besoin d'être connecté : un invité doit pouvoir signaler un bug. Mais pas de flot.
+      if (!ctx.allow('report', 5, 600_000) || !allow('report:all', 300, DAY)) return { status: 429, body: { error: 'Déjà plusieurs signalements : merci, on regarde.' } };
+      const message = cleanText(ctx.body.message, 600);
+      if (message.length < 3) return { status: 422, body: { error: 'Décris le problème en quelques mots.' } };
+      const c = ctx.body.context && typeof ctx.body.context === 'object' ? ctx.body.context : {};
+      const pick = (v, re, max) => (typeof v === 'string' && re.test(v) ? v.slice(0, max) : undefined);
+      const s = sessionOf(ctx.sid);
+      const record = {
+        t: Math.floor(Date.now() / 1000),
+        game: REPORT_GAMES.has(ctx.body.game) ? ctx.body.game : 'inconnu',
+        message,
+        room: pick(c.room, /^[A-Za-z0-9-]{3,12}$/, 12),
+        phase: pick(c.phase, /^[A-Za-z_ -]{1,24}$/, 24),
+        page: pick(c.page, /^\/[\w./%-]{0,80}$/, 80),
+        ua: String(ctx.ua ?? '').replace(/[\p{Cc}\p{Cf}]/gu, '').slice(0, 160),
+        ...(s ? { pid: s.profile.pid, name: s.profile.name } : {}),
+      }; // jamais l'adresse IP
+      try {
+        appendFileSync(join(dataDir, 'reports.jsonl'), JSON.stringify(record) + '\n', { mode: 0o640 });
+      } catch {
+        return { status: 500, body: { error: 'Signalement non enregistré, réessaie plus tard.' } };
+      }
+      return { status: 201, body: { ok: true } };
     },
     'GET /crews': (ctx) => {
       const s = sessionOf(ctx.sid);
@@ -438,6 +474,7 @@ export function createProfileService(options = {}) {
       const ip = String(req.headers['x-real-ip'] ?? req.socket.remoteAddress ?? '?').slice(0, 64);
       const ctx = {
         sid: parseCookie(req.headers.cookie),
+        ua: req.headers['user-agent'],
         body: req.method === 'POST' ? await readJson(req) : {},
         allow: (name, max, windowMs) => allow(`${name}:${ip}`, max, windowMs),
       };

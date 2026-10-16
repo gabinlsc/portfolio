@@ -15,6 +15,7 @@ const ALERTS = [
     'deploy' => 'Fin d’un déploiement automatique (réussi ou raté)',
     'weekly' => 'Récap de la semaine, le lundi à 9 h',
     'backup' => 'Sauvegarde chiffrée ratée',
+    'report' => 'Un joueur signale un bug (bouton « Un bug ? »)',
 ];
 
 function vault_state(): array

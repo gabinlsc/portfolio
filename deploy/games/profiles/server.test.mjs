@@ -261,3 +261,30 @@ test('équipes : essais de code limités', async () => {
   for (let i = 0; i < 12; i++) last = await post('/crews/join', { code: 'EQ-ZZZZ-ZZZZ' }, { cookie: p.cookie, ip: '23.9.9.9' });
   assert.equal(last.status, 429);
 });
+
+// ---------------------------------------------------------------- signalements
+test('signalement : enregistré sans l’IP, avec le profil s’il y en a un, entrées nettoyées', async () => {
+  const guest = await post('/report', { game: 'petitbac', message: 'La lettre ne change pas\u202e !', context: { room: 'PB-ABCD', phase: 'PLAY', page: '/?room=PB-ABCD' } }, { ip: '30.0.0.1' });
+  assert.equal(guest.status, 201);
+  const ana = await player('Report Ana', '30.0.0.2');
+  assert.equal((await post('/report', { game: 'inconnu-jeu', message: '  Bug\n\n\n\n\nbizarre  ', context: { room: '<script>', phase: 'PLAY' } }, { cookie: ana.cookie, ip: '30.0.0.3' })).status, 201);
+  const lines = readFileSync(join(dir, 'reports.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const [a, b] = lines.slice(-2);
+  assert.equal(a.game, 'petitbac');
+  assert.equal(a.message, 'La lettre ne change pas !', 'caractères de direction retirés');
+  assert.deepEqual([a.room, a.phase], ['PB-ABCD', 'PLAY']);
+  assert.ok(!('pid' in a));
+  assert.equal(b.game, 'inconnu');
+  assert.equal(b.message, 'Bug\n\nbizarre');
+  assert.equal(b.room, undefined, 'contexte invalide ignoré');
+  assert.deepEqual([b.pid, b.name], [ana.pid, 'Report Ana']);
+  assert.ok(!JSON.stringify(lines).includes('30.0.0'), 'jamais l’adresse IP');
+});
+
+test('signalement : message trop court, origine inconnue, pas de flot', async () => {
+  assert.equal((await post('/report', { game: 'plus4', message: 'a' }, { ip: '31.0.0.1' })).status, 422);
+  assert.equal((await post('/report', { game: 'plus4', message: 'un vrai bug' }, { origin: 'https://old.glsc.fr', ip: '31.0.0.2' })).status, 403);
+  let last;
+  for (let i = 0; i < 7; i++) last = await post('/report', { game: 'plus4', message: `bug numéro ${i}` }, { ip: '31.0.0.3' });
+  assert.equal(last.status, 429);
+});
