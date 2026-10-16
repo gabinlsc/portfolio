@@ -539,7 +539,7 @@ def discord(webhook, title, text, color=0xFFD84D, fields=None, url=None):
         embed["fields"] = [{"name": n[:250], "value": v[:1020] or "—", "inline": inline} for n, v, inline in fields[:25]]
     if url:
         embed["url"] = url
-    payload = json.dumps({"username": "glsc.fr", "embeds": [embed]}).encode()
+    payload = json.dumps({"username": "glsc.fr", "embeds": [embed], "allowed_mentions": {"parse": []}}).encode()
     try:
         req = urllib.request.Request(webhook, data=payload, method="POST", headers={"Content-Type": "application/json", "User-Agent": "glsc-admin"})
         urllib.request.urlopen(req, timeout=8).close()
@@ -1032,6 +1032,58 @@ def compute_extras(db, now, hidden, profiles):
     return {"challenge": {**ch_today, "date": today.isoformat()}, "champions": champions, "titles": titles,
             "month_stats": month_stats, "history": history, "daily": daily, "unlocks": unlocks}
 
+# ---------------------------------------------------------------- signalements de bugs (bouton « Un bug ? » des jeux)
+REPORT_GAMES = {"plus4": "+4", "president": "Le Président", "petitbac": "Petit Bac", "vortex": "Vortex", "site": "Site"}
+
+
+def short_ua(ua):
+    """« Chrome · Android » : de quoi reproduire un bug, sans empreinte détaillée."""
+    ua = ua or ""
+    browser = next((n for k, n in (("Edg/", "Edge"), ("OPR/", "Opera"), ("Firefox/", "Firefox"), ("Chrome/", "Chrome"), ("Safari/", "Safari")) if k in ua), "navigateur ?")
+    system = next((n for k, n in (("Android", "Android"), ("iPhone", "iPhone"), ("iPad", "iPad"), ("Windows", "Windows"), ("Mac OS", "macOS"), ("Linux", "Linux")) if k in ua), "")
+    return browser + (f" · {system}" if system else "")
+
+
+def process_reports(args, state, settings, now):
+    """Nouveaux signalements (reports.jsonl, écrit par le service de profils) → Discord (au plus 5 par passage) + pub/reports.json."""
+    path = os.path.join(args.games_data, "profiles", "reports.jsonl")
+    try:
+        st = os.stat(path)
+    except OSError:
+        return 0
+    pos = state.get("reports", {})
+    start = pos.get("off", 0) if pos.get("ino") == st.st_ino and st.st_size >= pos.get("off", 0) else 0
+    with open(path, "rb") as f:
+        f.seek(start)
+        chunk = f.read(512 * 1024)
+    end = chunk.rfind(b"\n") + 1
+    fresh = []
+    for raw in chunk[:end].splitlines():
+        try:
+            r = json.loads(raw)
+            if isinstance(r, dict) and isinstance(r.get("message"), str):
+                fresh.append(r)
+        except ValueError:
+            continue
+    state["reports"] = {"ino": st.st_ino, "off": start + end}
+    if not fresh:
+        return 0
+    recent = load_json(os.path.join(args.pub_dir, "reports.json"), {}).get("reports", [])
+    keep = [{k: r.get(k) for k in ("t", "game", "message", "room", "phase", "page", "name", "ua")} for r in fresh]
+    write_json(os.path.join(args.pub_dir, "reports.json"), {"at": now, "reports": (keep[::-1] + recent)[:60]}, www_gid())
+    if settings.get("alert_report", "1") == "1":
+        hook = settings.get("discord_webhook", "")
+        for r in fresh[:5]:
+            text = str(r.get("message", "")).replace("```", "ʼʼʼ")[:900]
+            fields = [("Joueur", str(r.get("name") or "invité"), True), ("Navigateur", short_ua(r.get("ua")), True)]
+            if r.get("room"):
+                fields.append(("Salon", f"`{r['room']}`" + (f" ({r['phase']})" if r.get("phase") else ""), True))
+            discord(hook, f"🐞 Bug signalé · {REPORT_GAMES.get(r.get('game'), 'Jeu ?')}", f"```\n{text}\n```", 0xF59E0B, fields)
+        if len(fresh) > 5:
+            discord(hook, "🐞 Autres signalements", f"{len(fresh) - 5} signalement(s) de plus : voir l'admin.", 0xF59E0B)
+    return len(fresh)
+
+
 # ---------------------------------------------------------------- récap Discord du lundi
 SITE_NAMES = {"glsc.fr": "Hub", "cv.glsc.fr": "CV", "share.glsc.fr": "Projets", "old.glsc.fr": "Archives", "games.glsc.fr": "Salle de jeux",
               "status.glsc.fr": "Statut", "plus4.glsc.fr": "+4", "uno.glsc.fr": "+4", "president.glsc.fr": "Président", "petitbac.glsc.fr": "Petit Bac", "vortex.glsc.fr": "Vortex"}
@@ -1253,6 +1305,7 @@ def collect(args):
         write_json(pub("leaderboard"), boards[1], gid)
         if os.path.isdir(os.path.dirname(args.leaderboard_json)):
             write_json(args.leaderboard_json, boards[0], mode=0o644)
+    step("signalements", lambda: process_reports(args, state, app_settings(args.app_db), now))
     fiches = step("profils", lambda: players_page(db, now, hidden, profiles, extras))
     if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
         write_json(os.path.join(os.path.dirname(args.leaderboard_json), "players.json"), fiches, mode=0o644)
