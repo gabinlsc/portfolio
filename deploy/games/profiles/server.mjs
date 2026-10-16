@@ -9,7 +9,7 @@
 //   interne  (réseau Docker, port 3301) : « identify », appelée par les serveurs de jeu pour savoir qui se connecte.
 import { createServer } from 'node:http';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const COOKIE_NAME = 'glsc_sid';
@@ -18,6 +18,9 @@ const SESSION_TTL = 400 * DAY; // plafond des navigateurs pour un cookie
 const RENAME_COOLDOWN = 7 * DAY;
 const MAX_SESSIONS = 10;
 const MAX_BODY = 2048;
+const MAX_CREW_MEMBERS = 20;
+const MAX_CREWS_PER_PROFILE = 5;
+const CREW_NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._'&!-]*$/u;
 export const MAX_NAME = 16; // la limite la plus basse des jeux (+4)
 
 // ---- pseudos (même esprit que le filtre des classements, admin/collector/glsc_admin_collect.py)
@@ -44,13 +47,25 @@ export function checkName(raw) {
   if (!NAME_RE.test(name)) return { error: 'Lettres latines, chiffres, espaces et . _ \' - seulement.' };
   const key = nameKey(name);
   if (key.replace(/[^a-z0-9]/g, '').length < 2) return { error: 'Pseudo trop court.' };
+  if (DEFAULT_NAMES.test(key) || insulting(key)) return { error: 'Ce pseudo n’est pas disponible.' };
+  return { name, key };
+}
+
+function insulting(key) {
   const leet = key.replace(/[013457@$]/g, (c) => LEET[c]);
   const squashed = leet.replace(/[^a-z]/g, '');
   const words = leet.match(/[a-z]+/g) ?? [];
-  if (DEFAULT_NAMES.test(key) || INSULTS.some((w) => squashed.includes(w)) || words.some((w) => INSULT_WORDS.has(w))) {
-    return { error: 'Ce pseudo n’est pas disponible.' };
-  }
-  return { name, key };
+  return INSULTS.some((w) => squashed.includes(w)) || words.some((w) => INSULT_WORDS.has(w));
+}
+
+/** Nom d'équipe : 2 à 24 caractères, mêmes filtres d'insultes que les pseudos (mais n'importe quelle lettre). */
+export function checkCrewName(raw) {
+  if (typeof raw !== 'string') return { error: 'Nom invalide.' };
+  const name = raw.normalize('NFC').replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/’/g, "'").split(/\s+/).filter(Boolean).join(' ');
+  if (name.length < 2 || name.length > 24) return { error: 'Le nom de l’équipe doit faire entre 2 et 24 caractères.' };
+  if (!CREW_NAME_RE.test(name)) return { error: 'Lettres, chiffres, espaces et . _ \' & ! - seulement.' };
+  if (insulting(nameKey(name))) return { error: 'Ce nom n’est pas disponible.' };
+  return { name };
 }
 
 // ---- secrets
@@ -68,6 +83,18 @@ export function normalizeCode(raw) {
   if (typeof raw !== 'string' || raw.length > 64) return '';
   const s = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
   return s.startsWith('GLSC') ? s.slice(4) : s;
+}
+/** « EQ-7K2M-9XQ4 » : 40 bits, saisi n'importe comment. */
+export function newCrewCode() {
+  const bytes = randomBytes(8);
+  let out = '';
+  for (let i = 0; i < 8; i++) out += CROCKFORD[bytes[i] & 31];
+  return `EQ-${out.slice(0, 4)}-${out.slice(4)}`;
+}
+export function normalizeCrewCode(raw) {
+  if (typeof raw !== 'string' || raw.length > 32) return '';
+  const s = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+  return s.startsWith('EQ') ? s.slice(2) : s;
 }
 const codeHash = (raw) => sha('code:' + normalizeCode(raw));
 const sidHash = (sid) => sha('sid:' + sid);
@@ -119,6 +146,7 @@ function limiter() {
 export function createProfileService(options = {}) {
   const {
     dataDir = '/data',
+    siteDir = '/site', // dossier de games.glsc.fr en lecture seule : players.json (statistiques publiées par la sonde)
     cookieDomain = '.glsc.fr',
     secureCookies = true,
     allowedOrigins = ['https://games.glsc.fr', 'https://plus4.glsc.fr', 'https://president.glsc.fr', 'https://petitbac.glsc.fr', 'https://vortex.glsc.fr'],
@@ -156,6 +184,53 @@ export function createProfileService(options = {}) {
     const pid = data.keys[key];
     return pid && pid !== exceptPid ? pid : null;
   };
+
+  // ---------------------------------------------------------------- équipes
+  data.crews ??= {};
+  const crewsOf = (pid) => Object.values(data.crews).filter((c) => c.members.includes(pid));
+  const crewByCode = (raw) => {
+    const code = normalizeCrewCode(raw);
+    return code.length === 8 ? Object.values(data.crews).find((c) => c.code === code) : undefined;
+  };
+  const prettyCode = (c) => `EQ-${c.code.slice(0, 4)}-${c.code.slice(4)}`;
+  const crewSummary = (c, pid) => ({
+    id: c.id, name: c.name, owner: c.owner === pid, members: c.members.length, code: prettyCode(c),
+  });
+  let siteCache = { at: 0, mtime: 0, players: {} };
+  /** Statistiques publiées par la sonde (players.json), relues seulement quand le fichier change. */
+  function sitePlayers() {
+    try {
+      const file = join(siteDir, 'players.json');
+      const mtime = statSync(file).mtimeMs;
+      if (mtime !== siteCache.mtime) siteCache = { mtime, players: JSON.parse(readFileSync(file, 'utf8')).players ?? {} };
+    } catch {
+      /* pas encore publié : les équipes s'affichent sans statistiques */
+    }
+    return siteCache.players;
+  }
+  function crewDetail(c, pid) {
+    const stats = sitePlayers();
+    const rows = c.members.map((m) => {
+      const prof = data.profiles[m];
+      const fiche = stats[m];
+      const sum = (pick) => Object.values(fiche?.games ?? {}).reduce((a, g) => a + (pick(g) ?? 0), 0);
+      return {
+        pid: m,
+        name: prof?.name ?? '?',
+        owner: m === c.owner,
+        me: m === pid,
+        month: { played: sum((g) => g.month?.played), wins: sum((g) => g.month?.wins) },
+        all: { played: sum((g) => g.played), wins: sum((g) => g.wins) },
+        titles: (fiche?.titles ?? []).length,
+      };
+    });
+    return { ...crewSummary(c, pid), createdAt: c.createdAt, ranking: rows };
+  }
+  function leaveCrew(c, pid) {
+    c.members = c.members.filter((m) => m !== pid);
+    if (c.members.length === 0) delete data.crews[c.id];
+    else if (c.owner === pid) c.owner = c.members[0]; // le plus ancien membre prend la suite
+  }
 
   // ---------------------------------------------------------------- routes publiques
   const routes = {
@@ -222,6 +297,81 @@ export function createProfileService(options = {}) {
       store.saveNow();
       return { body: { ok: true }, setCookie: cookie('', 0) };
     },
+    'GET /crews': (ctx) => {
+      const s = sessionOf(ctx.sid);
+      if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+      return { body: { crews: crewsOf(s.profile.pid).map((c) => crewSummary(c, s.profile.pid)) } };
+    },
+    'POST /crews/create': (ctx) => {
+      const s = sessionOf(ctx.sid);
+      if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+      if (!ctx.allow('crew', 20, 3_600_000)) return { status: 429, body: { error: 'Doucement.' } };
+      const ok = checkCrewName(ctx.body.name);
+      if (ok.error) return { status: 422, body: { error: ok.error } };
+      if (crewsOf(s.profile.pid).length >= MAX_CREWS_PER_PROFILE) return { status: 409, body: { error: `Tu ne peux pas être dans plus de ${MAX_CREWS_PER_PROFILE} équipes.` } };
+      let code;
+      do code = normalizeCrewCode(newCrewCode());
+      while (crewByCode(code));
+      const id = randomBytes(8).toString('hex');
+      data.crews[id] = { id, name: ok.name, code, owner: s.profile.pid, members: [s.profile.pid], createdAt: Date.now() };
+      store.saveNow();
+      return { status: 201, body: { crew: crewDetail(data.crews[id], s.profile.pid) } };
+    },
+    'POST /crews/join': (ctx) => {
+      const s = sessionOf(ctx.sid);
+      if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+      // 40 bits de code : on limite sévèrement les essais (par adresse, et au total)
+      if (!ctx.allow('crewjoin', 10, 900_000) || !allow('crewjoin:all', 600, 3_600_000)) return { status: 429, body: { error: 'Trop d’essais, réessaie dans quelques minutes.' } };
+      const c = crewByCode(ctx.body.code);
+      if (!c) return { status: 404, body: { error: 'Code d’équipe inconnu.' } };
+      if (c.members.includes(s.profile.pid)) return { body: { crew: crewDetail(c, s.profile.pid) } };
+      if (c.members.length >= MAX_CREW_MEMBERS) return { status: 409, body: { error: `Cette équipe est complète (${MAX_CREW_MEMBERS} membres).` } };
+      if (crewsOf(s.profile.pid).length >= MAX_CREWS_PER_PROFILE) return { status: 409, body: { error: `Tu ne peux pas être dans plus de ${MAX_CREWS_PER_PROFILE} équipes.` } };
+      c.members.push(s.profile.pid);
+      store.saveNow();
+      return { body: { crew: crewDetail(c, s.profile.pid) } };
+    },
+    'POST /crews/leave': (ctx) => {
+      const s = sessionOf(ctx.sid);
+      if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+      const c = data.crews[String(ctx.body.id)];
+      if (!c || !c.members.includes(s.profile.pid)) return { status: 404, body: { error: 'Équipe introuvable.' } };
+      leaveCrew(c, s.profile.pid);
+      store.saveNow();
+      return { body: { ok: true } };
+    },
+    'POST /crews/kick': (ctx) => {
+      const s = sessionOf(ctx.sid);
+      if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+      const c = data.crews[String(ctx.body.id)];
+      if (!c || !c.members.includes(s.profile.pid)) return { status: 404, body: { error: 'Équipe introuvable.' } };
+      if (c.owner !== s.profile.pid) return { status: 403, body: { error: 'Seul le créateur peut retirer un membre.' } };
+      const target = String(ctx.body.pid);
+      if (target === s.profile.pid || !c.members.includes(target)) return { status: 422, body: { error: 'Membre invalide.' } };
+      c.members = c.members.filter((m) => m !== target);
+      store.saveNow();
+      return { body: { crew: crewDetail(c, s.profile.pid) } };
+    },
+    'POST /crews/new-code': (ctx) => {
+      const s = sessionOf(ctx.sid);
+      if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+      const c = data.crews[String(ctx.body.id)];
+      if (!c || c.owner !== s.profile.pid) return { status: 404, body: { error: 'Équipe introuvable.' } };
+      do c.code = normalizeCrewCode(newCrewCode());
+      while (Object.values(data.crews).some((o) => o !== c && o.code === c.code));
+      store.saveNow();
+      return { body: { crew: crewDetail(c, s.profile.pid) } };
+    },
+    'POST /crews/delete': (ctx) => {
+      const s = sessionOf(ctx.sid);
+      if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+      const c = data.crews[String(ctx.body.id)];
+      if (!c || c.owner !== s.profile.pid) return { status: 404, body: { error: 'Équipe introuvable.' } };
+      if (ctx.body.confirm !== c.name) return { status: 422, body: { error: 'Tape le nom de l’équipe pour confirmer.' } };
+      delete data.crews[c.id];
+      store.saveNow();
+      return { body: { ok: true } };
+    },
     'POST /delete': (ctx) => {
       const s = sessionOf(ctx.sid);
       if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
@@ -229,6 +379,7 @@ export function createProfileService(options = {}) {
       if (ctx.body.confirm !== s.profile.name) return { status: 422, body: { error: 'Tape ton pseudo pour confirmer.' } };
       const p = s.profile;
       for (const [h, x] of Object.entries(data.sessions)) if (x.pid === p.pid) delete data.sessions[h];
+      for (const c of crewsOf(p.pid)) leaveCrew(c, p.pid);
       delete data.keys[p.key];
       data.profiles[p.pid] = { pid: p.pid, key: p.key, deleted: Date.now() }; // reste l'identifiant et la clé du pseudo : les classements ignorent ses parties
       store.saveNow();
@@ -270,7 +421,17 @@ export function createProfileService(options = {}) {
         if (!known) return respond(res, 403, { error: 'Origine refusée.' });
         return respond(res, 204, {}, { ...cors, 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600' });
       }
-      const handler = routes[`${req.method} ${path}`];
+      const crewPath = req.method === 'GET' ? /^\/crews\/([0-9a-f]{16})$/.exec(path) : null;
+      const handler = crewPath
+        ? (ctx) => {
+            const s = sessionOf(ctx.sid);
+            if (!s) return { status: 401, body: { error: 'Connecte-toi d’abord.' } };
+            const c = data.crews[crewPath[1]];
+            // un non-membre ne doit pas pouvoir savoir si l'équipe existe
+            if (!c || !c.members.includes(s.profile.pid)) return { status: 404, body: { error: 'Équipe introuvable.' } };
+            return { body: { crew: crewDetail(c, s.profile.pid) } };
+          }
+        : routes[`${req.method} ${path}`];
       if (!handler) return respond(res, 404, { error: 'Introuvable.' }, cors);
       // Toute écriture doit venir d'une de nos pages (en plus de SameSite=Lax) ; les lectures sans origine (curl, tests) restent possibles.
       if (req.method === 'POST' && !known) return respond(res, 403, { error: 'Origine refusée.' }, cors);
@@ -320,6 +481,7 @@ export function createProfileService(options = {}) {
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const svc = createProfileService({
     dataDir: process.env.DATA_DIR ?? '/data',
+    siteDir: process.env.SITE_DIR ?? '/site',
     cookieDomain: process.env.COOKIE_DOMAIN ?? '.glsc.fr',
     secureCookies: process.env.SECURE_COOKIES !== '0',
     ...(process.env.ALLOWED_ORIGINS ? { allowedOrigins: process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean) } : {}),

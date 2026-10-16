@@ -5,7 +5,7 @@
   var root = document.getElementById('profil');
   var GAMES = { uno: '+4', president: 'Le Président', petitbac: 'Petit Bac', vortex: 'Vortex' };
   var LOOK = { uno: ['c-coral', '🃏'], president: ['c-banana', '👑'], petitbac: ['c-mint', '✏️'], vortex: ['c-lilac', '🎯'] };
-  var state = { profile: null, fiches: null, achievements: [], daily: null, busy: false };
+  var state = { profile: null, fiches: null, achievements: [], daily: null, crews: [], openCrew: null, busy: false };
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -193,6 +193,9 @@
       histBox.append(ul);
     }
 
+    // équipes
+    var crewsBox = viewCrews();
+
     // gestion
     var manage = el('div', 'box c-mint');
     manage.append(el('h3', null, 'Mon compte'));
@@ -224,8 +227,96 @@
     }));
 
     var grid = el('div', 'profil-grid');
-    grid.append(stats, dailyBox, ach, histBox, manage, danger);
+    grid.append(stats, dailyBox, ach, histBox, crewsBox, manage, danger);
     show([head, grid]);
+  }
+
+  // ---------------------------------------------------------------- équipes entre amis
+  function viewCrews() {
+    var box = el('div', 'box c-banana span-2');
+    box.append(el('h3', null, 'Mes équipes'),
+      el('p', 'muted', 'Une équipe, c’est un classement privé entre amis : seuls ses membres le voient. Partage le code pour inviter.'));
+
+    state.crews.forEach(function (c) {
+      var card = el('div', 'crew');
+      var head = el('div', 'crew-head');
+      head.append(el('strong', 'crew-name', c.name), el('span', 'pill', c.members + ' membre' + (c.members > 1 ? 's' : '')),
+        el('span', 'pill', c.owner ? '👑 créateur' : 'membre'));
+      var code = button(c.code + ' 📋', null, function (b) {
+        return (navigator.clipboard ? navigator.clipboard.writeText(c.code) : Promise.reject()).then(function () {
+          b.textContent = 'Copié ✓'; setTimeout(function () { b.textContent = c.code + ' 📋'; }, 1500);
+        }, function () { });
+      });
+      code.title = 'Code d’invitation : copier';
+      var actions = el('div', 'btn-row');
+      var panel = el('div', 'crew-panel');
+      panel.hidden = state.openCrew !== c.id;
+      var open = button(panel.hidden ? 'Classement' : 'Masquer', 'primary', function () {
+        if (!panel.hidden) { panel.hidden = true; state.openCrew = null; open.textContent = 'Classement'; return; }
+        return api('/crews/' + c.id).then(function (r) { fillCrew(panel, r.crew, card); panel.hidden = false; state.openCrew = c.id; open.textContent = 'Masquer'; },
+          function (e) { fail(card, e); });
+      });
+      actions.append(open, code, button('Quitter', null, function () {
+        if (!confirm('Quitter l’équipe « ' + c.name + ' » ?')) return;
+        return api('/crews/leave', { id: c.id }).then(function () { state.openCrew = null; return load(); }, function (e) { fail(card, e); });
+      }));
+      if (c.owner) {
+        actions.append(button('Nouveau code', null, function () {
+          if (!confirm('L’ancien code ne fonctionnera plus. Continuer ?')) return;
+          return api('/crews/new-code', { id: c.id }).then(function () { return load(); }, function (e) { fail(card, e); });
+        }), button('Supprimer', 'danger', function () {
+          var typed = prompt('Pour supprimer l’équipe, tape son nom : ' + c.name);
+          if (typed === null) return;
+          return api('/crews/delete', { id: c.id, confirm: typed }).then(function () { state.openCrew = null; return load(); }, function (e) { fail(card, e); });
+        }));
+      }
+      card.append(head, actions, panel);
+      box.append(card);
+      if (state.openCrew === c.id) {
+        api('/crews/' + c.id).then(function (r) { fillCrew(panel, r.crew, card); open.textContent = 'Masquer'; }, function () { });
+      }
+    });
+    if (!state.crews.length) box.append(el('p', null, 'Tu n’es dans aucune équipe pour l’instant.'));
+
+    var forms = el('div', 'profil-grid');
+    var create = el('div', 'crew-form');
+    var cname = field('Créer une équipe', { type: 'text', maxlength: '24', minlength: '2', placeholder: 'Les copains', autocomplete: 'off' });
+    create.append(cname.wrap, button('Créer', null, function () {
+      return api('/crews/create', { name: cname.input.value }).then(function (r) { state.openCrew = r.crew.id; return load(); }, function (e) { fail(create, e); });
+    }));
+    var join = el('div', 'crew-form');
+    var ccode = field('Rejoindre avec un code', { type: 'text', placeholder: 'EQ-XXXX-XXXX', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' });
+    join.append(ccode.wrap, button('Rejoindre', null, function () {
+      return api('/crews/join', { code: ccode.input.value }).then(function (r) { state.openCrew = r.crew.id; return load(); }, function (e) { fail(join, e); });
+    }));
+    forms.append(create, join);
+    box.append(forms);
+    return box;
+  }
+
+  function fillCrew(panel, crew, card) {
+    panel.textContent = '';
+    var rows = crew.ranking.slice().sort(function (a, b) { return b.month.wins - a.month.wins || b.all.wins - a.all.wins; });
+    var t = el('table', 'stat-table');
+    var tr = el('tr'); ['#', 'Joueur', 'Ce mois-ci', 'Total'].forEach(function (h, i) { tr.append(el('th', i > 1 ? 'num' : null, h)); });
+    var thead = el('thead'); thead.append(tr); t.append(thead);
+    var tb = el('tbody');
+    rows.forEach(function (r, i) {
+      var row = el('tr');
+      var who = el('td', null, (r.owner ? '👑 ' : '') + r.name + (r.me ? ' (toi)' : '') + (r.titles ? ' 🏅' : ''));
+      if (crew.owner && !r.me) {
+        var kick = el('button', 'kick', '✕'); kick.type = 'button'; kick.title = 'Retirer de l’équipe';
+        kick.addEventListener('click', function () {
+          if (!confirm('Retirer ' + r.name + ' de l’équipe ?')) return;
+          api('/crews/kick', { id: crew.id, pid: r.pid }).then(function (x) { fillCrew(panel, x.crew, card); }, function (e) { fail(card, e); });
+        });
+        who.append(' ', kick);
+      }
+      row.append(el('td', null, ['🥇', '🥈', '🥉'][i] || String(i + 1)), who,
+        el('td', 'num', n(r.month.wins) + ' vic. / ' + n(r.month.played)), el('td', 'num', n(r.all.wins) + ' vic. / ' + n(r.all.played)));
+      tb.append(row);
+    });
+    t.append(tb); panel.append(t, el('p', 'muted', 'Victoires / parties, tous jeux confondus. Mis à jour chaque minute.'));
   }
 
   // ---------------------------------------------------------------- chargement
@@ -239,7 +330,8 @@
       state.fiches = res[1] && res[1].players;
       state.achievements = (res[2] && res[2].achievements) || [];
       state.daily = (res[2] && res[2].daily) || null;
-      if (state.profile) viewProfile(); else viewGuest();
+      if (!state.profile) return viewGuest();
+      return api('/crews').then(function (r) { state.crews = r.crews || []; }, function () { state.crews = []; }).then(viewProfile);
     }, function (e) { show([msg('Impossible de joindre le service de profils : ' + e.message, true)]); });
   }
 

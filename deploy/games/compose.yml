@@ -23,8 +23,10 @@ services:
       context: ./profiles
     environment:
       DATA_DIR: /data
+      SITE_DIR: /site
       COOKIE_DOMAIN: .glsc.fr
-    volumes: ["/var/lib/glsc-games/profiles:/data"]
+    # /site : les statistiques publiées par la sonde (players.json), en lecture seule, pour les classements d'équipe
+    volumes: ["/var/lib/glsc-games/profiles:/data", "/var/www/games.glsc.fr:/site:ro"]
     # 3300 : public (nginx) ; 3301 : interne, appelé par les serveurs de jeu (aussi sur la boucle locale pour Vortex)
     ports: ["127.0.0.1:3300:3300", "127.0.0.1:3301:3301"]
     mem_limit: 128m
