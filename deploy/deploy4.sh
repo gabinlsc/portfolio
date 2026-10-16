@@ -63,7 +63,7 @@ save() {
 info "0/7 Téléchargement du dépôt"
 curl -fsSL "$REPO_TGZ" | tar -xz -C "$WORK"
 SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
-for f in deploy/deploy3.sh deploy/games/compose.yml deploy/games/profiles/server.mjs deploy/games/profiles/Dockerfile deploy/games/president.Dockerfile deploy/games/vortex.Dockerfile \
+for f in deploy/deploy3.sh deploy/games/compose.yml deploy/games/profiles/server.mjs deploy/games/profiles/discord.mjs deploy/games/profiles/Dockerfile deploy/games/president.Dockerfile deploy/games/vortex.Dockerfile \
          deploy/nginx/glsc-games.conf deploy/nginx/game-proxy.conf.tpl deploy/nginx/game-vortex.conf.tpl deploy/nginx/acme-only.conf.tpl; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
@@ -127,7 +127,7 @@ install -m 644 "$SRC/deploy/games/president.Dockerfile" "$SRC/deploy/games/vorte
 for svc in uno president petitbac vortex profiles; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
 # service de profils : son code vient de ce dépôt (portfolio), pas d'un dépôt de jeu
 install -d -m 755 "$GAMES_DIR/profiles"
-install -m 644 "$SRC/deploy/games/profiles/server.mjs" "$SRC/deploy/games/profiles/Dockerfile" "$GAMES_DIR/profiles/"
+install -m 644 "$SRC/deploy/games/profiles/server.mjs" "$SRC/deploy/games/profiles/discord.mjs" "$SRC/deploy/games/profiles/Dockerfile" "$GAMES_DIR/profiles/"
 save "$GAMES_DIR/compose.yml"
 install -m 644 "$SRC/deploy/games/compose.yml" "$GAMES_DIR/compose.yml"
 

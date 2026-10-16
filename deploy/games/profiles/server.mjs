@@ -8,6 +8,7 @@
 //   publique (127.0.0.1:3300, derrière nginx sous https://games.glsc.fr/api/profile/) : créer, récupérer, lire, renommer…
 //   interne  (réseau Docker, port 3301) : « identify », appelée par les serveurs de jeu pour savoir qui se connecte.
 import { createServer } from 'node:http';
+import { handleInteraction, makeVerifier } from './discord.mjs';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -149,6 +150,7 @@ export function createProfileService(options = {}) {
     dataDir = '/data',
     siteDir = '/site', // dossier de games.glsc.fr en lecture seule : players.json (statistiques publiées par la sonde)
     cookieDomain = '.glsc.fr',
+    discordPublicKey = '', // clé publique de l'application Discord (64 hex) : sans elle, /discord refuse tout
     secureCookies = true,
     allowedOrigins = ['https://games.glsc.fr', 'https://plus4.glsc.fr', 'https://president.glsc.fr', 'https://petitbac.glsc.fr', 'https://vortex.glsc.fr'],
   } = options;
@@ -209,6 +211,18 @@ export function createProfileService(options = {}) {
     }
     return siteCache.players;
   }
+  let boardCache = { mtime: 0, board: null };
+  function siteBoard() {
+    try {
+      const file = join(siteDir, 'leaderboard.json');
+      const mtime = statSync(file).mtimeMs;
+      if (mtime !== boardCache.mtime) boardCache = { mtime, board: JSON.parse(readFileSync(file, 'utf8')) };
+    } catch {
+      /* pas encore publié */
+    }
+    return boardCache.board;
+  }
+  const verifyDiscord = makeVerifier(discordPublicKey);
   function crewDetail(c, pid) {
     const stats = sitePlayers();
     const rows = c.members.map((m) => {
@@ -457,6 +471,18 @@ export function createProfileService(options = {}) {
         if (!known) return respond(res, 403, { error: 'Origine refusée.' });
         return respond(res, 204, {}, { ...cors, 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600' });
       }
+      if (req.method === 'POST' && path === '/discord') {
+        // Appelé par Discord (pas par un navigateur) : pas d'Origin ; l'authentification, c'est la signature Ed25519.
+        const ip = String(req.headers['x-real-ip'] ?? req.socket.remoteAddress ?? '?').slice(0, 64);
+        if (!allow(`discord:${ip}`, 120, 60_000)) return respond(res, 429, { error: 'Doucement.' });
+        const chunks = []; let size = 0;
+        for await (const c of req) { size += c.length; if (size > 16_384) return respond(res, 413, { error: 'Trop gros.' }); chunks.push(c); }
+        const raw = Buffer.concat(chunks);
+        if (!verifyDiscord(req.headers['x-signature-ed25519'], req.headers['x-signature-timestamp'], raw)) return respond(res, 401, { error: 'Signature invalide.' });
+        let interaction;
+        try { interaction = JSON.parse(raw.toString('utf8')); } catch { return respond(res, 400, { error: 'Requête invalide.' }); }
+        return respond(res, 200, handleInteraction(interaction, () => ({ board: siteBoard(), players: sitePlayers() })));
+      }
       const crewPath = req.method === 'GET' ? /^\/crews\/([0-9a-f]{16})$/.exec(path) : null;
       const handler = crewPath
         ? (ctx) => {
@@ -520,6 +546,7 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
     dataDir: process.env.DATA_DIR ?? '/data',
     siteDir: process.env.SITE_DIR ?? '/site',
     cookieDomain: process.env.COOKIE_DOMAIN ?? '.glsc.fr',
+    discordPublicKey: process.env.DISCORD_PUBLIC_KEY ?? '',
     secureCookies: process.env.SECURE_COOKIES !== '0',
     ...(process.env.ALLOWED_ORIGINS ? { allowedOrigins: process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean) } : {}),
   });
