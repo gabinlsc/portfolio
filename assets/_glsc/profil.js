@@ -5,7 +5,7 @@
   var root = document.getElementById('profil');
   var GAMES = { uno: '+4', president: 'Le Président', petitbac: 'Petit Bac', vortex: 'Vortex' };
   var LOOK = { uno: ['c-coral', '🃏'], president: ['c-banana', '👑'], petitbac: ['c-mint', '✏️'], vortex: ['c-lilac', '🎯'] };
-  var state = { profile: null, fiches: null, achievements: [], busy: false };
+  var state = { profile: null, fiches: null, achievements: [], daily: null, busy: false };
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -13,6 +13,8 @@
     if (text != null) e.textContent = text;
     return e;
   }
+  var MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  function monthName(label) { var q = label.split('-'); return MONTHS[Number(q[1]) - 1] + ' ' + q[0]; }
   function n(x) { return Number(x || 0).toLocaleString('fr-FR'); }
   function dateFr(ms) { return new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }); }
 
@@ -112,6 +114,12 @@
       el('span', 'pill', '🏆 ' + n(totals.wins) + ' victoire' + (totals.wins > 1 ? 's' : '')),
       el('span', 'pill', '⭐ ' + n(fiche ? fiche.achievements.length : 0) + ' succès'));
     info.append(chips);
+    var titles = (fiche && fiche.titles) || [];
+    if (titles.length) {
+      var tl = el('div', 'chips');
+      titles.forEach(function (t) { tl.append(el('span', 'pill', '🏅 Champion ' + (GAMES[t.game] || t.game) + ' · ' + monthName(t.month))); });
+      info.append(tl);
+    }
     head.append(el('div', 'avatar', p.name.slice(0, 1).toUpperCase()), info);
 
     var stats = el('div', 'box c-sky');
@@ -151,6 +159,40 @@
       ach.append(list);
     }
 
+    // défi du jour
+    var dailyBox = el('div', 'box c-peach');
+    dailyBox.append(el('h3', null, 'Défi du jour'));
+    var dl = fiche && fiche.daily;
+    if (!state.daily) dailyBox.append(el('p', null, 'Le défi du jour apparaît ici dans un instant.'));
+    else {
+      dailyBox.append(el('p', null, state.daily.text + '.'));
+      var prog = Math.min(dl ? dl.progress : 0, state.daily.goal);
+      var bar = el('div', 'meter'); var fill = el('div', 'meter-fill'); fill.style.width = (prog / state.daily.goal * 100) + '%'; bar.append(fill);
+      dailyBox.append(bar, el('p', 'muted', dl && dl.done ? '✅ Défi relevé aujourd’hui !' : prog + ' / ' + state.daily.goal));
+      var dchips = el('div', 'chips');
+      dchips.append(el('span', 'pill', '🔥 ' + (dl ? dl.streak : 0) + ' jour' + (dl && dl.streak > 1 ? 's' : '') + ' d’affilée'),
+        el('span', 'pill', '🏆 record : ' + (dl ? dl.best : 0)));
+      dailyBox.append(dchips);
+    }
+
+    // historique
+    var histBox = el('div', 'box c-sky');
+    histBox.append(el('h3', null, 'Mes dernières parties'));
+    var hist = (fiche && fiche.history) || [];
+    if (!hist.length) histBox.append(el('p', null, 'Aucune partie enregistrée pour l’instant.'));
+    else {
+      var ul = el('ul', 'history');
+      hist.forEach(function (h) {
+        var look = LOOK[h.game] || ['c-banana', '🎮'];
+        var li = el('li', 'hist-row');
+        li.append(el('span', 'hist-emoji', look[1]),
+          el('span', 'hist-main', (GAMES[h.game] || h.game) + ' · ' + (h.won ? '🥇 victoire' : h.rank + (h.rank === 1 ? 'er' : 'e') + ' sur ' + h.n)),
+          el('span', 'hist-meta', dateFr(h.t * 1000) + (h.with.length ? ' · avec ' + h.with.join(', ') : '')));
+        ul.append(li);
+      });
+      histBox.append(ul);
+    }
+
     // gestion
     var manage = el('div', 'box c-mint');
     manage.append(el('h3', null, 'Mon compte'));
@@ -182,7 +224,7 @@
     }));
 
     var grid = el('div', 'profil-grid');
-    grid.append(stats, ach, manage, danger);
+    grid.append(stats, dailyBox, ach, histBox, manage, danger);
     show([head, grid]);
   }
 
@@ -196,6 +238,7 @@
       state.profile = res[0].profile;
       state.fiches = res[1] && res[1].players;
       state.achievements = (res[2] && res[2].achievements) || [];
+      state.daily = (res[2] && res[2].daily) || null;
       if (state.profile) viewProfile(); else viewGuest();
     }, function (e) { show([msg('Impossible de joindre le service de profils : ' + e.message, true)]); });
   }
