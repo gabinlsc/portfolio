@@ -79,6 +79,7 @@
     top.forEach(function (p, i) {
       var tr = el('tr', i < 3 ? 'podium' : null);
       var who = el('td', 'who', p.name);
+      if (p.profil) { var v = el('span', 'verif', ' ✓'); v.title = 'Profil : pseudo réservé'; who.append(v); }
       var shown = (p.badges || []).map(achievement).filter(Boolean);
       if (shown.length) {
         var bs = el('span', 'badges', shown.map(function (a) { return a.emoji; }).join(''));

@@ -16,6 +16,19 @@ x-durcissement: &durcissement
     options: { max-size: "10m", max-file: "3" }
 
 services:
+  profiles:                       # profils des joueurs (pseudo réservé + cookie) : https://games.glsc.fr/api/profile/
+    <<: *durcissement
+    image: glsc/profiles:latest
+    build:
+      context: ./profiles
+    environment:
+      DATA_DIR: /data
+      COOKIE_DOMAIN: .glsc.fr
+    volumes: ["/var/lib/glsc-games/profiles:/data"]
+    # 3300 : public (nginx) ; 3301 : interne, appelé par les serveurs de jeu (aussi sur la boucle locale pour Vortex)
+    ports: ["127.0.0.1:3300:3300", "127.0.0.1:3301:3301"]
+    mem_limit: 128m
+
   uno:                            # +4 (plus4.glsc.fr) : « uno » reste l'identifiant interne du service
     <<: *durcissement
     image: glsc/plus4:latest
@@ -24,6 +37,7 @@ services:
     environment:
       CORS_ORIGIN: https://plus4.glsc.fr
       RESULTS_FILE: /data/results.jsonl
+      PROFILES_URL: http://profiles:3301
     volumes: ["/var/lib/glsc-games/uno:/data"]
     ports: ["127.0.0.1:3101:3001"]
     mem_limit: 512m
@@ -37,6 +51,7 @@ services:
     environment:
       CLIENT_ORIGIN: https://president.glsc.fr
       RESULTS_FILE: /data/results.jsonl
+      PROFILES_URL: http://profiles:3301
     volumes: ["/var/lib/glsc-games/president:/data"]
     ports: ["127.0.0.1:3102:3001"]
     mem_limit: 512m

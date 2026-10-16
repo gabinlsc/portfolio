@@ -54,6 +54,15 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 - **Succès** (16, dont « Première victoire », « Série de 3 », « Président ! », « Manche parfaite » à Vortex, « Touche-à-tout »…) : la sonde rejoue l'historique des parties et publie, dans `leaderboard.json`, qui a débloqué quoi. Les emojis apparaissent à côté des pseudos du classement, et la liste des succès de chaque jeu s'affiche dessous (nombre de joueurs, dernier à l'avoir obtenu). Liste et conditions : `ACHIEVEMENTS` dans `admin/collector/glsc_admin_collect.py`.
 - Pseudos par défaut (« Joueur 2 »…) et injurieux filtrés automatiquement ; n'importe quel pseudo peut être masqué depuis l'admin (Jeux en direct → Classements).
 
+### Profils des joueurs
+
+- Page [games.glsc.fr/profil](https://games.glsc.fr/profil/) : un profil réserve un pseudo (personne d'autre ne peut le prendre, même avec une autre casse ou des accents) et regroupe les parties, stats et succès de tous les jeux. Pas d'e-mail, pas de mot de passe : un **code de récupération** (120 bits, affiché une seule fois) sert à se reconnecter ailleurs.
+- Service `profiles` (conteneur durci, `deploy/games/profiles/server.mjs`, aucune dépendance) : le serveur ne garde que l'**empreinte SHA-256** du code et de chaque cookie de session. Cookie `glsc_sid` : aléatoire (256 bits), `HttpOnly`, `Secure`, `SameSite=Lax`, valable sur `*.glsc.fr` pour suivre le joueur d'un jeu à l'autre ; 10 sessions par profil, déconnexion « partout », nouveau code, renommage (1 par semaine), suppression (les parties du profil disparaissent des classements).
+- Écritures acceptées uniquement depuis nos pages (en-tête `Origin`), JSON de 2 Ko maximum, limitation de débit par adresse (création, récupération, lecture), comparaison en temps constant, aucun secret dans les journaux. Pseudos : lettres latines seulement (pas d'homoglyphes cyrilliques), mêmes filtres que les classements.
+- Deux écoutes : publique (`https://games.glsc.fr/api/profile/…`, via nginx) et interne (`http://profiles:3301/identify`, réseau Docker), que les serveurs de jeu appellent à chaque connexion avec le cookie : profil reconnu → pseudo imposé et identifiant `pid` ajouté au résultat de la partie ; invité → son pseudo ne doit pas être celui d'un profil.
+- La sonde regroupe les classements par profil (renommer ne perd rien ; l'historique joué sous un pseudo avant de le réserver est rattaché à son profil) et publie `players.json` (fiches publiques : stats et succès). Si le service est coupé, tout continue comme avant, par pseudo.
+- Test : `node --test deploy/games/profiles/server.test.mjs`. Données : `/var/lib/glsc-games/profiles/profiles.json` (incluses dans les sauvegardes chiffrées).
+
 ### Récap Discord
 
 - Chaque lundi à 9 h, la sonde envoie sur Discord le récap de la semaine écoulée : visites (et évolution), sources, CV et projets cliqués, parties et champions des jeux, commits et déploiements, incidents, tentatives SSH, disque et certificats. Désactivable dans l'admin (Réglages → « Récap de la semaine »).

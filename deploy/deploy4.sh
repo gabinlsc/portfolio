@@ -49,7 +49,7 @@ die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*"; exit 1; }
 ONLY="${GLSC_ONLY_GAME:-}"
 case "$ONLY" in ""|uno|president|vortex) ;; *) die "GLSC_ONLY_GAME doit valoir uno, president ou vortex." ;; esac
 wanted() { [ -z "$ONLY" ] || [ "$1" = "$ONLY" ]; }   # wanted <service Docker>
-image_of() { case "$1" in uno) echo glsc/plus4;; president) echo glsc/president;; vortex) echo glsc/vortex;; esac; }
+image_of() { case "$1" in profiles) echo glsc/profiles;; uno) echo glsc/plus4;; president) echo glsc/president;; vortex) echo glsc/vortex;; esac; }
 mkdir -p "$BACKUP"
 
 save() {
@@ -62,7 +62,7 @@ save() {
 info "0/7 Téléchargement du dépôt"
 curl -fsSL "$REPO_TGZ" | tar -xz -C "$WORK"
 SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
-for f in deploy/deploy3.sh deploy/games/compose.yml deploy/games/president.Dockerfile deploy/games/vortex.Dockerfile \
+for f in deploy/deploy3.sh deploy/games/compose.yml deploy/games/profiles/server.mjs deploy/games/profiles/Dockerfile deploy/games/president.Dockerfile deploy/games/vortex.Dockerfile \
          deploy/nginx/glsc-games.conf deploy/nginx/game-proxy.conf.tpl deploy/nginx/game-vortex.conf.tpl deploy/nginx/acme-only.conf.tpl; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
@@ -123,7 +123,10 @@ done
 if [ -d "$GAMES_DIR/src/plus4/.git" ] && [ -d "$GAMES_DIR/src/uno" ]; then rm -rf "${GAMES_DIR:?}/src/uno"; ok "anciennes sources « uno » retirées"; fi
 install -m 644 "$SRC/deploy/games/president.Dockerfile" "$SRC/deploy/games/vortex.Dockerfile" "$GAMES_DIR/dockerfiles/"
 # résultats des parties (classements) : seul dossier où les conteneurs peuvent écrire (utilisateur node, uid 1000)
-for svc in uno president vortex; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
+for svc in uno president vortex profiles; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
+# service de profils : son code vient de ce dépôt (portfolio), pas d'un dépôt de jeu
+install -d -m 755 "$GAMES_DIR/profiles"
+install -m 644 "$SRC/deploy/games/profiles/server.mjs" "$SRC/deploy/games/profiles/Dockerfile" "$GAMES_DIR/profiles/"
 save "$GAMES_DIR/compose.yml"
 install -m 644 "$SRC/deploy/games/compose.yml" "$GAMES_DIR/compose.yml"
 
@@ -152,7 +155,7 @@ fi
 # ---------------------------------------------------------------- 4. build + lancement
 info "4/7 Construction des images (quelques minutes la première fois)"
 cd "$GAMES_DIR"
-for svc in ${ONLY:-uno president vortex}; do
+for svc in ${ONLY:-profiles uno president vortex}; do
   img="$(image_of "$svc")"
   if docker image inspect "$img:latest" >/dev/null 2>&1; then
     docker tag "$img:latest" "$img:previous"   # version en service : de quoi revenir en arrière
@@ -228,6 +231,14 @@ for entry in "${GAMES[@]}"; do
     warn "$name : même l'ancienne version ne répond pas."
   fi
 done
+if [ -z "$ONLY" ]; then   # profils des joueurs : sans lui les jeux restent jouables, en invité
+  prof=0
+  for i in 1 2 3 4 5 6; do
+    [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://127.0.0.1:3300/health || true)" = 200 ] && { prof=1; break; }
+    sleep 3
+  done
+  [ "$prof" = 1 ] && ok "profils des joueurs : répondent en local" || warn "profils des joueurs : ne répondent pas (docker logs glsc-games-profiles-1)"
+fi
 if [ -n "$ONLY" ]; then
   [ "$health_ok" = 1 ] || die "$ONLY ne répond pas, y compris après retour à la version précédente."
   if [ "$rolled_back" = 1 ]; then
