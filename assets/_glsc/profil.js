@@ -193,6 +193,19 @@
       histBox.append(ul);
     }
 
+    // rivalités
+    var rivBox = el('div', 'box c-coral');
+    rivBox.append(el('h3', null, 'Mes rivalités'));
+    var rv = (fiche && fiche.rivals) || {};
+    if (!rv.nemesis && !rv.victim) rivBox.append(el('p', null, 'Joue au moins 3 parties contre le même joueur pour voir apparaître ton meilleur ennemi ou ta victime favorite.'));
+    [['nemesis', '😈 Meilleur ennemi'], ['victim', '🎯 Victime favorite']].forEach(function (k) {
+      var r = rv[k[0]];
+      if (!r) return;
+      var line = el('p', 'rival');
+      line.append(el('strong', null, k[1] + ' : ' + r.name), el('span', 'muted', ' · ' + r.wins + ' victoire' + (r.wins > 1 ? 's' : '') + ' – ' + r.losses + ' défaite' + (r.losses > 1 ? 's' : '') + ' en face à face'));
+      rivBox.append(line);
+    });
+
     // équipes
     var crewsBox = viewCrews();
 
@@ -227,7 +240,7 @@
     }));
 
     var grid = el('div', 'profil-grid');
-    grid.append(stats, dailyBox, ach, histBox, crewsBox, manage, danger);
+    grid.append(stats, dailyBox, ach, histBox, rivBox, crewsBox, manage, danger);
     show([head, grid]);
   }
 
