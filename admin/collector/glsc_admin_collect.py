@@ -857,6 +857,22 @@ def leaderboards(db, now, hidden, profiles=None, extra_unlocks=None):
     return public, admin
 
 
+def publish_cards(fiches, root, state):
+    """Cartes de profil partageables (glsc_cards.py, nécessite Pillow : sans lui, l'étape est ignorée)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    try:
+        import glsc_cards
+    except ImportError as e:
+        if not state.get("cards_missing"):
+            log("cartes de profil ignorées :", e)
+        state["cards_missing"] = True
+        return 0
+    state.pop("cards_missing", None)
+    return glsc_cards.publish(fiches["players"], root, os.path.join(here, "cards", "fonts"), state.setdefault("cards", {}))
+
+
 def players_page(db, now, hidden, profiles, extras=None):
     """Fiches publiques des profils (players.json) : statistiques par jeu et succès, sans rien de privé."""
     ids = identities(profiles)
@@ -1448,6 +1464,8 @@ def collect(args):
     fiches = step("profils", lambda: players_page(db, now, hidden, profiles, extras))
     if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
         write_json(os.path.join(os.path.dirname(args.leaderboard_json), "players.json"), fiches, mode=0o644)
+    if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
+        step("cartes de profil", lambda: publish_cards(fiches, os.path.dirname(args.leaderboard_json), state))
     sec = {"at": now, "fail2ban": step("fail2ban", fail2ban)}
     write_json(pub("security"), sec, gid)
     if now - state.get("changelog_at", 0) >= 2400 and not args.offline and os.path.isdir(os.path.dirname(args.leaderboard_json)):
