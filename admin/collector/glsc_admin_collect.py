@@ -887,6 +887,7 @@ def players_page(db, now, hidden, profiles, extras=None):
         entry["titles"] = extras.get("titles", {}).get(pid, [])
         entry["daily"] = extras.get("daily", {}).get(pid, {"streak": 0, "best": 0, "done": False, "progress": 0})
         entry["history"] = extras.get("history", {}).get(pid, [])
+        entry["rivals"] = extras.get("rivals", {}).get(pid, {})
         for game, st in extras.get("month_stats", {}).get(pid, {}).items():
             if game in entry["games"]:
                 entry["games"][game]["month"] = st
@@ -1000,6 +1001,35 @@ def compute_extras(db, now, hidden, profiles):
                                                     "n": len(m["players"]), "with": others[:5]})
     history = {pid: rows[-20:][::-1] for pid, rows in history.items()}
 
+    # rivalités : sur les parties jouées ensemble entre profils visibles, qui bat qui (au moins 3 duels)
+    duels = {}
+    for m in matches.values():
+        ps = [(w[2:], r, won) for (w, r, won) in m["players"] if w.startswith("p:") and w[2:] in live and visible(w)]
+        for i, (a, ra, wa) in enumerate(ps):
+            for b, rb, wb in ps[i + 1:]:
+                if a == b:
+                    continue
+                if ra > 0 and rb > 0 and ra != rb:
+                    a_wins = ra < rb
+                elif wa != wb:
+                    a_wins = bool(wa)
+                else:
+                    continue
+                for x, y, x_wins in ((a, b, a_wins), (b, a, not a_wins)):
+                    d = duels.setdefault(x, {}).setdefault(y, [0, 0])
+                    d[0 if x_wins else 1] += 1
+    rivals = {}
+    for pid, vs in duels.items():
+        out = {}
+        nemesis = sorted(((o, w, l) for o, (w, l) in vs.items() if w + l >= 3 and l > w), key=lambda r: (r[1] - r[2], -(r[1] + r[2])))
+        victim = sorted(((o, w, l) for o, (w, l) in vs.items() if w + l >= 3 and w > l), key=lambda r: (-(r[1] - r[2]), -(r[1] + r[2])))
+        for label, rows in (("nemesis", nemesis), ("victim", victim)):
+            if rows:
+                o, w, l = rows[0]
+                out[label] = {"name": live[o]["name"], "wins": w, "losses": l}
+        if out:
+            rivals[pid] = out
+
     # défis du jour
     ch_today = challenge_for(today)
     daily, unlocks = {}, {}
@@ -1030,7 +1060,7 @@ def compute_extras(db, now, hidden, profiles):
         if got:
             unlocks[who] = got
     return {"challenge": {**ch_today, "date": today.isoformat()}, "champions": champions, "titles": titles,
-            "month_stats": month_stats, "history": history, "daily": daily, "unlocks": unlocks}
+            "month_stats": month_stats, "history": history, "rivals": rivals, "daily": daily, "unlocks": unlocks}
 
 # ---------------------------------------------------------------- tableau de bord des joueurs (admin)
 def player_stats(db, now, hidden, profiles, pub_dir):
