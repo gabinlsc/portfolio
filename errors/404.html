@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- CSP : style et script en ligne autorisés par empreinte (npm run build:404 les recalcule) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'sha256-zwsv1WiZ6HkKZ9ALNvESWEbKsygD+Uh7QtPyHW7GGqU='; script-src 'sha256-L0tEvblNNex2GIS7OE/FcHu19gvBaEhIg+sN8imP4Cc='; img-src data:; font-src 'self'; base-uri 'none'; form-action 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'sha256-zwsv1WiZ6HkKZ9ALNvESWEbKsygD+Uh7QtPyHW7GGqU='; script-src 'sha256-kc43CXtakCjaeiDM8gfgEfsJyaKyc0cM/65kDDzdp28='; img-src data:; font-src 'self'; base-uri 'none'; form-action 'none'" />
   <title>Page introuvable · GLSC.fr</title>
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#FFFDF0" />
@@ -202,7 +202,7 @@
   const SITES = {
     hub: ['https://glsc.fr', 'Le Hub'], cv: ['https://cv.glsc.fr', 'Mon CV'], projets: ['https://share.glsc.fr', 'Projets'],
     archives: ['https://old.glsc.fr', 'Archives'], jeux: ['https://games.glsc.fr', 'Salle de jeux'], statut: ['https://status.glsc.fr', 'Statut'],
-    plus4: ['https://plus4.glsc.fr', '+4'], president: ['https://president.glsc.fr', 'Le Président'], vortex: ['https://vortex.glsc.fr', 'Vortex'],
+    plus4: ['https://plus4.glsc.fr', '+4'], president: ['https://president.glsc.fr', 'Le Président'], petitbac: ['https://petitbac.glsc.fr', 'Petit Bac'], vortex: ['https://vortex.glsc.fr', 'Vortex'],
   };
   const link = (key) => { const a = document.createElement('a'); a.href = SITES[key][0]; a.textContent = SITES[key][1]; return a; };
 
@@ -223,6 +223,7 @@
     'status.glsc.fr': 'Statut de cette page : introuvable. Tous les autres services vont bien, promis.',
     'plus4.glsc.fr': 'Cette page a pris un +4 et a quitté la partie. Elle n’a même pas crié «\u00a0Dernière\u00a0!\u00a0».',
     'president.glsc.fr': 'Cette page a fini dernière. Elle est partie mélanger les cartes.',
+    'petitbac.glsc.fr': 'Cette page n’a pas trouvé de mot qui commence par la bonne lettre. Elle a crié «\u00a0Bac\u00a0!\u00a0» trop tôt.',
     'vortex.glsc.fr': 'Cette page a été aspirée par le vortex. On a envoyé une équipe, sans grand espoir.',
     'click.glsc.fr': 'Ce lien court était un peu trop court : il n’en reste rien.',
     'admin.glsc.fr': 'Rien à voir ici. Circulez.',
@@ -247,6 +248,7 @@
     [/alternan|recrut|hire|job|stage|contact|cv|resume|embauch/, () => say('Bonne idée ! Tout est sur', 'cv')],
     [/plus4|plus-4|\+4|uno|carte/, () => say('Tu cherchais une partie de +4 ? C’est par ici :', 'plus4')],
     [/presid/, () => say('Une partie de Président ? C’est par ici :', 'president')],
+    [/petit.?bac|bac\b|lettre/, () => say('Une partie de Petit Bac ? C’est par ici :', 'petitbac')],
     [/vortex|fps/, () => say('Vortex, c’est par ici :', 'vortex')],
     [/jeu|game|play/, () => say('Les jeux sont rangés dans la', 'jeux')],
     [/projet|project|github|code/, () => say('Les projets sont tous dans', 'projets')],
@@ -396,7 +398,7 @@
   }
   function closeTerm() { term.hidden = true; input.blur(); }
   const go = (key) => { print(`Direction ${SITES[key][1]}…`); setTimeout(() => { location.href = SITES[key][0]; }, 500); };
-  const ALIASES = { '..': 'hub', '~': 'hub', '/': 'hub', glsc: 'hub', 'cv.pdf': 'cv', share: 'projets', old: 'archives', games: 'jeux', status: 'statut', 'président': 'president', '+4': 'plus4', uno: 'plus4' };
+  const ALIASES = { '..': 'hub', '~': 'hub', '/': 'hub', glsc: 'hub', 'cv.pdf': 'cv', share: 'projets', old: 'archives', games: 'jeux', status: 'statut', 'président': 'president', '+4': 'plus4', uno: 'plus4', 'petit-bac': 'petitbac', bac: 'petitbac' };
   const COMMANDS = {
     help: () => print('help, ls, cd <dossier>, pwd, whoami, cat <fichier>, echo, date, ping, history, clear, sudo, plus4, party, exit'),
     ls: (a) => print(Object.keys(SITES).filter((k) => k !== 'hub').map((k) => k + '/').join('  ') + (a.includes('-a') || a.includes('-la') ? '  .secret' : '')),

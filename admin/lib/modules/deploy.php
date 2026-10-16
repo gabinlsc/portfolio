@@ -12,6 +12,7 @@ const DEPLOY_REPOS = [
     'gabinlsc/plus4' => 'uno',   // +4 (« uno » reste l'identifiant interne)
     'gabinlsc/uno' => 'uno',     // ancien nom du dépôt
     'gabinlsc/president' => 'president',
+    'gabinlsc/petitbac' => 'petitbac',
     'gabinlsc/vortex-fps' => 'vortex',
 ];
 const DEPLOY_TARGETS = [
@@ -19,6 +20,7 @@ const DEPLOY_TARGETS = [
     'portfolio-full' => 'Tout, jeux compris (deploy5 complet)',
     'uno' => '+4 (image reconstruite)',
     'president' => 'Le Président (image reconstruite)',
+    'petitbac' => 'Petit Bac (image reconstruite)',
     'vortex' => 'Vortex (image reconstruite)',
 ];
 /** Fichiers du portfolio qui demandent de reconstruire les jeux (deploy5 complet). */

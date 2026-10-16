@@ -47,6 +47,7 @@ TZ = ZoneInfo("Europe/Paris")
 GAMES = {  # service compose → (nom affiché, port local, domaine)
     "uno": ("+4", 3101, "plus4.glsc.fr"),  # « uno » : identifiant interne de +4 (service Docker, résultats)
     "president": ("Le Président", 3102, "president.glsc.fr"),
+    "petitbac": ("Petit Bac", 3104, "petitbac.glsc.fr"),
     "vortex": ("Vortex", 3103, "vortex.glsc.fr"),
 }
 SERVICES = [  # unité systemd → libellé
@@ -707,12 +708,16 @@ ACHIEVEMENTS = [
     ("pres-10", "president", "🏛️", "Dynastie", "10 fois président", lambda s: s["president"] >= 10),
     ("pres-trouduc3", "president", "🧻", "Abonné au trou du cul", "Finir dernier 3 fois (c'est un titre)", lambda s: s["trouduc"] >= 3),
     ("pres-played25", "president", "🎴", "Habitué", "25 manches jouées", lambda s: s["played"] >= 25),
+    ("bac-win1", "petitbac", "🎯", "Premier Bac", "Gagner une partie de Petit Bac", lambda s: s["wins"] >= 1),
+    ("bac-win10", "petitbac", "🏆", "Maître du Bac", "10 parties gagnées", lambda s: s["wins"] >= 10),
+    ("bac-streak3", "petitbac", "🔥", "Série de 3", "3 victoires d'affilée", lambda s: s["best_streak"] >= 3),
+    ("bac-played25", "petitbac", "✏️", "Habitué", "25 parties jouées", lambda s: s["played"] >= 25),
     ("vortex-1", "vortex", "🎯", "Première élimination", "Éliminer un adversaire", lambda s: s["kills"] >= 1),
     ("vortex-round10", "vortex", "🔫", "Manche parfaite", "10 éliminations dans une seule manche", lambda s: s["best_kills"] >= 10),
     ("vortex-50", "vortex", "💥", "50 éliminations", "50 éliminations au total", lambda s: s["kills"] >= 50),
     ("vortex-250", "vortex", "☠️", "Terreur du vortex", "250 éliminations au total", lambda s: s["kills"] >= 250),
     ("vortex-played25", "vortex", "🌀", "Habitué", "25 manches jouées", lambda s: s["played"] >= 25),
-    ("all-3", "all", "🎮", "Touche-à-tout", "Jouer à +4, au Président et à Vortex", lambda s: s["games"] >= 3),
+    ("all-3", "all", "🎮", "Touche-à-tout", "Jouer à trois jeux différents avec le même profil ou pseudo", lambda s: s["games"] >= 3),
 ]
 
 
@@ -876,7 +881,7 @@ def players_page(db, now, hidden, profiles):
 
 # ---------------------------------------------------------------- récap Discord du lundi
 SITE_NAMES = {"glsc.fr": "Hub", "cv.glsc.fr": "CV", "share.glsc.fr": "Projets", "old.glsc.fr": "Archives", "games.glsc.fr": "Salle de jeux",
-              "status.glsc.fr": "Statut", "plus4.glsc.fr": "+4", "uno.glsc.fr": "+4", "president.glsc.fr": "Président", "vortex.glsc.fr": "Vortex"}
+              "status.glsc.fr": "Statut", "plus4.glsc.fr": "+4", "uno.glsc.fr": "+4", "president.glsc.fr": "Président", "petitbac.glsc.fr": "Petit Bac", "vortex.glsc.fr": "Vortex"}
 CV_EVENTS = {"print": "impressions", "email": "clics e-mail", "email_copy": "e-mails copiés", "phone": "clics téléphone",
              "linkedin": "clics LinkedIn", "github": "clics GitHub", "site": "clics site"}
 
@@ -961,7 +966,7 @@ def weekly_recap(db, state, start, end, pub_dir, status_file):
                 champ = f"👑 {name} ({fr(kills or 0)} élim.)" if game == "vortex" else f"👑 {name} ({fr(wins)} victoire{'s' if wins > 1 else ''})"
                 break
         if matches or peak:
-            unit = "partie" if game == "uno" else "manche"
+            unit = "partie" if game in ("uno", "petitbac") else "manche"
             lines.append(f"**{label}** : {fr(matches)} {unit}{'s' if matches > 1 else ''}" + (f", jusqu'à {peak} connectés" if peak else "")
                          + (f" · {champ}" if champ else ""))
     fields.append(("🎮 Jeux", "\n".join(lines) or "Personne n'a joué cette semaine.", False))
@@ -1302,6 +1307,7 @@ DEPLOY_PLANS = {  # cible → scripts du dépôt portfolio à lancer, avec leurs
     "portfolio-full": [("deploy/deploy5.sh", {})],
     "uno": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "uno"})],
     "president": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "president"})],
+    "petitbac": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "petitbac"})],
     "vortex": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "vortex"})],
 }
 DEPLOY_STEP_TIMEOUT = 40 * 60
@@ -1335,7 +1341,7 @@ def deploy_requests(args):
                 pass
     if "portfolio-full" in wanted:
         wanted.pop("portfolio", None)
-    order = ["portfolio-full", "portfolio", "uno", "president", "vortex"]
+    order = ["portfolio-full", "portfolio", "uno", "president", "petitbac", "vortex"]
     return [(t, wanted[t]) for t in order if t in wanted]
 
 

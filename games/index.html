@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cv.glsc.fr; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
   <title>Salle de jeux · GLSC.fr</title>
-  <meta name="description" content="La salle de jeux de glsc.fr : +4, Le Président et Vortex FPS, des jeux multijoueur faits maison, jouables dans le navigateur." />
+  <meta name="description" content="La salle de jeux de glsc.fr : +4, Le Président, Petit Bac et Vortex FPS, des jeux multijoueur faits maison, jouables dans le navigateur." />
   <meta name="theme-color" content="#FFFDF0" />
   <meta property="og:title" content="Salle de jeux · GLSC.fr" />
   <meta property="og:description" content="+4, Le Président et Vortex FPS : des jeux multijoueur faits maison, jouables dans le navigateur." />
@@ -29,11 +29,12 @@
         "@type": "CollectionPage", "@id": "https://games.glsc.fr/#page", "url": "https://games.glsc.fr/", "name": "Salle de jeux · GLSC.fr",
         "isPartOf": { "@id": "https://glsc.fr/#site" }, "author": { "@id": "https://glsc.fr/#gabin" }, "inLanguage": "fr-FR",
         "mainEntity": {
-          "@type": "ItemList", "numberOfItems": 3,
+          "@type": "ItemList", "numberOfItems": 4,
           "itemListElement": [
             { "@type": "ListItem", "position": 1, "item": { "@type": "VideoGame", "name": "+4", "genre": "Jeu de cartes", "playMode": ["SinglePlayer", "MultiPlayer"], "gamePlatform": "Navigateur web", "author": { "@id": "https://glsc.fr/#gabin" }, "url": "https://github.com/gabinlsc/plus4" } },
             { "@type": "ListItem", "position": 2, "item": { "@type": "VideoGame", "name": "Le Président", "genre": "Jeu de cartes", "playMode": ["SinglePlayer", "MultiPlayer"], "gamePlatform": "Navigateur web", "author": { "@id": "https://glsc.fr/#gabin" }, "url": "https://github.com/gabinlsc/president" } },
-            { "@type": "ListItem", "position": 3, "item": { "@type": "VideoGame", "name": "Vortex · Rift Outpost", "genre": "FPS", "playMode": "MultiPlayer", "gamePlatform": "Navigateur web", "author": { "@id": "https://glsc.fr/#gabin" }, "url": "https://github.com/gabinlsc/vortex-fps" } }
+            { "@type": "ListItem", "position": 3, "item": { "@type": "VideoGame", "name": "Petit Bac", "genre": "Jeu de mots", "playMode": "MultiPlayer", "gamePlatform": "Navigateur web", "author": { "@id": "https://glsc.fr/#gabin" }, "url": "https://petitbac.glsc.fr" } },
+{ "@type": "ListItem", "position": 4, "item": { "@type": "VideoGame", "name": "Vortex · Rift Outpost", "genre": "FPS", "playMode": "MultiPlayer", "gamePlatform": "Navigateur web", "author": { "@id": "https://glsc.fr/#gabin" }, "url": "https://github.com/gabinlsc/vortex-fps" } }
           ]
         }
       }
@@ -338,6 +339,32 @@
             <div class="actions">
               <a class="act act-play" href="https://president.glsc.fr"><i data-lucide="play" class="icon"></i> Jouer</a>
               <a class="act act-code" href="https://github.com/gabinlsc/president" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Le code</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="game">
+          <div class="cover" style="background-color:var(--mint)">
+            <span class="status">🟢 En ligne</span>
+            <svg class="art" viewBox="0 0 120 120" aria-hidden="true">
+              <rect x="20" y="22" width="80" height="76" rx="10" fill="#fff" stroke="#000" stroke-width="5"/>
+              <path d="M20 46h80M20 72h80M52 22v76" stroke="#000" stroke-width="4"/>
+              <text x="36" y="40" font-family="Fredoka, Arial Black, sans-serif" font-weight="700" font-size="20" text-anchor="middle">B</text>
+              <path d="M60 58h30M60 84h22" stroke="#FF9478" stroke-width="5" stroke-linecap="round"/>
+              <path d="M84 12 104 32 94 36 80 22Z" fill="#FFD84D" stroke="#000" stroke-width="4" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="game-body">
+            <h3>Petit Bac</h3>
+            <div class="meta">
+              <span><i data-lucide="users" class="icon"></i> 2 à 8 joueurs</span>
+              <span><i data-lucide="zap" class="icon"></i> Chrono &amp; « Bac ! »</span>
+              <span><i data-lucide="door-open" class="icon"></i> Salons privés</span>
+            </div>
+            <p>Une lettre, des catégories, un chrono. Le premier qui a tout rempli crie « Bac ! », puis tout le monde vote pour refuser les réponses douteuses. Uniquement en ligne.</p>
+            <div class="actions">
+              <a class="act act-play" href="https://petitbac.glsc.fr"><i data-lucide="play" class="icon"></i> Jouer</a>
+              <a class="act act-code" href="https://github.com/gabinlsc/petitbac" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Le code</a>
             </div>
           </div>
         </article>

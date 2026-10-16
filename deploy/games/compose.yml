@@ -56,6 +56,19 @@ services:
     ports: ["127.0.0.1:3102:3001"]
     mem_limit: 512m
 
+  petitbac:                       # Petit Bac (petitbac.glsc.fr)
+    <<: *durcissement
+    image: glsc/petitbac:latest
+    build:
+      context: ./src/petitbac      # Dockerfile fourni par le dépôt petitbac
+    environment:
+      CORS_ORIGIN: https://petitbac.glsc.fr
+      RESULTS_FILE: /data/results.jsonl
+      PROFILES_URL: http://profiles:3301
+    volumes: ["/var/lib/glsc-games/petitbac:/data"]
+    ports: ["127.0.0.1:3104:3001"]
+    mem_limit: 256m
+
   vortex:
     <<: *durcissement
     image: glsc/vortex:latest
