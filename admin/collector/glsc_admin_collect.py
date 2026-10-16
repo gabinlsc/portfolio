@@ -1032,6 +1032,44 @@ def compute_extras(db, now, hidden, profiles):
     return {"challenge": {**ch_today, "date": today.isoformat()}, "champions": champions, "titles": titles,
             "month_stats": month_stats, "history": history, "daily": daily, "unlocks": unlocks}
 
+# ---------------------------------------------------------------- journal des nouveautés (PR fusionnées → page + flux Atom)
+CHANGELOG_REPOS = {"portfolio": "Site", "plus4": "+4", "president": "Le Président", "petitbac": "Petit Bac", "vortex-fps": "Vortex"}
+
+
+def changelog_entries(user):
+    """Pull requests fusionnées des dépôts suivis, les plus récentes d'abord. Un dépôt injoignable est simplement ignoré."""
+    out = []
+    for repo, label in CHANGELOG_REPOS.items():
+        try:
+            prs = http_json(f"https://api.github.com/repos/{user}/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=40")
+        except (OSError, ValueError):
+            continue
+        for pr in prs:
+            if not pr.get("merged_at"):
+                continue
+            title = " ".join(str(pr.get("title", "")).split())[:140]
+            if not title or title.lower().startswith("merge "):
+                continue
+            out.append({"repo": repo, "label": label, "number": pr["number"], "title": title, "url": pr["html_url"], "at": iso_ts(pr["merged_at"])})
+    return sorted(out, key=lambda e: -e["at"])[:80]
+
+
+def xml_escape(text):
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def changelog_atom(entries, now):
+    iso = lambda t: dt.datetime.fromtimestamp(t, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+    items = "".join(
+        f"<entry><id>tag:glsc.fr,2026:{xml_escape(e['repo'])}/{e['number']}</id><title>{xml_escape('[' + e['label'] + '] ' + e['title'])}</title>"
+        f"<link href=\"{xml_escape(e['url'])}\"/><updated>{iso(e['at'])}</updated></entry>"
+        for e in entries[:40])
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom"><id>https://games.glsc.fr/nouveautes/</id>'
+            '<title>Nouveautés de glsc.fr</title><subtitle>Ce qui change sur le site et les jeux</subtitle>'
+            '<link href="https://games.glsc.fr/nouveautes/"/><link rel="self" href="https://games.glsc.fr/nouveautes.xml"/>'
+            f"<updated>{iso(entries[0]['at'] if entries else now)}</updated><author><name>Gabin Lescoat</name></author>{items}</feed>\n")
+
+
 # ---------------------------------------------------------------- signalements de bugs (bouton « Un bug ? » des jeux)
 REPORT_GAMES = {"plus4": "+4", "president": "Le Président", "petitbac": "Petit Bac", "vortex": "Vortex", "site": "Site"}
 
@@ -1311,6 +1349,17 @@ def collect(args):
         write_json(os.path.join(os.path.dirname(args.leaderboard_json), "players.json"), fiches, mode=0o644)
     sec = {"at": now, "fail2ban": step("fail2ban", fail2ban)}
     write_json(pub("security"), sec, gid)
+    if now - state.get("changelog_at", 0) >= 2400 and not args.offline and os.path.isdir(os.path.dirname(args.leaderboard_json)):
+        state["changelog_at"] = now  # au plus 5 appels toutes les 40 min
+        entries = step("nouveautés", lambda: changelog_entries(args.github_user))
+        if entries:
+            root = os.path.dirname(args.leaderboard_json)
+            write_json(os.path.join(root, "changelog.json"), {"at": now, "entries": entries}, mode=0o644)
+            tmp = os.path.join(root, "nouveautes.xml.tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(changelog_atom(entries, now))
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, os.path.join(root, "nouveautes.xml"))
     if now - state.get("github_at", 0) >= 900 and not args.offline:
         gh = step("github", lambda: github(args.github_user))
         state["github_at"] = now  # même en échec : pas plus d'un essai par 15 min (limite de l'API)
