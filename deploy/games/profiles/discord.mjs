@@ -17,16 +17,24 @@ export function makeVerifier(publicKeyHex, now = () => Date.now()) {
   if (typeof publicKeyHex === 'string' && /^[0-9a-fA-F]{64}$/.test(publicKeyHex)) {
     key = createPublicKey({ key: Buffer.concat([SPKI_PREFIX, Buffer.from(publicKeyHex, 'hex')]), format: 'der', type: 'spki' });
   }
-  return (signatureHex, timestamp, body) => {
-    if (!key || typeof signatureHex !== 'string' || !/^[0-9a-fA-F]{128}$/.test(signatureHex)) return false;
-    if (typeof timestamp !== 'string' || !/^\d{1,12}$/.test(timestamp)) return false;
-    if (Math.abs(now() / 1000 - Number(timestamp)) > MAX_AGE_S) return false;
+  const check = (signatureHex, timestamp, body) => {
+    check.reason = '';
+    if (!key) { check.reason = 'clé publique absente ou mal formée (64 caractères hexadécimaux attendus)'; return false; }
+    if (typeof signatureHex !== 'string' || !/^[0-9a-fA-F]{128}$/.test(signatureHex)) { check.reason = 'en-tête X-Signature-Ed25519 absent ou mal formé'; return false; }
+    if (typeof timestamp !== 'string' || !/^\d{1,12}$/.test(timestamp)) { check.reason = 'en-tête X-Signature-Timestamp absent ou mal formé'; return false; }
+    const skew = Math.round(now() / 1000 - Number(timestamp));
+    if (Math.abs(skew) > MAX_AGE_S) { check.reason = `horodatage hors délai (écart de ${skew} s : l'horloge du serveur est-elle à l'heure ?)`; return false; }
     try {
-      return verify(null, Buffer.concat([Buffer.from(timestamp), body]), key, Buffer.from(signatureHex, 'hex'));
+      const ok = verify(null, Buffer.concat([Buffer.from(timestamp), body]), key, Buffer.from(signatureHex, 'hex'));
+      if (!ok) check.reason = 'la signature ne correspond pas à la clé publique configurée (clé d\'une autre application ?)';
+      return ok;
     } catch {
+      check.reason = 'vérification impossible';
       return false;
     }
   };
+  check.reason = '';
+  return check;
 }
 
 /** Neutralise le Markdown et les mentions dans un texte venant d'un joueur. */

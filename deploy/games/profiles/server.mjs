@@ -478,7 +478,10 @@ export function createProfileService(options = {}) {
         const chunks = []; let size = 0;
         for await (const c of req) { size += c.length; if (size > 16_384) return respond(res, 413, { error: 'Trop gros.' }); chunks.push(c); }
         const raw = Buffer.concat(chunks);
-        if (!verifyDiscord(req.headers['x-signature-ed25519'], req.headers['x-signature-timestamp'], raw)) return respond(res, 401, { error: 'Signature invalide.' });
+        if (!verifyDiscord(req.headers['x-signature-ed25519'], req.headers['x-signature-timestamp'], raw)) {
+          console.error(`[profils] discord refusé : ${verifyDiscord.reason}`); // jamais la clé ni la signature
+          return respond(res, 401, { error: 'Signature invalide.' });
+        }
         let interaction;
         try { interaction = JSON.parse(raw.toString('utf8')); } catch { return respond(res, 400, { error: 'Requête invalide.' }); }
         return respond(res, 200, handleInteraction(interaction, () => ({ board: siteBoard(), players: sitePlayers() })));
