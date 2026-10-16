@@ -857,6 +857,22 @@ def leaderboards(db, now, hidden, profiles=None, extra_unlocks=None):
     return public, admin
 
 
+def publish_cards(fiches, root, state):
+    """Cartes de profil partageables (glsc_cards.py, nécessite Pillow : sans lui, l'étape est ignorée)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    try:
+        import glsc_cards
+    except ImportError as e:
+        if not state.get("cards_missing"):
+            log("cartes de profil ignorées :", e)
+        state["cards_missing"] = True
+        return 0
+    state.pop("cards_missing", None)
+    return glsc_cards.publish(fiches["players"], root, os.path.join(here, "cards", "fonts"), state.setdefault("cards", {}))
+
+
 def players_page(db, now, hidden, profiles, extras=None):
     """Fiches publiques des profils (players.json) : statistiques par jeu et succès, sans rien de privé."""
     ids = identities(profiles)
@@ -887,6 +903,7 @@ def players_page(db, now, hidden, profiles, extras=None):
         entry["titles"] = extras.get("titles", {}).get(pid, [])
         entry["daily"] = extras.get("daily", {}).get(pid, {"streak": 0, "best": 0, "done": False, "progress": 0})
         entry["history"] = extras.get("history", {}).get(pid, [])
+        entry["rivals"] = extras.get("rivals", {}).get(pid, {})
         for game, st in extras.get("month_stats", {}).get(pid, {}).items():
             if game in entry["games"]:
                 entry["games"][game]["month"] = st
@@ -1000,6 +1017,35 @@ def compute_extras(db, now, hidden, profiles):
                                                     "n": len(m["players"]), "with": others[:5]})
     history = {pid: rows[-20:][::-1] for pid, rows in history.items()}
 
+    # rivalités : sur les parties jouées ensemble entre profils visibles, qui bat qui (au moins 3 duels)
+    duels = {}
+    for m in matches.values():
+        ps = [(w[2:], r, won) for (w, r, won) in m["players"] if w.startswith("p:") and w[2:] in live and visible(w)]
+        for i, (a, ra, wa) in enumerate(ps):
+            for b, rb, wb in ps[i + 1:]:
+                if a == b:
+                    continue
+                if ra > 0 and rb > 0 and ra != rb:
+                    a_wins = ra < rb
+                elif wa != wb:
+                    a_wins = bool(wa)
+                else:
+                    continue
+                for x, y, x_wins in ((a, b, a_wins), (b, a, not a_wins)):
+                    d = duels.setdefault(x, {}).setdefault(y, [0, 0])
+                    d[0 if x_wins else 1] += 1
+    rivals = {}
+    for pid, vs in duels.items():
+        out = {}
+        nemesis = sorted(((o, w, l) for o, (w, l) in vs.items() if w + l >= 3 and l > w), key=lambda r: (r[1] - r[2], -(r[1] + r[2])))
+        victim = sorted(((o, w, l) for o, (w, l) in vs.items() if w + l >= 3 and w > l), key=lambda r: (-(r[1] - r[2]), -(r[1] + r[2])))
+        for label, rows in (("nemesis", nemesis), ("victim", victim)):
+            if rows:
+                o, w, l = rows[0]
+                out[label] = {"name": live[o]["name"], "wins": w, "losses": l}
+        if out:
+            rivals[pid] = out
+
     # défis du jour
     ch_today = challenge_for(today)
     daily, unlocks = {}, {}
@@ -1030,7 +1076,7 @@ def compute_extras(db, now, hidden, profiles):
         if got:
             unlocks[who] = got
     return {"challenge": {**ch_today, "date": today.isoformat()}, "champions": champions, "titles": titles,
-            "month_stats": month_stats, "history": history, "daily": daily, "unlocks": unlocks}
+            "month_stats": month_stats, "history": history, "rivals": rivals, "daily": daily, "unlocks": unlocks}
 
 # ---------------------------------------------------------------- tableau de bord des joueurs (admin)
 def player_stats(db, now, hidden, profiles, pub_dir):
@@ -1418,6 +1464,8 @@ def collect(args):
     fiches = step("profils", lambda: players_page(db, now, hidden, profiles, extras))
     if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
         write_json(os.path.join(os.path.dirname(args.leaderboard_json), "players.json"), fiches, mode=0o644)
+    if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
+        step("cartes de profil", lambda: publish_cards(fiches, os.path.dirname(args.leaderboard_json), state))
     sec = {"at": now, "fail2ban": step("fail2ban", fail2ban)}
     write_json(pub("security"), sec, gid)
     if now - state.get("changelog_at", 0) >= 2400 and not args.offline and os.path.isdir(os.path.dirname(args.leaderboard_json)):

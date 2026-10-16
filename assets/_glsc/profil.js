@@ -193,6 +193,38 @@
       histBox.append(ul);
     }
 
+    // rivalités
+    var rivBox = el('div', 'box c-coral');
+    rivBox.append(el('h3', null, 'Mes rivalités'));
+    var rv = (fiche && fiche.rivals) || {};
+    if (!rv.nemesis && !rv.victim) rivBox.append(el('p', null, 'Joue au moins 3 parties contre le même joueur pour voir apparaître ton meilleur ennemi ou ta victime favorite.'));
+    [['nemesis', '😈 Meilleur ennemi'], ['victim', '🎯 Victime favorite']].forEach(function (k) {
+      var r = rv[k[0]];
+      if (!r) return;
+      var line = el('p', 'rival');
+      line.append(el('strong', null, k[1] + ' : ' + r.name), el('span', 'muted', ' · ' + r.wins + ' victoire' + (r.wins > 1 ? 's' : '') + ' – ' + r.losses + ' défaite' + (r.losses > 1 ? 's' : '') + ' en face à face'));
+      rivBox.append(line);
+    });
+
+    // carte à partager
+    var cardBox = el('div', 'box c-lilac span-2');
+    cardBox.append(el('h3', null, 'Ma carte à partager'));
+    if (fiche && /^[0-9a-f]{16}$/.test(p.pid || '')) {
+      var link = 'https://games.glsc.fr/j/' + p.pid + '/';
+      var img = el('img', 'share-card'); img.src = '/cartes/' + p.pid + '.png'; img.alt = 'Ma carte de profil'; img.width = 1200; img.height = 630; img.loading = 'lazy';
+      img.style.cssText = 'width:100%;height:auto;border:3px solid #111;box-shadow:5px 5px 0 #111;background:#FFFDF0';
+      img.addEventListener('error', function () { img.hidden = true; });
+      var share = el('div', 'btn-row');
+      share.append(button('Copier le lien 📋', 'primary', function (b) {
+        return (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(function () {
+          b.textContent = 'Lien copié ✓'; setTimeout(function () { b.textContent = 'Copier le lien 📋'; }, 1500);
+        }, function () { window.prompt('Copie ce lien :', link); });
+      }));
+      var dl = el('a', 'pbtn', 'Télécharger l’image'); dl.href = '/cartes/' + p.pid + '.png'; dl.download = 'ma-carte-glsc.png'; dl.style.cssText = 'text-decoration:none;display:inline-block';
+      share.append(dl);
+      cardBox.append(el('p', null, 'Colle le lien dans Discord ou WhatsApp : la carte s’affiche toute seule. Elle se met à jour après chaque partie.'), img, share);
+    } else cardBox.append(el('p', null, 'Ta carte apparaît ici après ta première partie (comptez quelques minutes).'));
+
     // équipes
     var crewsBox = viewCrews();
 
@@ -227,7 +259,7 @@
     }));
 
     var grid = el('div', 'profil-grid');
-    grid.append(stats, dailyBox, ach, histBox, crewsBox, manage, danger);
+    grid.append(stats, dailyBox, ach, histBox, rivBox, cardBox, crewsBox, manage, danger);
     show([head, grid]);
   }
 

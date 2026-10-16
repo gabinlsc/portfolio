@@ -288,3 +288,55 @@ test('signalement : message trop court, origine inconnue, pas de flot', async ()
   for (let i = 0; i < 7; i++) last = await post('/report', { game: 'plus4', message: `bug numéro ${i}` }, { ip: '31.0.0.3' });
   assert.equal(last.status, 429);
 });
+
+// ---------------------------------------------------------------- bot Discord
+test('bot Discord : signature Ed25519, ping, /classement, /profil, /defi', async () => {
+  const { generateKeyPairSync, sign } = await import('node:crypto');
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const pubHex = publicKey.export({ format: 'der', type: 'spki' }).subarray(-32).toString('hex');
+  const site = mkdtempSync(join(tmpdir(), 'site-discord-'));
+  const data = mkdtempSync(join(tmpdir(), 'profils-discord-'));
+  writeFileSync(join(site, 'leaderboard.json'), JSON.stringify({
+    daily: { text: 'Gagne une partie de +4', goal: 1 },
+    games: { uno: { week: { top: [{ name: 'Léa *gras*', wins: 5, played: 9 }, { name: 'Tom', wins: 2, played: 4 }] } } },
+  }));
+  writeFileSync(join(site, 'players.json'), JSON.stringify({ players: {
+    '0123456789abcdef': { name: 'Léa', games: { uno: { played: 9, wins: 5 } }, achievements: [{ id: 'a' }], titles: [], daily: { streak: 3 }, rivals: { nemesis: { name: 'Tom', wins: 0, losses: 3 } } },
+  } }));
+  const bot = createProfileService({ dataDir: data, siteDir: site, discordPublicKey: pubHex });
+  const off = createProfileService({ dataDir: mkdtempSync(join(tmpdir(), 'profils-off-')), siteDir: site });
+  await bot.listen(0, 0, '127.0.0.1', '127.0.0.1');
+  await off.listen(0, 0, '127.0.0.1', '127.0.0.1');
+  try {
+    const url = `http://127.0.0.1:${bot.publicServer.address().port}/discord`;
+    const call = (payload, { ts = String(Math.floor(Date.now() / 1000)), badSig = false, base = url } = {}) => {
+      const body = Buffer.from(JSON.stringify(payload));
+      const sig = sign(null, Buffer.concat([Buffer.from(ts), body]), privateKey).toString('hex');
+      return fetch(base, { method: 'POST', headers: { 'content-type': 'application/json', 'x-signature-ed25519': badSig ? '0'.repeat(128) : sig, 'x-signature-timestamp': ts }, body });
+    };
+    assert.deepEqual(await (await call({ type: 1 })).json(), { type: 1 });
+    assert.equal((await call({ type: 1 }, { badSig: true })).status, 401);
+    assert.equal((await call({ type: 1 }, { ts: String(Math.floor(Date.now() / 1000) - 3600) })).status, 401);
+    const unsigned = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"type":1}' });
+    assert.equal(unsigned.status, 401);
+    // sans clé configurée, tout est refusé
+    assert.equal((await call({ type: 1 }, { base: `http://127.0.0.1:${off.publicServer.address().port}/discord` })).status, 401);
+
+    const top = await (await call({ type: 2, data: { name: 'classement', options: [{ name: 'jeu', value: 'uno' }, { name: 'periode', value: 'week' }] } })).json();
+    assert.equal(top.type, 4);
+    assert.deepEqual(top.data.allowed_mentions, { parse: [] });
+    assert.match(top.data.embeds[0].description, /🥇 \*\*Léa \\\*gras\\\*\*\* · 5 victoires/);
+    const bad = await (await call({ type: 2, data: { name: 'classement', options: [{ name: 'jeu', value: '__proto__' }] } })).json();
+    assert.match(bad.data.embeds[0].title, /\+4/); // valeur inconnue → défaut
+
+    const prof = await (await call({ type: 2, data: { name: 'profil', options: [{ name: 'pseudo', value: ' LEA ' }] } })).json();
+    assert.match(prof.data.embeds[0].description, /9\*\* parties/);
+    assert.match(prof.data.embeds[0].description, /meilleur ennemi : Tom/);
+    assert.equal(prof.data.embeds[0].image.url, 'https://games.glsc.fr/cartes/0123456789abcdef.png');
+    const none = await (await call({ type: 2, data: { name: 'profil', options: [{ name: 'pseudo', value: 'inconnu' }] } })).json();
+    assert.equal(none.data.flags, 64);
+
+    const daily = await (await call({ type: 2, data: { name: 'defi' } })).json();
+    assert.match(daily.data.embeds[0].description, /Gagne une partie de \+4/);
+  } finally { bot.close(); off.close(); rmSync(site, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); }
+});

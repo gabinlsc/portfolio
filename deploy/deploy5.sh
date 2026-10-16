@@ -51,11 +51,11 @@ else
   SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
 fi
 for f in deploy/deploy4.sh admin/lib/router.php admin/lib/click.php admin/public/index.php admin/public/assets/app.js \
-         admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py admin/bin/glsc-recap admin/bin/glsc-backup-setup \
+         admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py admin/collector/glsc_cards.py admin/bin/glsc-recap admin/bin/glsc-backup-setup \
          admin/systemd/glsc-admin-collect.service admin/systemd/glsc-admin-collect.timer admin/systemd/glsc-admin-queue.path \
          admin/systemd/glsc-admin-queue.service admin/systemd/glsc-deploy.path admin/systemd/glsc-deploy.service admin/systemd/glsc-backup.service admin/systemd/glsc-backup.timer deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
          deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css \
-         deploy/install-404.sh deploy/nginx/glsc-404.inc errors/404.html; do
+         deploy/install-404.sh deploy/nginx/glsc-404.inc errors/404.html deploy/games/cards/fonts/fredoka-latin-700-normal.ttf; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
 ok "archive complète"
@@ -79,6 +79,7 @@ need=()
 command -v php >/dev/null || need+=("php${PHP_VER}-cli")
 php -m 2>/dev/null | grep -qi '^pdo_sqlite$' || need+=("php${PHP_VER}-sqlite3")
 command -v qrencode >/dev/null || need+=(qrencode)
+python3 -c 'import PIL' 2>/dev/null || need+=(python3-pil)   # cartes de profil partageables
 if [ "${GLSC_NO_FAIL2BAN:-0}" != 1 ] && ! command -v fail2ban-client >/dev/null; then need+=(fail2ban); fi
 if [ ${#need[@]} -gt 0 ]; then
   apt-get update -qq >/dev/null 2>&1 || true
@@ -101,6 +102,9 @@ rm -rf "${OPT:?}/lib.new"; cp -r "$SRC/admin/lib" "$OPT/lib.new"
 find "$OPT/lib.new" -type d -exec chmod 755 {} + ; find "$OPT/lib.new" -type f -exec chmod 644 {} +
 rm -rf "${OPT:?}/lib.old"; mv "$OPT/lib" "$OPT/lib.old"; mv "$OPT/lib.new" "$OPT/lib"; rm -rf "${OPT:?}/lib.old"
 install -m 755 "$SRC/admin/collector/glsc_admin_collect.py" "$OPT/glsc_admin_collect.py"
+install -m 644 "$SRC/admin/collector/glsc_cards.py" "$OPT/glsc_cards.py"
+install -d -m 755 "$OPT/cards/fonts"
+install -m 644 "$SRC"/deploy/games/cards/fonts/*.ttf "$OPT/cards/fonts/"
 install -m 755 "$SRC/admin/bin/glsc-admin-setup" /usr/local/sbin/glsc-admin-setup
 install -m 755 "$SRC/admin/bin/glsc-recap" /usr/local/sbin/glsc-recap   # récap Discord à la demande
 install -m 755 "$SRC/admin/bin/glsc-backup-setup" /usr/local/sbin/glsc-backup-setup   # sauvegardes chiffrées
