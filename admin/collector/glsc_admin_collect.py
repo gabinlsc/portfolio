@@ -113,7 +113,7 @@ CREATE INDEX IF NOT EXISTS games_ts ON games(ts);
 CREATE TABLE IF NOT EXISTS ssh (ts INTEGER NOT NULL, ip TEXT NOT NULL, user TEXT NOT NULL, kind TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS ssh_ts ON ssh(ts);
 CREATE TABLE IF NOT EXISTS results (ts INTEGER NOT NULL, game TEXT NOT NULL, match TEXT NOT NULL, mode TEXT NOT NULL, name TEXT NOT NULL,
-  key TEXT NOT NULL, rank INTEGER NOT NULL, won INTEGER NOT NULL, role TEXT, kills INTEGER, deaths INTEGER, assists INTEGER);
+  key TEXT NOT NULL, rank INTEGER NOT NULL, won INTEGER NOT NULL, role TEXT, kills INTEGER, deaths INTEGER, assists INTEGER, pid TEXT);
 CREATE INDEX IF NOT EXISTS results_game_ts ON results(game, ts);
 """
 
@@ -686,9 +686,10 @@ def ingest_results(db, state, data_dir, now):
                 if not name:
                     continue
                 num = lambda k: int(p[k]) if isinstance(p.get(k), (int, float)) else None  # noqa: E731
-                db.execute("INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                pid = p.get("pid") if isinstance(p.get("pid"), str) and re.fullmatch(r"[0-9a-f]{16}", p["pid"]) else None
+                db.execute("INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                            (t, game, match, mode, name, name_key(name), num("rank") or 0, 1 if p.get("won") is True else 0,
-                            str(p["role"])[:20] if isinstance(p.get("role"), str) else None, num("kills"), num("deaths"), num("assists")))
+                            str(p["role"])[:20] if isinstance(p.get("role"), str) else None, num("kills"), num("deaths"), num("assists"), pid))
                 added += 1
         offsets[game] = {"ino": st.st_ino, "off": start + end}
     return added
@@ -715,13 +716,51 @@ ACHIEVEMENTS = [
 ]
 
 
-def unlock_achievements(db):
-    """Rejoue l'historique des parties dans l'ordre : {clé du pseudo: {id du succès: date de déblocage}} et dernier pseudo vu."""
+def load_profiles(games_data):
+    """Profils des joueurs (écrits par le service « profiles ») : ({pid: {name, key, since}}, pseudos et identifiants supprimés).
+    Fichier absent ou illisible : aucun profil, donc tout le monde est compté comme avant, par pseudo."""
+    data = load_json(os.path.join(games_data, "profiles", "profiles.json"), {})
+    live, gone_keys, gone_pids = {}, set(), set()
+    for pid, p in (data.get("profiles") or {}).items():
+        if not isinstance(p, dict):
+            continue
+        if p.get("deleted"):
+            gone_pids.add(pid)
+            if p.get("key"):
+                gone_keys.add(p["key"])
+        elif p.get("name") and p.get("key"):
+            live[pid] = {"name": p["name"], "key": p["key"], "since": int(p.get("createdAt", 0) // 1000)}
+    return live, gone_keys, gone_pids
+
+
+def identities(profiles):
+    live, gone_keys, gone_pids = profiles
+    return live, {p["key"]: pid for pid, p in live.items()}, gone_pids, gone_keys
+
+
+def ident_of(pid, key, live, by_key, deleted, gone_keys):
+    """Qui est derrière une ligne de résultat : « p:<pid> » pour un profil (y compris l'historique joué sous son pseudo
+    avant de le réserver), sinon la clé du pseudo comme avant. Les parties d'un profil supprimé disparaissent."""
+    if pid in deleted:
+        return None
+    if pid in live:
+        return "p:" + pid
+    if key in by_key:
+        return "p:" + by_key[key]
+    return None if key in gone_keys else key
+
+
+def unlock_achievements(db, ids):
+    """Rejoue l'historique des parties dans l'ordre : {identité: {id du succès: date de déblocage}} et dernier pseudo vu."""
+    live, by_key, deleted, gone_keys = ids
     states, unlocked, names = {}, {}, {}
-    for ts, game, key, name, won, role, kills in db.execute("SELECT ts, game, key, name, won, role, kills FROM results ORDER BY ts, rowid"):
-        st = states.setdefault((key, game), {"played": 0, "wins": 0, "streak": 0, "best_streak": 0, "president": 0, "pres_streak": 0, "pres_run": 0,
-                                             "trouduc": 0, "kills": 0, "best_kills": 0, "games": 0})
-        names[key] = name
+    for ts, game, key, name, won, role, kills, pid in db.execute("SELECT ts, game, key, name, won, role, kills, pid FROM results ORDER BY ts, rowid"):
+        who = ident_of(pid, key, live, by_key, deleted, gone_keys)
+        if who is None:
+            continue
+        st = states.setdefault((who, game), {"played": 0, "wins": 0, "streak": 0, "best_streak": 0, "president": 0, "pres_streak": 0, "pres_run": 0,
+                                              "trouduc": 0, "kills": 0, "best_kills": 0, "games": 0})
+        names[who] = live[who[2:]]["name"] if who.startswith("p:") and who[2:] in live else name
         st["played"] += 1
         st["wins"] += won
         st["streak"] = st["streak"] + 1 if won else 0
@@ -735,44 +774,67 @@ def unlock_achievements(db):
         st["trouduc"] += 1 if role == "trouduc" else 0
         st["kills"] += kills or 0
         st["best_kills"] = max(st["best_kills"], kills or 0)
-        mine = unlocked.setdefault(key, {})
-        st["games"] = sum(1 for g in GAMES if (key, g) in states)
+        mine = unlocked.setdefault(who, {})
+        st["games"] = sum(1 for g in GAMES if (who, g) in states)
         for aid, agame, _, _, _, cond in ACHIEVEMENTS:
             if aid not in mine and (agame == game or agame == "all") and cond(st):
                 mine[aid] = ts
     return unlocked, names
 
 
-def leaderboards(db, now, hidden):
-    """Classements par jeu, sur 7 jours et depuis toujours. Version publique (filtrée) et version admin (tout, avec raisons)."""
+def leaderboards(db, now, hidden, profiles=None):
+    """Classements par jeu, sur 7 jours et depuis toujours. Version publique (filtrée) et version admin (tout, avec raisons).
+    Un profil regroupe toutes ses parties (renommer ne perd rien) ; sans profil, le pseudo fait foi comme avant."""
+    ids = identities(profiles or ({}, set(), set()))
+    live, by_key, deleted, gone_keys = ids
     week = now - 7 * 86400
     public, admin = {"at": now, "games": {}}, {"at": now, "games": {}}
-    unlocked, last_names = unlock_achievements(db)
-    shown = {k for k in unlocked if k not in hidden and name_ok(k)}
+    unlocked, last_names = unlock_achievements(db, ids)
+    key_of = lambda who: live[who[2:]]["key"] if who.startswith("p:") else who  # noqa: E731
+    shown = {w for w in unlocked if key_of(w) not in hidden and name_ok(key_of(w))}
     for game in GAMES:
         g_pub, g_adm = {}, {}
         for period, since in (("week", week), ("all", 0)):
-            matches, players = db.execute("SELECT COUNT(DISTINCT match), COUNT(DISTINCT key) FROM results WHERE game = ? AND ts >= ?",
-                                          (game, since)).fetchone()
-            order = "SUM(kills) DESC, SUM(deaths) ASC" if game == "vortex" else "SUM(won) DESC, COUNT(*) ASC"
-            rows = db.execute(f"""SELECT key, name, MAX(ts), COUNT(*), SUM(won), SUM(kills), SUM(deaths), SUM(assists),
-                                         SUM(role = 'president'), SUM(role = 'trouduc')
-                                  FROM results WHERE game = ? AND ts >= ? GROUP BY key ORDER BY {order}, MAX(ts) DESC LIMIT 150""",
-                                  (game, since)).fetchall()
+            agg, matches, players = {}, set(), set()
+            for ts, match, key, name, won, role, kills, deaths, assists, pid in db.execute(
+                    "SELECT ts, match, key, name, won, role, kills, deaths, assists, pid FROM results WHERE game = ? AND ts >= ? ORDER BY ts",
+                    (game, since)):
+                who = ident_of(pid, key, live, by_key, deleted, gone_keys)
+                if who is None:
+                    continue
+                matches.add(match)
+                players.add(who)
+                a = agg.setdefault(who, {"name": name, "last": 0, "played": 0, "wins": 0, "kills": 0, "deaths": 0, "assists": 0, "pres": 0, "trou": 0})
+                a.update(name=name, last=ts)
+                a["played"] += 1
+                a["wins"] += won
+                a["kills"] += kills or 0
+                a["deaths"] += deaths or 0
+                a["assists"] += assists or 0
+                a["pres"] += 1 if role == "president" else 0
+                a["trou"] += 1 if role == "trouduc" else 0
+            if game == "vortex":
+                order = lambda kv: (-kv[1]["kills"], kv[1]["deaths"], -kv[1]["last"])  # noqa: E731
+            else:
+                order = lambda kv: (-kv[1]["wins"], kv[1]["played"], -kv[1]["last"])  # noqa: E731
             board, review = [], []
-            for key, name, last, played, wins, kills, deaths, assists, pres, trou in rows:
-                entry = {"name": name, "played": played, "wins": wins or 0}
+            for who, a in sorted(agg.items(), key=order)[:150]:
+                name = live[who[2:]]["name"] if who.startswith("p:") else a["name"]
+                key = key_of(who)
+                entry = {"name": name, "played": a["played"], "wins": a["wins"]}
                 if game == "vortex":
-                    entry.update(kills=kills or 0, deaths=deaths or 0, assists=assists or 0)
+                    entry.update(kills=a["kills"], deaths=a["deaths"], assists=a["assists"])
                 if game == "president":
-                    entry.update(president=pres or 0, trouduc=trou or 0)
+                    entry.update(president=a["pres"], trouduc=a["trou"])
                 why = "masqué" if key in hidden else None if name_ok(key) else "filtré"
-                review.append({**entry, "key": key, "last": last, "hidden": why})
+                review.append({**entry, "key": key, "last": a["last"], "hidden": why, "profil": who.startswith("p:")})
                 if not why and len(board) < 10 and (entry["wins"] or entry.get("kills")):
-                    entry["badges"] = [a[0] for a in ACHIEVEMENTS if a[1] in (game, "all") and a[0] in unlocked.get(key, {})]
+                    entry["badges"] = [x[0] for x in ACHIEVEMENTS if x[1] in (game, "all") and x[0] in unlocked.get(who, {})]
+                    if who.startswith("p:"):
+                        entry["profil"] = True
                     board.append(entry)
-            g_pub[period] = {"matches": matches, "players": players, "top": board}
-            g_adm[period] = {"matches": matches, "players": players, "names": review[:100]}
+            g_pub[period] = {"matches": len(matches), "players": len(players), "top": board}
+            g_adm[period] = {"matches": len(matches), "players": len(players), "names": review[:100]}
             if game == "president":  # le titre que personne ne veut
                 worst = sorted((e for e in review if not e["hidden"] and e["trouduc"]), key=lambda e: (-e["trouduc"], e["played"]))
                 g_pub[period]["trouduc"] = {k: worst[0][k] for k in ("name", "trouduc", "played")} if worst else None
@@ -783,6 +845,34 @@ def leaderboards(db, now, hidden):
         public["achievements"].append({"id": aid, "game": agame, "emoji": emoji, "name": label, "desc": desc, "count": len(who),
                                        "recent": [{"name": n, "at": t} for t, n in who[:3]]})
     return public, admin
+
+
+def players_page(db, now, hidden, profiles):
+    """Fiches publiques des profils (players.json) : statistiques par jeu et succès, sans rien de privé."""
+    ids = identities(profiles)
+    live, by_key, deleted, gone_keys = ids
+    unlocked, _ = unlock_achievements(db, ids)
+    out = {}
+    for pid, p in live.items():
+        if p["key"] in hidden or not name_ok(p["key"]):
+            continue
+        out[pid] = {"name": p["name"], "since": p["since"], "games": {}, "achievements": []}
+    for game, key, won, role, kills, deaths, pid, ts in db.execute("SELECT game, key, won, role, kills, deaths, pid, ts FROM results ORDER BY ts"):
+        who = ident_of(pid, key, live, by_key, deleted, gone_keys)
+        if not who or not who.startswith("p:") or who[2:] not in out:
+            continue
+        g = out[who[2:]]["games"].setdefault(game, {"played": 0, "wins": 0, "kills": 0, "deaths": 0, "president": 0, "trouduc": 0, "last": 0})
+        g["played"] += 1
+        g["wins"] += won
+        g["kills"] += kills or 0
+        g["deaths"] += deaths or 0
+        g["president"] += 1 if role == "president" else 0
+        g["trouduc"] += 1 if role == "trouduc" else 0
+        g["last"] = ts
+    for pid, entry in out.items():
+        entry["achievements"] = sorted(({"id": a, "at": t} for a, t in unlocked.get("p:" + pid, {}).items()), key=lambda x: x["at"])
+    return {"at": now, "players": out}
+
 
 # ---------------------------------------------------------------- récap Discord du lundi
 SITE_NAMES = {"glsc.fr": "Hub", "cv.glsc.fr": "CV", "share.glsc.fr": "Projets", "old.glsc.fr": "Archives", "games.glsc.fr": "Salle de jeux",
@@ -974,6 +1064,8 @@ def collect(args):
     gid = www_gid()
     db = sqlite3.connect(os.path.join(args.state_dir, "work.db"))
     db.executescript(SCHEMA)
+    if "pid" not in {r[1] for r in db.execute("PRAGMA table_info(results)")}:
+        db.execute("ALTER TABLE results ADD COLUMN pid TEXT")  # profils joueurs (ajouté après coup)
     pub = lambda name: os.path.join(args.pub_dir, name + ".json")  # noqa: E731
 
     def step(name, fn):
@@ -993,11 +1085,15 @@ def collect(args):
     accepted = step("ssh", lambda: ssh_events(db, state, now)) or []
     step("résultats des jeux", lambda: ingest_results(db, state, args.games_data, now))
     hidden = set(json.loads(app_settings(args.app_db).get("games_hidden") or "[]"))
-    boards = step("classements", lambda: leaderboards(db, now, hidden))
+    profiles = load_profiles(args.games_data)
+    boards = step("classements", lambda: leaderboards(db, now, hidden, profiles))
     if boards:
         write_json(pub("leaderboard"), boards[1], gid)
         if os.path.isdir(os.path.dirname(args.leaderboard_json)):
             write_json(args.leaderboard_json, boards[0], mode=0o644)
+    fiches = step("profils", lambda: players_page(db, now, hidden, profiles))
+    if fiches and os.path.isdir(os.path.dirname(args.leaderboard_json)):
+        write_json(os.path.join(os.path.dirname(args.leaderboard_json), "players.json"), fiches, mode=0o644)
     sec = {"at": now, "fail2ban": step("fail2ban", fail2ban)}
     write_json(pub("security"), sec, gid)
     if now - state.get("github_at", 0) >= 900 and not args.offline:
