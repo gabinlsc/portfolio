@@ -3,7 +3,8 @@
 (function () {
   'use strict';
   var root = document.getElementById('profil');
-  var GAMES = { uno: '+4', president: 'Le Président', vortex: 'Vortex' };
+  var GAMES = { uno: '+4', president: 'Le Président', petitbac: 'Petit Bac', vortex: 'Vortex' };
+  var LOOK = { uno: ['c-coral', '🃏'], president: ['c-banana', '👑'], petitbac: ['c-mint', '✏️'], vortex: ['c-lilac', '🎯'] };
   var state = { profile: null, fiches: null, achievements: [], busy: false };
 
   function el(tag, cls, text) {
@@ -50,7 +51,7 @@
 
   // ---------------------------------------------------------------- invité : créer ou récupérer
   function viewGuest() {
-    var createBox = el('div', 'box');
+    var createBox = el('div', 'box c-banana');
     createBox.append(el('h3', null, 'Créer mon profil'),
       el('p', null, 'Ton pseudo est réservé : personne d’autre ne peut le prendre. Tes parties, tes stats et tes succès te suivent d’un jeu à l’autre.'));
     var name = field('Pseudo (2 à 16 caractères)', { type: 'text', maxlength: '16', minlength: '2', autocomplete: 'nickname', required: 'required' });
@@ -58,7 +59,7 @@
       return api('/create', { name: name.input.value }).then(function (r) { state.profile = r.profile; viewCode(r.recoveryCode, true); }, function (e) { fail(createBox, e); });
     }));
 
-    var recoverBox = el('div', 'box');
+    var recoverBox = el('div', 'box c-sky');
     recoverBox.append(el('h3', null, 'J’ai déjà un profil'),
       el('p', null, 'Nouvel appareil, navigateur vidé ? Entre ton code de récupération.'));
     var code = field('Code de récupération', { type: 'text', placeholder: 'GLSC-XXXX-XXXX-…', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false' });
@@ -73,7 +74,7 @@
 
   // ---------------------------------------------------------------- code de récupération (affiché une seule fois)
   function viewCode(code, first) {
-    var box = el('div', 'box');
+    var box = el('div', 'box c-mint');
     box.append(el('h3', null, first ? 'Profil créé. Note ton code !' : 'Ton nouveau code'),
       el('p', null, 'Ce code est affiché une seule fois. Il te permet de te reconnecter sur un autre appareil ou si tu vides ton navigateur. Le serveur n’en garde qu’une empreinte : nous ne pourrons pas te le redonner.'),
       el('div', 'code', code));
@@ -98,30 +99,42 @@
   function viewProfile() {
     var p = state.profile;
     var fiche = state.fiches && state.fiches[p.pid];
-    var head = el('div', 'box');
-    head.append(el('p', 'muted', 'Profil créé le ' + dateFr(p.createdAt)), el('p', 'who-name', p.name));
+    var totals = { played: 0, wins: 0 };
+    Object.keys((fiche && fiche.games) || {}).forEach(function (g) {
+      if (!GAMES[g]) return;
+      totals.played += fiche.games[g].played; totals.wins += fiche.games[g].wins;
+    });
+    var head = el('div', 'box hero-card c-banana');
+    var info = el('div');
+    info.append(el('p', 'since', 'Profil créé le ' + dateFr(p.createdAt)), el('p', 'who-name', p.name));
+    var chips = el('div', 'chips');
+    chips.append(el('span', 'pill', '🎮 ' + n(totals.played) + ' partie' + (totals.played > 1 ? 's' : '')),
+      el('span', 'pill', '🏆 ' + n(totals.wins) + ' victoire' + (totals.wins > 1 ? 's' : '')),
+      el('span', 'pill', '⭐ ' + n(fiche ? fiche.achievements.length : 0) + ' succès'));
+    info.append(chips);
+    head.append(el('div', 'avatar', p.name.slice(0, 1).toUpperCase()), info);
 
-    var stats = el('div', 'box');
+    var stats = el('div', 'box c-sky');
     stats.append(el('h3', null, 'Mes statistiques'));
     var games = fiche && Object.keys(fiche.games).filter(function (g) { return GAMES[g]; });
     if (!games || !games.length) {
       stats.append(el('p', null, 'Rien pour l’instant : lance une partie en étant connecté, les résultats arrivent ici dans la minute qui suit.'));
     } else {
-      var t = el('table', 'stat-table');
-      var tr = el('tr'); ['Jeu', 'Parties', 'Victoires', 'Détail'].forEach(function (h, i) { tr.append(el('th', i ? 'num' : null, h)); });
-      var thead = el('thead'); thead.append(tr); t.append(thead);
-      var tb = el('tbody');
+      var tiles = el('div', 'tiles');
       games.forEach(function (g) {
         var s = fiche.games[g];
-        var detail = g === 'vortex' ? n(s.kills) + ' élim. / ' + n(s.deaths) + ' morts' : g === 'president' ? n(s.president) + ' × président' : '';
-        var row = el('tr');
-        row.append(el('td', null, GAMES[g]), el('td', 'num', n(s.played)), el('td', 'num', n(s.wins)), el('td', 'num', detail));
-        tb.append(row);
+        var look = LOOK[g] || ['c-banana', '🎮'];
+        var tile = el('div', 'tile ' + look[0]);
+        var detail = g === 'vortex' ? n(s.kills) + ' élim. · ' + n(s.deaths) + ' morts' : g === 'president' ? n(s.president) + ' × président' : n(s.wins) + ' victoire' + (s.wins > 1 ? 's' : '');
+        tile.append(el('span', 't-name', look[1] + ' ' + GAMES[g]), el('span', 't-big', n(s.played)),
+          el('span', 't-sub', (g === 'president' || g === 'vortex' ? 'manche' : 'partie') + (s.played > 1 ? 's' : '') + ' jouée' + (s.played > 1 ? 's' : '')),
+          el('span', 't-sub', detail));
+        tiles.append(tile);
       });
-      t.append(tb); stats.append(t);
+      stats.append(tiles);
     }
 
-    var ach = el('div', 'box');
+    var ach = el('div', 'box c-lilac');
     ach.append(el('h3', null, 'Mes succès'));
     var got = fiche ? fiche.achievements : [];
     if (!got.length) ach.append(el('p', null, 'Aucun succès pour l’instant. Ça viendra vite.'));
@@ -139,7 +152,7 @@
     }
 
     // gestion
-    var manage = el('div', 'box');
+    var manage = el('div', 'box c-mint');
     manage.append(el('h3', null, 'Mon compte'));
     var rn = field('Changer de pseudo', { type: 'text', maxlength: '16', minlength: '2', autocomplete: 'off' });
     var wait = p.canRenameAt > Date.now();
@@ -160,7 +173,7 @@
       }));
     manage.append(row1, row2);
 
-    var danger = el('div', 'box');
+    var danger = el('div', 'box c-coral');
     danger.append(el('h3', null, 'Supprimer mon profil'),
       el('p', null, 'Efface ton profil, tes sessions et ton code, et retire tes parties des classements et de ta fiche. Définitif.'));
     var conf = field('Tape ton pseudo (« ' + p.name + ' ») pour confirmer', { type: 'text', autocomplete: 'off' });

@@ -234,7 +234,24 @@
     .stat-table th { text-align: left; font: 700 .72rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .06em; padding: .35rem .4rem; border-bottom: var(--bd); }
     .stat-table td { padding: .45rem .4rem; border-bottom: 2px dashed #0002; }
     .stat-table .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .box .who-name { font: 700 clamp(1.6rem, 6vw, 2.4rem)/1 var(--font-display); overflow-wrap: anywhere; }
+    .c-banana { background: var(--banana); }
+    .c-mint { background: var(--mint); }
+    .c-sky { background: var(--sky); }
+    .c-lilac { background: var(--lilac); }
+    .c-coral { background: var(--coral); }
+    .c-peach { background: var(--peach); }
+    .box h3 { justify-self: start; background: #fff; border: var(--bd); border-radius: 999px; padding: .2rem .9rem; box-shadow: var(--sh-sm); transform: rotate(-1.5deg); }
+    .box.hero-card { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; padding: 1.1rem 1.25rem; border-width: 4px; box-shadow: var(--sh-lg); }
+    .avatar { width: 4.6rem; height: 4.6rem; display: grid; place-items: center; background: var(--coral); border: var(--bd-lg); border-radius: 50%; box-shadow: var(--sh); font: 700 2.3rem/1 var(--font-display); transform: rotate(-6deg); }
+    .hero-card .since { margin: 0; font-weight: 600; opacity: .8; font-size: .9rem; }
+    .hero-card .chips { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .5rem; }
+    .pill { display: inline-flex; align-items: center; gap: .35rem; background: #fff; border: 2px solid #000; border-radius: 999px; padding: .1rem .7rem; font-weight: 700; font-size: .85rem; }
+    .tiles { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); }
+    .tile { display: grid; gap: .15rem; align-content: start; padding: .7rem .8rem; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh-sm); min-width: 0; }
+    .tile .t-name { font: 700 1rem/1.1 var(--font-display); }
+    .tile .t-big { font: 700 2.4rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+    .tile .t-sub { font-size: .8rem; font-weight: 600; opacity: .85; }
+    .box .who-name { margin: 0; font: 700 clamp(1.6rem, 6vw, 2.4rem)/1 var(--font-display); overflow-wrap: anywhere; }
   </style>
 </head>
 
