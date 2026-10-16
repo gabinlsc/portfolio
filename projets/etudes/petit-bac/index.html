@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'" />
+  <title>Petit Bac, des règles partagées · Étude de cas</title>
+  <meta name="description" content="Petit Bac multijoueur sur téléphone. Le serveur tient les phases et les chronos ; les règles de score vivent dans un paquet partagé entre le serveur et le client." />
+  <link rel="canonical" href="https://share.glsc.fr/etudes/petit-bac/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Petit Bac, des règles partagées · Étude de cas" />
+  <meta property="og:description" content="Petit Bac multijoueur sur téléphone. Le serveur tient les phases et les chronos ; les règles de score vivent dans un paquet partagé entre le serveur et le client." />
+  <meta property="og:url" content="https://share.glsc.fr/etudes/petit-bac/" />
+  <meta property="og:image" content="https://glsc.fr/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="#FFFDF0" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='%23FFD84D' stroke='%23000' stroke-width='5'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='24' text-anchor='middle'%3EGL%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/_glsc/fonts.css" />
+  <style>
+    :root { --cream: #FFFDF0; --ink: #111; --banana: #FFD84D; --mint: #7BE0AD; --lilac: #C3A6FF; --sky: #8FD3FF; --coral: #FF9478; --peach: #FFC9A8;
+      --font-display: 'Fredoka', 'Arial Rounded MT Bold', system-ui, sans-serif; --font-body: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif; --bd: 3px solid #000; --sh: 4px 4px 0 #000; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font-body); color: var(--ink); background-color: var(--cream); background-image: radial-gradient(#00000014 1.2px, transparent 1.2px); background-size: 22px 22px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    h1, h2, h3, p, ul { margin: 0; } ul { padding: 0; list-style: none; } a { color: inherit; }
+    :focus-visible { outline: 3px dashed #000; outline-offset: 4px; }
+    .wrap { max-width: 56rem; margin: 0 auto; padding: 1.25rem 1rem 4rem; }
+    .back { display: inline-block; font: 700 .95rem/1 var(--font-display); text-decoration: none; background: #fff; border: var(--bd); border-radius: 999px; padding: .6rem 1rem; box-shadow: 2px 2px 0 #000; }
+    .back:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
+    header.hero { margin-top: 1.5rem; padding: 1.5rem; background: var(--mint); border: var(--bd); border-radius: 1.25rem; box-shadow: 6px 6px 0 #000; }
+    .eyebrow { font: 700 .8rem/1 var(--font-display); text-transform: uppercase; letter-spacing: .08em; }
+    h1 { font: 700 clamp(1.9rem, 6vw, 3rem)/1.1 var(--font-display); margin: .6rem 0 .8rem; }
+    .lead { font-size: 1.1rem; max-width: 42rem; }
+    .stack { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 1rem; }
+    .stack span { font: 700 .8rem/1 var(--font-display); background: #fff; border: 2px solid #000; border-radius: 999px; padding: .35rem .7rem; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+    .fact { background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh); padding: .9rem 1rem; }
+    .fact:nth-child(2) { background: var(--sky); } .fact:nth-child(3) { background: var(--lilac); }
+    .fact strong { display: block; font: 700 1.9rem/1.1 var(--font-display); }
+    .fact span { font-size: .9rem; }
+    .block { margin-top: 2.25rem; }
+    h2 { font: 700 1.6rem/1.2 var(--font-display); margin-bottom: 1rem; }
+    .prose { display: grid; gap: .9rem; max-width: 44rem; }
+    .choices { display: grid; gap: 1rem; }
+    .choice { background: #fff; border: var(--bd); border-radius: 1rem; box-shadow: var(--sh); padding: 1rem 1.15rem; }
+    .choice:nth-child(4n+1) { background: var(--peach); } .choice:nth-child(4n+2) { background: #fff; } .choice:nth-child(4n+3) { background: var(--sky); } .choice:nth-child(4n) { background: var(--mint); }
+    .choice h3 { font: 700 1.15rem/1.3 var(--font-display); margin-bottom: .35rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; background: #0000000f; border-radius: .3em; padding: .05em .3em; }
+    .links { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2.5rem; }
+    .links a { font: 700 1rem/1 var(--font-display); text-decoration: none; background: var(--mint); border: var(--bd); border-radius: 999px; padding: .8rem 1.2rem; box-shadow: var(--sh); }
+    .links a + a { background: #fff; }
+    .links a:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
+    nav.more { margin-top: 2.5rem; font-size: .95rem; }
+    nav.more a { font-weight: 700; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">← Tous les projets</a>
+    <header class="hero">
+      <p class="eyebrow">Étude de cas</p>
+      <h1>Petit Bac, des règles partagées</h1>
+      <p class="lead">Petit Bac multijoueur sur téléphone. Le serveur tient les phases et les chronos ; les règles de score vivent dans un paquet partagé entre le serveur et le client.</p>
+      <div class="stack"><span>TypeScript</span><span>React</span><span>Socket.IO</span><span>Zod</span><span>PWA</span><span>pnpm workspaces</span></div>
+    </header>
+    <div class="facts">
+      <div class="fact"><strong>2 à 8</strong><span>joueurs</span></div>
+      <div class="fact"><strong>10 / 5</strong><span>points par réponse</span></div>
+      <div class="fact"><strong>PB-XXXX</strong><span>code de salon</span></div>
+    </div>
+    <main>
+      <section class="block">
+        <h2>Le point de départ</h2>
+        <div class="prose">
+        <p>C’est le jeu que j’ai écrit en dernier, avec ce que j’avais appris sur les autres : serveur autoritaire dès le premier jour, et une interface pensée d’abord pour un téléphone tenu d’une main, autour d’une table.</p>
+        </div>
+      </section>
+      <section class="block">
+        <h2>Les choix qui comptent</h2>
+        <div class="choices">
+        <div class="choice"><h3>Un paquet partagé</h3><p>Les constantes, les schémas Zod, le protocole et les règles pures (valider une réponse, détecter un doublon, compter les points) vivent dans un paquet commun. Le client s’en sert pour afficher, le serveur pour décider : les deux ne peuvent pas diverger.</p></div>
+        <div class="choice"><h3>Des réponses secrètes jusqu’à la relecture</h3><p>Tant que la manche dure, le serveur n’envoie à personne les réponses des autres. On ne peut pas copier son voisin, même en ouvrant les outils du navigateur.</p></div>
+        <div class="choice"><h3>Un doublon, c’est subtil</h3><p>Pour décider si deux joueurs ont donné la même réponse, on ignore les accents, la casse, le pluriel et l’article devant (« l’éléphant » vaut « éléphant »). Une réponse unique rapporte 10 points, une réponse partagée 5.</p></div>
+        <div class="choice"><h3>Les joueurs jugent</h3><p>Pendant la relecture, tout le monde voit toutes les réponses et peut refuser les douteuses. Une réponse n’est invalidée que si plus de la moitié des autres joueurs la refusent : un seul rabat-joie ne suffit pas.</p></div>
+        </div>
+      </section>
+      <section class="block">
+        <h2>Ce qui a été difficile</h2>
+        <div class="prose">
+        <p>Le chrono. Le premier qui finit crie « Bac ! » et les autres ont dix secondes : c’est le serveur qui tient l’horloge et qui clôt la manche, pas les clients. Il fallait gérer en même temps les joueurs qui se déconnectent en pleine manche et le moment où le dernier vote arrive.</p>
+        </div>
+      </section>
+      <section class="block">
+        <h2>Ce que je ferais autrement</h2>
+        <div class="prose">
+        <p>La validation des mots reste humaine (le vote). Un dictionnaire embarqué aiderait à départager, mais poserait des questions de langue et de mots familiers ; je préfère laisser la table trancher, tant que c’est amusant.</p>
+        </div>
+      </section>
+    </main>
+    <div class="links"><a href="https://petitbac.glsc.fr" target="_blank" rel="noopener noreferrer">Jouer</a><a href="https://github.com/gabinlsc/petitbac" target="_blank" rel="noopener noreferrer">Voir le code</a></div>
+    <nav class="more" aria-label="Autres études de cas">Autres études de cas : <a href="/etudes/salle-de-jeux/">La salle de jeux GLSC</a> · <a href="/etudes/plus4/">+4, un jeu de cartes en temps réel</a> · <a href="/etudes/president/">Le Président, une machine à états</a></nav>
+  </div>
+</body>
+</html>

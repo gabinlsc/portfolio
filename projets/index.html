@@ -432,6 +432,12 @@
     /* ---------- Filtres ---------- */
     .tools { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1rem; }
     .chips { display: flex; flex-wrap: wrap; gap: .6rem; }
+    .etudes { margin: 1.75rem 0 1.5rem; }
+    .etudes h2 { display: flex; align-items: center; gap: .5rem; font: 700 1.3rem/1.2 var(--font-display); margin: 0 0 .35rem; }
+    .etudes p { margin: 0 0 .9rem; max-width: 42rem; }
+    .etudes-list { display: flex; flex-wrap: wrap; gap: .75rem; }
+    .etude { font: 700 .95rem/1.2 var(--font-body); color: var(--ink); text-decoration: none; background: var(--bg, #fff); border: var(--bd); border-radius: 999px; padding: .6rem 1rem; box-shadow: var(--sh-sm); transition: transform 150ms var(--spring), box-shadow 150ms ease-out; }
+    .etude:hover, .etude:focus-visible { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #000; }
     .chip {
       display: inline-flex; align-items: center; gap: .4rem;
       font: 700 .95rem/1 var(--font-body); color: var(--ink);
@@ -606,6 +612,17 @@
       </div>
     </div>
 
+    <section class="etudes rise" style="--i:3" aria-labelledby="etudes-title">
+      <h2 id="etudes-title"><i data-lucide="book-open" class="icon"></i> Études de cas</h2>
+      <p>Pas seulement ce que j’ai fait : pourquoi je l’ai fait comme ça, ce qui a été difficile, ce que je referais autrement.</p>
+      <div class="etudes-list">
+        <a class="etude" href="/etudes/salle-de-jeux/" style="--bg:var(--banana)">La salle de jeux GLSC</a>
+        <a class="etude" href="/etudes/plus4/" style="--bg:var(--coral)">+4, jeu de cartes en temps réel</a>
+        <a class="etude" href="/etudes/president/" style="--bg:var(--lilac)">Le Président, une machine à états</a>
+        <a class="etude" href="/etudes/petit-bac/" style="--bg:var(--mint)">Petit Bac, des règles partagées</a>
+      </div>
+    </section>
+
     <section class="gh-feed rise" style="--i:3" id="gh-feed" hidden aria-labelledby="gh-feed-title">
       <h2 id="gh-feed-title"><span class="gh-dot gh-hot" aria-hidden="true"></span> En ce moment sur GitHub</h2>
       <div class="gh-feed-body"></div>
@@ -662,7 +679,7 @@
             <p class="desc">Jeu de cartes de défausse en temps réel, façon Huit américain : solo contre des bots ou jusqu&#x27;à 6 joueurs dans des salons privés.</p>
             <ul class="points"><li>Règles maison configurables (empilement +2/+4, 7 et 0…)</li><li>Moteur pur et déterministe développé en TDD</li><li>Cartes SVG animées avec Framer Motion, image Docker</li></ul>
             <div class="stack"><span>React</span><span>TypeScript</span><span>Socket.IO</span><span>Node.js</span><span>Docker</span></div>
-            <div class="actions"><a class="act act-play" href="https://plus4.glsc.fr" target="_blank" rel="noopener noreferrer"><i data-lucide="gamepad-2" class="icon"></i> Jouer</a><a class="act" href="https://github.com/gabinlsc/plus4" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+            <div class="actions"><a class="act act-play" href="https://plus4.glsc.fr" target="_blank" rel="noopener noreferrer"><i data-lucide="gamepad-2" class="icon"></i> Jouer</a><a class="act" href="https://github.com/gabinlsc/plus4" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a><a class="act" href="/etudes/plus4/"><i data-lucide="book-open" class="icon"></i> Étude de cas</a></div>
           </div>
         </article>
         <article class="proj press-lg" data-cat="jeux" data-sort="2026-10" data-search="Le Président Jeux Le jeu de cartes du Président en ligne, de 2 à 8 joueurs, avec bots et échanges de cartes entre les manches. Moteur en machine à états pure, sans mutation Serveur seule source de vérité, client sans règles Monorepo : moteur, serveur et client séparés Vue 3 Pinia TypeScript Socket.IO Zod">
@@ -679,7 +696,7 @@
             <p class="desc">Le jeu de cartes du Président en ligne, de 2 à 8 joueurs, avec bots et échanges de cartes entre les manches.</p>
             <ul class="points"><li>Moteur en machine à états pure, sans mutation</li><li>Serveur seule source de vérité, client sans règles</li><li>Monorepo : moteur, serveur et client séparés</li></ul>
             <div class="stack"><span>Vue 3</span><span>Pinia</span><span>TypeScript</span><span>Socket.IO</span><span>Zod</span></div>
-            <div class="actions"><a class="act act-play" href="https://president.glsc.fr" target="_blank" rel="noopener noreferrer"><i data-lucide="gamepad-2" class="icon"></i> Jouer</a><a class="act" href="https://github.com/gabinlsc/president" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a></div>
+            <div class="actions"><a class="act act-play" href="https://president.glsc.fr" target="_blank" rel="noopener noreferrer"><i data-lucide="gamepad-2" class="icon"></i> Jouer</a><a class="act" href="https://github.com/gabinlsc/president" target="_blank" rel="noopener noreferrer"><i data-lucide="github" class="icon"></i> Voir le code</a><a class="act" href="/etudes/president/"><i data-lucide="book-open" class="icon"></i> Étude de cas</a></div>
           </div>
         </article>
         <article class="proj press-lg" data-cat="web" data-sort="2026-10" data-search="SDVB3 Web &amp; full-stack Site vitrine et maquette d&#x27;espace collaborateurs réalisés à quatre, en cours à Sup de Vinci. Ma partie : la page Contact et ses tests navigateur Workflow Git en équipe : branches, PR relues Branches protégées et contrôles automatiques HTML CSS JavaScript GitHub Actions">
@@ -832,7 +849,7 @@
             <p class="desc">Mon serveur perso : il héberge glsc.fr et tous ses sous-domaines, dont cette page.</p>
             <ul class="points"><li>VPS Ubuntu chez IONOS</li><li>Reverse proxy Nginx et HTTPS</li><li>Sous-domaines cv, share, studio, old, games…</li></ul>
             <div class="stack"><span>Linux</span><span>Nginx</span><span>Ubuntu</span><span>HTTPS</span></div>
-            <div class="actions"><span class="act act-off"><i data-lucide="lock" class="icon"></i> Pas de dépôt public</span></div>
+            <div class="actions"><span class="act act-off"><i data-lucide="lock" class="icon"></i> Pas de dépôt public</span><a class="act" href="/etudes/salle-de-jeux/"><i data-lucide="book-open" class="icon"></i> Étude de cas</a></div>
           </div>
         </article>
         <article class="proj press-lg" data-cat="sys" data-sort="2025-06" data-search="HoneyBoard Système &amp; réseau Projet de BTS : déploiement d&#x27;un honeypot réseau et d&#x27;un tableau de bord des tentatives d&#x27;intrusion. Backend Python qui enregistre les attaques dans MariaDB Remontée des événements en MQTT avec Mosquitto API REST pour le tableau de bord Python C++ MariaDB Mosquitto API REST">
