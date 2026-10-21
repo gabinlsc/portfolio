@@ -114,6 +114,8 @@ def share_page(pid, s):
 <title>{name} · Salle de jeux GLSC</title>
 <meta name="description" content="{desc}">
 <link rel="canonical" href="{url}">
+<link rel="icon" href="/_glsc/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/_glsc/apple-touch-icon.png">
 <meta property="og:type" content="profile">
 <meta property="og:site_name" content="GLSC · Salle de jeux">
 <meta property="og:title" content="{name} sur la salle de jeux GLSC">

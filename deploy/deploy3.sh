@@ -48,7 +48,7 @@ SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
 for f in deploy/deploy2.sh status/index.html status/targets.json status/collector/glsc_status.py \
          status/systemd/glsc-status.service status/systemd/glsc-status.timer \
          deploy/nginx/status.glsc.fr.conf deploy/nginx/status.glsc.fr.http.conf \
-         assets/_glsc/status.js errors/404.html seo/status.glsc.fr/robots.txt; do
+         assets/_glsc/status.js assets/_glsc/favicon.ico assets/_glsc/apple-touch-icon.png errors/404.html seo/status.glsc.fr/robots.txt; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
 ok "archive complète"
@@ -88,6 +88,8 @@ rm -rf "${SITE:?}/_glsc"
 cp -r "$SRC/assets/_glsc" "$SITE/_glsc"
 find "$SITE/_glsc" -type d -exec chmod 755 {} + ; find "$SITE/_glsc" -type f -exec chmod 644 {} +
 install -m 644 "$SRC/errors/404.html" "$SITE/404.html"
+install -m 644 "$SRC/assets/_glsc/favicon.ico" "$SITE/favicon.ico"
+install -m 644 "$SRC/assets/_glsc/apple-touch-icon.png" "$SITE/apple-touch-icon.png"
 install -m 644 "$SRC/seo/status.glsc.fr/robots.txt" "$SITE/robots.txt"
 install -m 644 "$SRC/seo/status.glsc.fr/sitemap.xml" "$SITE/sitemap.xml"
 chown -R root:www-data "$SITE/_glsc"
