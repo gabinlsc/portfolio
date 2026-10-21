@@ -67,6 +67,8 @@ common_files() {              # common_files <racine> <dossier seo>
   cp -r "$SRC/assets/_glsc" "$root/_glsc"
   find "$root/_glsc" -type d -exec chmod 755 {} + ; find "$root/_glsc" -type f -exec chmod 644 {} +
   put errors/404.html "$root/404.html"
+  put assets/_glsc/favicon.ico "$root/favicon.ico"                 # navigateurs et robots qui demandent /favicon.ico
+  put assets/_glsc/apple-touch-icon.png "$root/apple-touch-icon.png"
   put "seo/$seo/robots.txt" "$root/robots.txt"
   put "seo/$seo/sitemap.xml" "$root/sitemap.xml"
 }
@@ -76,7 +78,7 @@ info "1/6 Téléchargement du dépôt"
 curl -fsSL "$REPO_TGZ" | tar -xz -C "$WORK"
 SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
 for f in index.html cv/index.html old/index.html projets/index.html projets/etudes/salle-de-jeux/index.html projets/etudes/plus4/index.html projets/etudes/president/index.html projets/etudes/petit-bac/index.html games/index.html games/profil/index.html games/nouveautes/index.html errors/404.html deploy/install-404.sh \
-         assets/_glsc/icons.js assets/_glsc/hub.css assets/_glsc/fonts.css deploy/nginx/glsc-security.conf deploy/nginx/games.glsc.fr.conf; do
+         assets/_glsc/icons.js assets/_glsc/hub.css assets/_glsc/fonts.css assets/_glsc/favicon.svg assets/_glsc/favicon.ico assets/_glsc/apple-touch-icon.png deploy/nginx/glsc-security.conf deploy/nginx/games.glsc.fr.conf; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
 ok "archive complète ($(basename "$SRC"))"
