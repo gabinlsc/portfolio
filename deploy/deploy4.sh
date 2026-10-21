@@ -50,7 +50,7 @@ die()  { printf '\n\033[31m✘ %s\033[0m\n' "$*"; exit 1; }
 ONLY="${GLSC_ONLY_GAME:-}"
 case "$ONLY" in ""|uno|president|petitbac|vortex) ;; *) die "GLSC_ONLY_GAME doit valoir uno, president, petitbac ou vortex." ;; esac
 wanted() { [ -z "$ONLY" ] || [ "$1" = "$ONLY" ]; }   # wanted <service Docker>
-image_of() { case "$1" in profiles) echo glsc/profiles;; uno) echo glsc/plus4;; president) echo glsc/president;; petitbac) echo glsc/petitbac;; vortex) echo glsc/vortex;; esac; }
+image_of() { case "$1" in profiles) echo glsc/profiles;; studio) echo glsc/studio;; uno) echo glsc/plus4;; president) echo glsc/president;; petitbac) echo glsc/petitbac;; vortex) echo glsc/vortex;; esac; }
 mkdir -p "$BACKUP"
 
 save() {
@@ -63,7 +63,7 @@ save() {
 info "0/7 Téléchargement du dépôt"
 curl -fsSL "$REPO_TGZ" | tar -xz -C "$WORK"
 SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
-for f in deploy/deploy3.sh deploy/games/compose.yml deploy/games/profiles/server.mjs deploy/games/profiles/discord.mjs deploy/games/profiles/Dockerfile deploy/games/president.Dockerfile deploy/games/vortex.Dockerfile \
+for f in deploy/deploy3.sh deploy/games/compose.yml deploy/games/profiles/server.mjs deploy/games/profiles/discord.mjs deploy/games/profiles/Dockerfile deploy/studio/server.mjs deploy/studio/Dockerfile deploy/games/president.Dockerfile deploy/games/vortex.Dockerfile \
          deploy/nginx/glsc-games.conf deploy/nginx/game-proxy.conf.tpl deploy/nginx/game-vortex.conf.tpl deploy/nginx/acme-only.conf.tpl; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
@@ -124,10 +124,23 @@ done
 if [ -d "$GAMES_DIR/src/plus4/.git" ] && [ -d "$GAMES_DIR/src/uno" ]; then rm -rf "${GAMES_DIR:?}/src/uno"; ok "anciennes sources « uno » retirées"; fi
 install -m 644 "$SRC/deploy/games/president.Dockerfile" "$SRC/deploy/games/vortex.Dockerfile" "$GAMES_DIR/dockerfiles/"
 # résultats des parties (classements) : seul dossier où les conteneurs peuvent écrire (utilisateur node, uid 1000)
-for svc in uno president petitbac vortex profiles; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
+for svc in uno president petitbac vortex profiles studio; do install -d -m 750 -o 1000 -g 1000 "/var/lib/glsc-games/$svc"; done
 # service de profils : son code vient de ce dépôt (portfolio), pas d'un dépôt de jeu
 install -d -m 755 "$GAMES_DIR/profiles"
 install -m 644 "$SRC/deploy/games/profiles/server.mjs" "$SRC/deploy/games/profiles/discord.mjs" "$SRC/deploy/games/profiles/Dockerfile" "$GAMES_DIR/profiles/"
+# service de studio.glsc.fr : son code vient aussi de ce dépôt
+install -d -m 755 "$GAMES_DIR/studio"
+install -m 644 "$SRC/deploy/studio/server.mjs" "$SRC/deploy/studio/Dockerfile" "$GAMES_DIR/studio/"
+# jeton partagé avec l'admin PHP (créé une seule fois, lisible par root et le groupe www-data) et groupe à donner au conteneur pour le lire
+install -d -m 750 -o root -g www-data /etc/glsc-admin 2>/dev/null || install -d -m 750 /etc/glsc-admin
+if [ ! -s /etc/glsc-admin/studio-token ]; then
+  umask 077; openssl rand -hex 32 > /etc/glsc-admin/studio-token
+  chown root:www-data /etc/glsc-admin/studio-token 2>/dev/null || true; chmod 640 /etc/glsc-admin/studio-token
+  ok "jeton de l'API studio créé (/etc/glsc-admin/studio-token)"
+fi
+WWW_GID="$(getent group www-data | cut -d: -f3)"; WWW_GID="${WWW_GID:-33}"
+touch "$GAMES_DIR/.env"; chmod 600 "$GAMES_DIR/.env"
+if grep -q '^WWW_GID=' "$GAMES_DIR/.env"; then sed -i "s/^WWW_GID=.*/WWW_GID=$WWW_GID/" "$GAMES_DIR/.env"; else echo "WWW_GID=$WWW_GID" >> "$GAMES_DIR/.env"; fi
 save "$GAMES_DIR/compose.yml"
 install -m 644 "$SRC/deploy/games/compose.yml" "$GAMES_DIR/compose.yml"
 
@@ -156,7 +169,7 @@ fi
 # ---------------------------------------------------------------- 4. build + lancement
 info "4/7 Construction des images (quelques minutes la première fois)"
 cd "$GAMES_DIR"
-for svc in ${ONLY:-profiles uno president petitbac vortex}; do
+for svc in ${ONLY:-profiles studio uno president petitbac vortex}; do
   img="$(image_of "$svc")"
   if docker image inspect "$img:latest" >/dev/null 2>&1; then
     docker tag "$img:latest" "$img:previous"   # version en service : de quoi revenir en arrière
@@ -239,6 +252,12 @@ if [ -z "$ONLY" ]; then   # profils des joueurs : sans lui les jeux restent joua
     sleep 3
   done
   [ "$prof" = 1 ] && ok "profils des joueurs : répondent en local" || warn "profils des joueurs : ne répondent pas (docker logs glsc-games-profiles-1)"
+  stu=0
+  for i in 1 2 3 4 5 6; do
+    [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://127.0.0.1:3302/health || true)" = 200 ] && { stu=1; break; }
+    sleep 3
+  done
+  [ "$stu" = 1 ] && ok "API de studio.glsc.fr : répond en local" || warn "API de studio.glsc.fr : ne répond pas (docker logs glsc-games-studio-1)"
 fi
 if [ -n "$ONLY" ]; then
   [ "$health_ok" = 1 ] || die "$ONLY ne répond pas, y compris après retour à la version précédente."

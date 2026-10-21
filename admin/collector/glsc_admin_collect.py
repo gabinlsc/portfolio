@@ -1236,6 +1236,105 @@ def process_reports(args, state, settings, now):
     return len(fresh)
 
 
+# ---------------------------------------------------------------- studio.glsc.fr : alertes et statistiques
+STUDIO_HOST = "studio.glsc.fr"
+
+
+def process_studio_events(args, state, settings, now):
+    """Nouveaux événements du service studio (events.jsonl) → alertes Discord. Aucune donnée personnelle n'y figure : seulement le
+    type de demande ; le détail se lit dans l'admin. Au plus 5 alertes de demande et 1 alerte de messages par passage."""
+    path = os.path.join(args.games_data, "studio", "events.jsonl")
+    try:
+        st = os.stat(path)
+    except OSError:
+        return 0
+    pos = state.get("studio_events", {})
+    start = pos.get("off", 0) if pos.get("ino") == st.st_ino and st.st_size >= pos.get("off", 0) else 0
+    with open(path, "rb") as f:
+        f.seek(start)
+        chunk = f.read(256 * 1024)
+    end = chunk.rfind(b"\n") + 1
+    requests_, messages, files = [], 0, 0
+    for raw in chunk[:end].splitlines():
+        try:
+            e = json.loads(raw)
+        except ValueError:
+            continue
+        if not isinstance(e, dict):
+            continue
+        if e.get("type") == "request":
+            requests_.append(e)
+        elif e.get("type") == "client-message":
+            messages += 1
+        elif e.get("type") == "client-file":
+            files += 1
+    state["studio_events"] = {"ino": st.st_ino, "off": start + end}
+    hook = settings.get("discord_webhook", "")
+    if requests_ and settings.get("alert_studio_request", "1") == "1":
+        for e in requests_[:5]:
+            fields = [("Besoin", str(e.get("service", "?"))[:60], True), ("Activité", str(e.get("activity", "?"))[:60], True), ("Délai", str(e.get("timing", "?"))[:60], True)]
+            discord(hook, "📨 Nouvelle demande de devis", "Un visiteur a rempli le formulaire de studio.glsc.fr. Le détail est dans l'admin → StudioGLSC.", 0x5B8DEF, fields, url="https://admin.glsc.fr")
+        if len(requests_) > 5:
+            discord(hook, "📨 Autres demandes", f"{len(requests_) - 5} demande(s) de plus : voir l'admin.", 0x5B8DEF)
+    if (messages or files) and settings.get("alert_studio_project", "1") == "1":
+        bits = ([f"{messages} message(s)"] if messages else []) + ([f"{files} fichier(s)"] if files else [])
+        discord(hook, "💬 Un client a répondu sur son suivi de projet", " et ".join(bits) + " reçu(s). À lire dans l'admin → StudioGLSC.", 0x5B8DEF, url="https://admin.glsc.fr")
+    return len(requests_) + messages + files
+
+
+def studio_section(path):
+    if path == "/":
+        return "Accueil"
+    for prefix, label in (("/blog/", "Blog"), ("/sites-pour/", "Pages par métier"), ("/creation-site-web/", "Pages par ville"), ("/a-propos", "À propos"),
+                          ("/mentions-legales", "Pages légales"), ("/cgu", "Pages légales"), ("/cgv", "Pages légales"), ("/club-demo", "Démos"), ("/btp-demo", "Démos"), ("/suivi", "Suivi client")):
+        if path.startswith(prefix):
+            return label
+    return "Autres"
+
+
+def studio_stats(db, now):
+    """Visites de studio.glsc.fr d'après les journaux nginx (pas de cookie, pas de script de mesure) : pages vues, visiteurs approximatifs
+    (adresse + navigateur, par jour), pages, sources, appareils, demandes de devis envoyées."""
+    since30, since7 = now - 30 * 86400, now - 7 * 86400
+
+    def one(sql, *args):
+        return db.execute(sql, args).fetchone()[0] or 0
+
+    base = "host = ? AND page = 1 AND ts >= ?"
+    days = {d: {"views": 0, "visitors": 0, "quotes": 0} for d in (paris_day(now - i * 86400).isoformat() for i in range(29, -1, -1))}
+    for day, views, visitors in db.execute(f"SELECT day, COUNT(*), COUNT(DISTINCT ip || ua) FROM requests WHERE {base} GROUP BY day", (STUDIO_HOST, since30)):
+        if day in days:
+            days[day].update(views=views, visitors=visitors)
+    for day, n in db.execute("SELECT day, COUNT(*) FROM requests WHERE host = ? AND method = 'POST' AND path = '/api/contact' AND status = 201 AND ts >= ? GROUP BY day", (STUDIO_HOST, since30)):
+        if day in days:
+            days[day]["quotes"] = n
+    totals = {}
+    for label, since in (("7", since7), ("30", since30)):
+        totals["views" + label] = one(f"SELECT COUNT(*) FROM requests WHERE {base}", STUDIO_HOST, since)
+        totals["visitors" + label] = one(f"SELECT COUNT(DISTINCT ip || ua) FROM requests WHERE {base}", STUDIO_HOST, since)
+        totals["quotes" + label] = one("SELECT COUNT(*) FROM requests WHERE host = ? AND method = 'POST' AND path = '/api/contact' AND status = 201 AND ts >= ?", STUDIO_HOST, since)
+    totals["rate30"] = round(100 * totals["quotes30"] / totals["visitors30"], 1) if totals["visitors30"] else None
+    pages = [{"path": p, "views": n} for p, n in db.execute(f"SELECT path, COUNT(*) n FROM requests WHERE {base} GROUP BY path ORDER BY n DESC LIMIT 12", (STUDIO_HOST, since30))]
+    sections = {}
+    for p, n in db.execute(f"SELECT path, COUNT(*) FROM requests WHERE {base} GROUP BY path", (STUDIO_HOST, since30)):
+        label = studio_section(p)
+        sections[label] = sections.get(label, 0) + n
+    sources = {}
+    for ref, n in db.execute(f"SELECT referer, COUNT(*) FROM requests WHERE {base} GROUP BY referer", (STUDIO_HOST, since30)):
+        src = source_of(ref)
+        if src:
+            sources[src] = sources.get(src, 0) + n
+    devices = {d: n for d, n in db.execute(f"SELECT device, COUNT(*) FROM requests WHERE {base} GROUP BY device", (STUDIO_HOST, since30))}
+    return {
+        "at": now, "totals": totals,
+        "daily": [{"day": d, **v} for d, v in days.items()],
+        "pages": pages,
+        "sections": sorted(({"label": k, "views": v} for k, v in sections.items()), key=lambda x: -x["views"]),
+        "sources": sorted(({"label": k, "views": v} for k, v in sources.items()), key=lambda x: -x["views"])[:8],
+        "devices": [{"label": k, "views": v} for k, v in sorted(devices.items(), key=lambda kv: -kv[1])],
+    }
+
+
 # ---------------------------------------------------------------- récap Discord du lundi
 SITE_NAMES = {"glsc.fr": "Hub", "cv.glsc.fr": "CV", "share.glsc.fr": "Projets", "old.glsc.fr": "Archives", "games.glsc.fr": "Salle de jeux",
               "status.glsc.fr": "Statut", "plus4.glsc.fr": "+4", "uno.glsc.fr": "+4", "president.glsc.fr": "Président", "petitbac.glsc.fr": "Petit Bac", "vortex.glsc.fr": "Vortex"}
@@ -1458,6 +1557,10 @@ def collect(args):
         if os.path.isdir(os.path.dirname(args.leaderboard_json)):
             write_json(args.leaderboard_json, boards[0], mode=0o644)
     step("signalements", lambda: process_reports(args, state, app_settings(args.app_db), now))
+    step("studio (demandes)", lambda: process_studio_events(args, state, app_settings(args.app_db), now))
+    studio = step("studio (visites)", lambda: studio_stats(db, now))
+    if studio:
+        write_json(pub("studio-stats"), studio, gid)
     stats = step("joueurs", lambda: player_stats(db, now, hidden, profiles, args.pub_dir))
     if stats:
         write_json(pub("players-stats"), stats, gid)

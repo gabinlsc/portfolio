@@ -16,6 +16,8 @@ const ALERTS = [
     'weekly' => 'Récap de la semaine, le lundi à 9 h',
     'backup' => 'Sauvegarde chiffrée ratée',
     'report' => 'Un joueur signale un bug (bouton « Un bug ? »)',
+    'studio_request' => 'Nouvelle demande de devis sur studio.glsc.fr',
+    'studio_project' => 'Un client écrit ou envoie un fichier sur son suivi de projet',
 ];
 
 function vault_state(): array
