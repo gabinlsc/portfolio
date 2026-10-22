@@ -25,6 +25,7 @@ function glsc_path(string $what): string
         'queue'   => "$var/queue",
         'deploy'  => "$var/deploy",                    // demandes de déploiement, traitées par glsc-deploy.service (root)
         'deploy_secret' => "$etc/github-webhook.secret", // secret partagé avec les webhooks GitHub
+        'studio_token' => "$etc/studio-token",         // jeton partagé avec le service de studio.glsc.fr (port 3303, local)
         default   => throw new InvalidArgumentException("chemin inconnu : $what"),
     };
 }

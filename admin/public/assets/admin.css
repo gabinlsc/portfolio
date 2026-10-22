@@ -387,3 +387,17 @@ mark { background: var(--banana); border-radius: 3px; padding: 0 1px; }
 .kpi-tile span { font-size: .85rem; font-weight: 600; }
 .big { font: 700 2rem/1 var(--font-display); }
 .report-text { overflow-wrap: anywhere; white-space: pre-wrap; }
+
+/* StudioGLSC : demandes, projets clients */
+.row-between { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; }
+.pre-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.steps-admin { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0; margin: 0 0 .5rem; list-style: none; }
+.step-btn { font: 700 .85rem/1 var(--font-body); padding: .5rem .8rem; border: 3px solid var(--ink); border-radius: 999px; background: #fff; cursor: pointer; }
+.step-btn.done { background: var(--mint, #7BE0AD); }
+.step-btn.current { background: var(--banana, #FFD84D); box-shadow: var(--shadow-sm, 2px 2px 0 #000); }
+.thread { display: grid; gap: .6rem; max-height: 20rem; overflow: auto; padding: .2rem; }
+.bubble { padding: .6rem .8rem; border: 3px solid var(--ink); border-radius: 1rem; background: #fff; max-width: 85%; }
+.bubble.client { justify-self: start; background: var(--sky, #8FD3FF); }
+.bubble.studio { justify-self: end; background: var(--banana, #FFD84D); }
+.bubble p { margin: .15rem 0 0; }
+.btn-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }

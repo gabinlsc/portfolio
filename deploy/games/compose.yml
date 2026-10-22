@@ -32,6 +32,22 @@ services:
     ports: ["127.0.0.1:3300:3300", "127.0.0.1:3301:3301"]
     mem_limit: 128m
 
+  studio:                         # demandes de devis et suivi de projet de studio.glsc.fr (https://studio.glsc.fr/api/)
+    <<: *durcissement
+    image: glsc/studio:latest
+    build:
+      context: ./studio
+    environment:
+      DATA_DIR: /data
+      ADMIN_TOKEN_FILE: /run/secrets/studio-token
+      RETENTION_DAYS: ${STUDIO_RETENTION_DAYS:-365}
+    # Le jeton de l'admin (fichier créé par deploy4, lisible par le groupe www-data) est monté en lecture seule : l'admin PHP l'utilise
+    # pour appeler le port 3303, qui n'est jamais exposé par nginx.
+    volumes: ["/var/lib/glsc-games/studio:/data", "/etc/glsc-admin/studio-token:/run/secrets/studio-token:ro"]
+    group_add: ["${WWW_GID:-33}"]
+    ports: ["127.0.0.1:3302:3302", "127.0.0.1:3303:3303"]
+    mem_limit: 128m
+
   uno:                            # +4 (plus4.glsc.fr) : « uno » reste l'identifiant interne du service
     <<: *durcissement
     image: glsc/plus4:latest
