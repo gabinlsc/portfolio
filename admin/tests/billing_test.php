@@ -38,6 +38,7 @@ fails(fn () => bill_clean_lines([['desc' => '', 'qty' => 1, 'unit' => 100]]), 42
 check(bill_clean_lines([['desc' => '', 'qty' => 1, 'unit' => 0]]) === [], 'ligne vide ignorée');
 
 // ---- vendeur
+bill_set_test_mode(false); // le déroulé principal se fait en production ; le mode test est vérifié en fin de fichier
 fails(fn () => bill_save_seller(['siret' => '73282932000075']), 422, 'SIRET invalide refusé');
 check(bill_seller_missing(bill_seller()) !== [], 'vendeur incomplet : il manque le SIRET et l’adresse');
 bill_save_seller(['name' => 'Gabin Lescoat', 'brand' => 'StudioGLSC', 'siret' => '732 829 320 00074', 'address' => '1 rue Test', 'postcode' => '56100', 'city' => 'Lorient', 'email' => 'pro@glsc.fr']);
@@ -110,5 +111,44 @@ $tmp = bill_save_draft($draft, $today); bill_delete_draft($tmp);
 check(!db()->query('SELECT 1 FROM bill_docs WHERE id = ' . $tmp)->fetch(), 'brouillon supprimable');
 try { db()->prepare('DELETE FROM bill_clients WHERE id = ?')->execute([$client]); check(false, 'client avec documents : suppression bloquée'); }
 catch (PDOException $e) { check(true, 'client avec documents : suppression bloquée par la base'); }
+
+
+// ---- mode test : numérotation à part, émission sans SIRET, exclu du chiffre d'affaires, suppression avec confirmation
+$realCount = (int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn();
+$realRevenue = bill_revenue(2026);
+bill_set_test_mode(true);
+check(bill_test_mode(), 'mode test activé');
+db()->prepare("DELETE FROM settings WHERE key = 'billing_siret'")->execute(); // vendeur sans SIRET : seuls les tests peuvent s'émettre
+$tClient = (function () { $n = time(); db()->prepare('INSERT INTO bill_clients(name, test, created, updated) VALUES(?, 1, ?, ?)')->execute(['Client de test', $n, $n]); return (int) db()->lastInsertId(); })();
+$tdraft = ['kind' => 'quote', 'client_id' => $tClient, 'subject' => 'Essai', 'lines' => [['desc' => 'Ligne de test', 'qty' => 1, 'unit' => 10000]]];
+$tq = bill_save_draft($tdraft, '2026-12-10');
+check((int) bill_doc($tq)['test'] === 1, 'document créé en mode test : marqué test');
+check(bill_issue($tq, '2026-12-10')['number'] === 'TEST-D-2026-001', 'émission sans SIRET en mode test : TEST-D-2026-001 (série à part)');
+bill_set_test_mode(false);
+$real = bill_save_draft(array_merge($tdraft, ['client_id' => $client]), '2026-12-10');
+fails(fn () => bill_issue($real, '2026-12-10'), 422, 'document réel : SIRET obligatoire');
+check((int) bill_doc($real)['test'] === 0, 'document créé hors mode test : réel');
+bill_save_seller(['name' => 'Gabin Lescoat', 'brand' => 'StudioGLSC', 'siret' => '732 829 320 00074', 'address' => '1 rue Test', 'postcode' => '56100', 'city' => 'Lorient', 'email' => 'pro@glsc.fr']);
+check(bill_issue($real, '2026-12-10')['number'] === 'D-2026-004', 'la série réelle continue (D-2026-004) malgré les tests');
+$tinv = bill_derive_invoice($tq, 'deposit', '2026-12-11');
+check((int) bill_doc($tinv)['test'] === 1, 'la facture d’un devis de test est un test');
+bill_issue($tinv, '2026-12-11');
+check(bill_doc($tinv)['number'] === 'TEST-F-2026-001', 'facture de test : TEST-F-2026-001');
+bill_set_status($tinv, 'paid', '2026-12-12', 'virement');
+check(bill_revenue(2026) === $realRevenue, 'les tests ne comptent pas dans le chiffre d’affaires');
+fails(fn () => bill_delete_test_doc($real, 'D-2026-004'), 409, 'document réel : suppression refusée');
+fails(fn () => bill_delete_test_doc($tq, 'mauvais'), 422, 'suppression sans la bonne confirmation refusée');
+check(bill_delete_test_doc($tq, 'TEST-D-2026-001') === 2, 'suppression du devis de test : emporte aussi sa facture (2 documents)');
+check(!db()->query('SELECT 1 FROM bill_docs WHERE id = ' . $tinv)->fetch(), 'la facture de test a disparu');
+check((int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn() === $realCount + 1, 'les documents réels sont intacts');
+bill_set_test_mode(true);
+$a = bill_save_draft($tdraft, '2026-12-13'); bill_issue($a, '2026-12-13'); $b2 = bill_derive_invoice($a, 'full', '2026-12-13'); bill_issue($b2, '2026-12-13'); bill_derive_credit($b2, '2026-12-14');
+bill_save_draft($tdraft, '2026-12-14');
+fails(fn () => bill_purge_tests('oui'), 422, 'purge sans la phrase exacte refusée');
+[$nd, $nc] = bill_purge_tests(BILL_PURGE_PHRASE);
+check($nd === 4 && $nc === 1, "purge : 4 documents de test et 1 client de test supprimés ($nd, $nc)");
+check((int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 1')->fetchColumn() === 0, 'plus aucun document de test');
+check((int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn() === $realCount + 1, 'documents réels toujours intacts après la purge');
+check(bill_issue(bill_save_draft(array_merge($tdraft, ['client_id' => $client]), '2026-12-15'), '2026-12-15')['number'] === 'TEST-D-2026-001', 'après la purge, la série de test repart à 001');
 
 echo "\nTous les tests passent ($ok).\n";

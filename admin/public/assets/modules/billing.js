@@ -54,6 +54,22 @@ const statusPill = (d) => {
   return pill(d.kind === 'quote' && d.status === 'issued' ? 'Envoyé' : label, color, 'pill-sm');
 };
 
+/** Trois validations pour une suppression : deux confirmations, puis la saisie exacte d'une phrase. Renvoie la phrase saisie, ou null si l'une des étapes est refusée. */
+async function tripleCheck({ what, phrase }) {
+  if (!(await confirmBox(what, { ok: 'Continuer' }))) return null;
+  if (!(await confirmBox('Deuxième vérification : cette action est définitive et ne peut pas être annulée. Continuer ?', { ok: 'Oui, continuer' }))) return null;
+  return new Promise((resolve) => {
+    let done = false;
+    const input = h('input', { class: 'input', autocomplete: 'off', 'aria-label': `Tape ${phrase}`, placeholder: phrase });
+    const go = h('button', { class: 'btn btn-danger', type: 'button', disabled: true, onclick: () => { done = true; resolve(input.value.trim()); close(); } }, 'Supprimer définitivement');
+    input.addEventListener('input', () => { go.disabled = input.value.trim() !== phrase; });
+    const close = modal({ title: 'Troisième et dernière vérification',
+      body: h('div', { class: 'stack' }, h('p', {}, 'Pour confirmer, tape exactement : ', h('b', {}, phrase)), input),
+      actions: [h('button', { class: 'btn', type: 'button', onclick: () => close() }, 'Annuler'), go],
+      onClose: () => { if (!done) resolve(null); } });
+  });
+}
+
 export async function render(root) {
   const state = { tab: 'quotes', data: null };
   const box = h('div', {});
@@ -70,8 +86,12 @@ function view(state, load, draw) {
   const missing = d.missing.length && state.tab !== 'settings'
     ? card('Avant ton premier document', h('div', { class: 'stack-sm' }, h('p', {}, `Pour émettre un devis ou une facture, renseigne ${d.missing.join(', ')}. Tu peux déjà préparer des brouillons.`),
       btn('Ouvrir les réglages', () => { state.tab = 'settings'; draw(); }, { kind: 'primary', iconName: 'settings' })), { color: 'banana' }) : null;
+  const testBanner = d.test_mode && state.tab !== 'settings' && state.tab !== 'guide'
+    ? card('Mode test activé', h('div', { class: 'stack-sm' }, h('p', {}, 'Les documents et clients créés maintenant sont marqués TEST : numérotation à part (TEST-D-…), émission possible sans SIRET, exclus du chiffre d’affaires et supprimables. Ils n’ont aucune valeur légale.'),
+      h('div', { class: 'btn-row' }, btn('Passer en production', () => goProduction(load), { iconName: 'rocket' }),
+        d.test_count ? btn(`Supprimer les données de test (${d.test_count})`, () => purgeTests(load), { kind: 'danger', iconName: 'trash-2' }) : null)), { color: 'sky' }) : null;
   const body = { quotes: () => docsView(state, load, 'quote'), invoices: () => docsView(state, load, 'invoice'), clients: () => clientsView(state, load), settings: () => settingsView(state, load), guide: guideView }[state.tab]();
-  return h('div', { class: 'stack' }, head, missing, state.tab === 'quotes' || state.tab === 'invoices' ? kpis(d.stats) : null, body);
+  return h('div', { class: 'stack' }, head, missing, testBanner, state.tab === 'quotes' || state.tab === 'invoices' ? kpis(d.stats) : null, body);
 }
 
 function kpis(s) {
@@ -93,7 +113,7 @@ function docsView(state, load, kind) {
     ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
       h('thead', {}, h('tr', {}, ['Numéro', 'Client', 'Objet', 'Date', 'Montant', 'Statut', ''].map((t) => h('th', { scope: 'col' }, t)))),
       h('tbody', {}, rows.map((r) => h('tr', {},
-        h('td', {}, h('b', {}, r.number || 'Brouillon'), r.parent_number ? h('small', { class: 'muted' }, ` · ${r.parent_number}`) : null),
+        h('td', {}, h('b', {}, r.number || 'Brouillon'), r.test ? [' ', pill('TEST', 'banana', 'pill-sm')] : null, r.parent_number ? h('small', { class: 'muted' }, ` · ${r.parent_number}`) : null),
         h('td', {}, r.client), h('td', { class: 'clamp' }, r.kind === 'invoice' && r.subtype !== 'full' ? `${SUBTYPE[r.subtype] || ''} · ${r.subject}` : r.subject || '—'),
         h('td', { class: 'nowrap' }, dateShort(r.issue_date)), h('td', { class: 'nowrap' }, eur(r.total)), h('td', {}, statusPill(r)),
         h('td', { class: 'nowrap' }, btn('Ouvrir', () => openDoc(state, load, r.id), { iconName: 'file-text' })))))))
@@ -202,6 +222,14 @@ async function openDoc(state, load, id) {
   if (v.kind === 'invoice' && (v.status === 'issued' || v.status === 'paid')) {
     buttons.push(btn('Créer un avoir (annuler)', async () => { if (await confirmBox('Créer un avoir qui annule cette facture ? Il sera en brouillon, à émettre ensuite.', { ok: 'Créer l’avoir', danger: false })) act('billing/doc/derive', { type: 'credit' }, 'Avoir créé en brouillon ✓', (r) => openDoc(state, load, r.id)); }, { iconName: 'rotate-cw' }));
   }
+  if (v.test) {
+    buttons.push(btn('Supprimer ce document de test', async () => {
+      const phrase = v.number || 'BROUILLON';
+      const dependents = kids.length ? ` Les ${kids.length} document(s) créé(s) à partir de celui-ci seront supprimés aussi.` : '';
+      const confirm = await tripleCheck({ what: `Supprimer définitivement ce document de test (${phrase}) ?${dependents}`, phrase });
+      if (confirm) act('billing/doc/delete-test', { confirm }, (r) => `${r.deleted} document${r.deleted > 1 ? 's' : ''} de test supprimé${r.deleted > 1 ? 's' : ''} ✓`);
+    }, { kind: 'danger', iconName: 'trash-2' }));
+  }
   const actions = h('div', { class: 'btn-row doc-actions' }, buttons);
   const close = modal({ title: v.number ? `${docTitle(v)} ${v.number}` : `${docTitle(v)} (brouillon)`, body: h('div', { class: 'stack' }, actions, sheetBox), wide: true });
 }
@@ -228,6 +256,7 @@ function sheet(v) {
   }
   if (s.footer) mentions.push(s.footer);
   return h('article', { class: ['sheet', !v.frozen && 'is-draft'], 'aria-label': 'Aperçu du document' },
+    v.test ? h('div', { class: 'sheet-draft' }, 'DOCUMENT DE TEST — sans valeur légale') : null,
     !v.frozen ? h('div', { class: 'sheet-draft' }, 'BROUILLON — sans valeur tant qu’il n’est pas émis') : null,
     h('header', { class: 'sheet-head' },
       h('div', { class: 'sheet-seller' }, h('b', { class: 'sheet-brand' }, s.brand || s.name), line(sellerName), line(s.address), line(cityLine(s)), line(s.siret ? `SIRET ${s.siret}` : 'SIRET à renseigner'), line(s.email), line(s.phone)),
@@ -249,6 +278,19 @@ function sheet(v) {
     isQuote ? h('div', { class: 'sheet-sign' }, h('b', {}, 'Bon pour accord'), h('p', {}, 'Date, nom et signature du client, précédés de la mention « Bon pour accord » :'), h('div', { class: 'sheet-sign-box' }), h('small', {}, 'Le client déclare agir à titre professionnel.')) : null,
     v.paid_at ? h('p', { class: 'sheet-paid' }, `Payée le ${dateLong(v.paid_at)}${v.paid_method ? ` (${v.paid_method})` : ''}. Merci !`) : null,
     h('footer', { class: 'sheet-foot' }, mentions.map((m) => h('p', {}, m))));
+}
+
+// ---------------------------------------------------------------- mode test
+async function goProduction(load) {
+  const phrase = 'PRODUCTION';
+  const confirm = await tripleCheck({ what: 'Passer en production ? Les prochains documents seront réels : numérotation officielle, SIRET obligatoire, impossibles à supprimer. Tes documents de test restent séparés (et supprimables).', phrase });
+  if (confirm) attempt(() => api('billing/mode', { body: { test: false, confirm } }), 'Mode production activé ✓').then((r) => r && load());
+}
+
+async function purgeTests(load) {
+  const phrase = 'SUPPRIMER LES TESTS';
+  const confirm = await tripleCheck({ what: 'Supprimer tous les documents de test (devis, factures, avoirs) et les clients de test devenus inutiles ? Les documents réels ne sont pas touchés.', phrase });
+  if (confirm) attempt(() => api('billing/tests/purge', { body: { confirm } }), (r) => `${r.documents} document(s) et ${r.clients} client(s) de test supprimés ✓`).then((r) => r && load());
 }
 
 // ---------------------------------------------------------------- clients
@@ -308,7 +350,15 @@ function settingsView(state, load) {
     const r = await attempt(() => api('billing/settings', { body }), 'Réglages enregistrés ✓');
     if (r) load();
   }, { kind: 'primary', iconName: 'save' });
-  return h('div', { class: 'stack' }, h('p', { class: 'muted' }, 'Ces informations figurent sur chaque devis et facture émis. Le SIRET te sera donné à l’immatriculation de ton entreprise.'), ...sections, h('div', { class: 'btn-row' }, save));
+  const d = state.data;
+  const modeCard = card('Mode test', h('div', { class: 'stack-sm' },
+    h('p', {}, d.test_mode ? 'Le mode test est activé : tu peux t’entraîner sans risque. Les documents créés sont marqués TEST, numérotés à part et supprimables.' : 'Le mode production est activé : les documents créés sont réels, numérotés officiellement et impossibles à supprimer (conservation légale de 10 ans).'),
+    h('div', { class: 'btn-row' },
+      d.test_mode ? btn('Passer en production', () => goProduction(load), { kind: 'primary', iconName: 'rocket' })
+        : btn('Réactiver le mode test', () => attempt(() => api('billing/mode', { body: { test: true } }), 'Mode test activé ✓').then((r) => r && load()), { iconName: 'rotate-cw' }),
+      btn(`Supprimer les données de test (${d.test_count})`, () => purgeTests(load), { kind: 'danger', iconName: 'trash-2', title: 'Trois validations demandées' })),
+    h('small', { class: 'muted' }, 'La suppression demande trois validations. Elle ne touche jamais les documents réels.')), { color: d.test_mode ? 'sky' : 'mint' });
+  return h('div', { class: 'stack' }, modeCard, h('p', { class: 'muted' }, 'Ces informations figurent sur chaque devis et facture émis. Le SIRET te sera donné à l’immatriculation de ton entreprise.'), ...sections, h('div', { class: 'btn-row' }, save));
 }
 
 // ---------------------------------------------------------------- guide

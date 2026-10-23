@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 const BILL_PREFIX = ['quote' => 'D', 'invoice' => 'F', 'credit' => 'A'];
 const BILL_MAX_LINES = 40;
+const BILL_PURGE_PHRASE = 'SUPPRIMER LES TESTS';
 const BILL_MAX_CENTS = 100_000_000_00; // 100 millions d'euros : garde-fou contre les fautes de frappe
 
 /** Montant en centimes → « 1 234,56 € » (espaces insécables). */
@@ -73,6 +74,14 @@ function bill_siret_ok(string $v): bool { return strlen($v) === 14 && bill_luhn(
 
 /** Supprime les espaces d'un numéro (SIREN, SIRET, IBAN). */
 function bill_digits(string $v): string { return preg_replace('/\s+/', '', $v) ?? ''; }
+
+// ---------------------------------------------------------------- mode test
+// En mode test (activé par défaut), les documents et clients créés sont marqués « test » : numérotation à part (TEST-D-2026-001), émission possible sans SIRET,
+// exclus du chiffre d'affaires, et supprimables. Les documents réels ne se suppriment jamais (hors brouillons).
+
+function bill_test_mode(): bool { return setting('billing_test_mode', '1') === '1'; }
+
+function bill_set_test_mode(bool $on): void { set_setting('billing_test_mode', $on ? '1' : '0'); }
 
 // ---------------------------------------------------------------- vendeur (réglages)
 
@@ -159,12 +168,12 @@ function bill_doc(int $id): array
 }
 
 /** Prochain numéro d'une série (à appeler dans une transaction qui verrouille l'écriture). */
-function bill_next_number(PDO $pdo, string $kind, int $year): array
+function bill_next_number(PDO $pdo, string $kind, int $year, int $test = 0): array
 {
-    $st = $pdo->prepare('SELECT COALESCE(MAX(seq), 0) FROM bill_docs WHERE kind = ? AND year = ?');
-    $st->execute([$kind, $year]);
+    $st = $pdo->prepare('SELECT COALESCE(MAX(seq), 0) FROM bill_docs WHERE kind = ? AND year = ? AND test = ?');
+    $st->execute([$kind, $year, $test]);
     $seq = (int) $st->fetchColumn() + 1;
-    return [$seq, sprintf('%s-%d-%03d', BILL_PREFIX[$kind], $year, $seq)];
+    return [$seq, sprintf('%s%s-%d-%03d', $test ? 'TEST-' : '', BILL_PREFIX[$kind], $year, $seq)];
 }
 
 function bill_add_days(string $date, int $days): string
@@ -199,9 +208,9 @@ function bill_save_draft(array $b, string $today): int
         $pdo->prepare("UPDATE bill_docs SET $set, updated = :updated WHERE id = :id")->execute($fields + ['updated' => $now, 'id' => $id]);
         return $id;
     }
-    $cols = array_merge(['kind', 'issue_date', 'created', 'updated'], array_keys($fields));
+    $cols = array_merge(['kind', 'issue_date', 'test', 'created', 'updated'], array_keys($fields));
     $pdo->prepare('INSERT INTO bill_docs(' . implode(', ', $cols) . ') VALUES(' . implode(', ', array_map(fn ($c) => ':' . $c, $cols)) . ')')
-        ->execute($fields + ['kind' => $kind, 'issue_date' => $today, 'created' => $now, 'updated' => $now]);
+        ->execute($fields + ['kind' => $kind, 'issue_date' => $today, 'test' => bill_test_mode() ? 1 : 0, 'created' => $now, 'updated' => $now]);
     return (int) $pdo->lastInsertId();
 }
 
@@ -213,9 +222,10 @@ function bill_issue(int $id, string $today): array
     try {
         $doc = bill_doc($id);
         if ($doc['status'] !== 'draft') fail(409, 'Ce document est déjà émis.');
+        $test = (int) $doc['test'];
         $seller = bill_seller();
         $missing = bill_seller_missing($seller);
-        if ($missing) fail(422, 'Avant d’émettre un document, renseigne dans l’onglet Réglages : ' . implode(', ', $missing) . '.');
+        if ($missing && !$test) fail(422, 'Avant d’émettre un document, renseigne dans l’onglet Réglages : ' . implode(', ', $missing) . '.');
         $lines = json_decode((string) $doc['lines'], true) ?: [];
         if (!$lines) fail(422, 'Ajoute au moins une ligne.');
         $total = bill_total($lines);
@@ -224,16 +234,16 @@ function bill_issue(int $id, string $today): array
         $client = bill_client((int) $doc['client_id']);
         $year = (int) substr($today, 0, 4);
         if ($doc['kind'] !== 'quote') { // numérotation chronologique : pas d'antidatage par rapport au dernier document de la série
-            $last = $pdo->prepare('SELECT MAX(issue_date) FROM bill_docs WHERE kind = ? AND seq IS NOT NULL');
-            $last->execute([$doc['kind']]);
+            $last = $pdo->prepare('SELECT MAX(issue_date) FROM bill_docs WHERE kind = ? AND test = ? AND seq IS NOT NULL');
+            $last->execute([$doc['kind'], $test]);
             $d = (string) $last->fetchColumn();
             if ($d !== '' && $d > $today) fail(422, "Le dernier document de cette série date du $d : impossible d'émettre avec une date antérieure.");
         }
-        [$seq, $number] = bill_next_number($pdo, (string) $doc['kind'], $year);
+        [$seq, $number] = bill_next_number($pdo, (string) $doc['kind'], $year, $test);
         $terms = (int) $doc['terms_days'];
         $valid = $doc['kind'] === 'quote' ? bill_add_days($today, $terms) : null;
         $due = $doc['kind'] === 'invoice' ? bill_add_days($today, $doc['subtype'] === 'deposit' ? 0 : $terms) : null;
-        $snapshot = ['seller' => $seller, 'client' => $client, 'lines' => $lines, 'total' => $total, 'issue_date' => $today, 'valid_until' => $valid, 'due_date' => $due];
+        $snapshot = ['seller' => $seller, 'client' => $client, 'lines' => $lines, 'total' => $total, 'issue_date' => $today, 'valid_until' => $valid, 'due_date' => $due, 'test' => $test];
         $parent = $doc['parent_id'] ? bill_doc((int) $doc['parent_id']) : null;
         if ($parent) $snapshot['parent'] = ['number' => $parent['number'], 'kind' => $parent['kind'], 'issue_date' => $parent['issue_date']];
         $pdo->prepare('UPDATE bill_docs SET number = ?, year = ?, seq = ?, status = ?, issue_date = ?, valid_until = ?, due_date = ?, snapshot = ?, total = ?, updated = ? WHERE id = ?')
@@ -278,10 +288,10 @@ function bill_derive_invoice(int $quoteId, string $subtype, string $today): int
         fail(422, 'Type de facture inconnu.');
     }
     $now = time();
-    $pdo->prepare("INSERT INTO bill_docs(kind, status, client_id, parent_id, subtype, subject, issue_date, deposit_percent, terms_days, delivery, notes, lines, total, created, updated)
-        VALUES('invoice', 'draft', ?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?)")
+    $pdo->prepare("INSERT INTO bill_docs(kind, status, client_id, parent_id, subtype, subject, issue_date, deposit_percent, terms_days, delivery, notes, lines, total, test, created, updated)
+        VALUES('invoice', 'draft', ?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?)")
         ->execute([$q['client_id'], $quoteId, $subtype, $q['subject'], $today, $q['deposit_percent'], (int) setting('billing_pay_days', '30'),
-            json_encode($lines, JSON_UNESCAPED_UNICODE), bill_total($lines), $now, $now]);
+            json_encode($lines, JSON_UNESCAPED_UNICODE), bill_total($lines), (int) $q['test'], $now, $now]);
     return (int) $pdo->lastInsertId();
 }
 
@@ -296,9 +306,9 @@ function bill_derive_credit(int $invoiceId, string $today): int
     if ((int) $c->fetchColumn() > 0) fail(409, 'Cette facture a déjà un avoir.');
     $lines = array_map(fn ($l) => ['desc' => $l['desc'], 'qty' => $l['qty'], 'unit' => -$l['unit'], 'unitLabel' => $l['unitLabel'] ?? ''], json_decode((string) $inv['lines'], true) ?: []);
     $now = time();
-    $pdo->prepare("INSERT INTO bill_docs(kind, status, client_id, parent_id, subtype, subject, issue_date, terms_days, lines, total, created, updated)
-        VALUES('credit', 'draft', ?, ?, 'full', ?, ?, 0, ?, ?, ?, ?)")
-        ->execute([$inv['client_id'], $invoiceId, 'Annulation de la facture ' . $inv['number'], $today, json_encode($lines, JSON_UNESCAPED_UNICODE), bill_total($lines), $now, $now]);
+    $pdo->prepare("INSERT INTO bill_docs(kind, status, client_id, parent_id, subtype, subject, issue_date, terms_days, lines, total, test, created, updated)
+        VALUES('credit', 'draft', ?, ?, 'full', ?, ?, 0, ?, ?, ?, ?, ?)")
+        ->execute([$inv['client_id'], $invoiceId, 'Annulation de la facture ' . $inv['number'], $today, json_encode($lines, JSON_UNESCAPED_UNICODE), bill_total($lines), (int) $inv['test'], $now, $now]);
     return (int) $pdo->lastInsertId();
 }
 
@@ -333,9 +343,9 @@ function bill_duplicate(int $id, string $today): int
     $d = bill_doc($id);
     if ($d['kind'] !== 'quote') fail(409, 'Seuls les devis se dupliquent.');
     $now = time();
-    db()->prepare("INSERT INTO bill_docs(kind, status, client_id, subject, issue_date, deposit_percent, terms_days, delivery, notes, lines, total, created, updated)
-        VALUES('quote', 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        ->execute([$d['client_id'], $d['subject'], $today, $d['deposit_percent'], $d['terms_days'], $d['delivery'], $d['notes'], $d['lines'], $d['total'], $now, $now]);
+    db()->prepare("INSERT INTO bill_docs(kind, status, client_id, subject, issue_date, deposit_percent, terms_days, delivery, notes, lines, total, test, created, updated)
+        VALUES('quote', 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        ->execute([$d['client_id'], $d['subject'], $today, $d['deposit_percent'], $d['terms_days'], $d['delivery'], $d['notes'], $d['lines'], $d['total'], (int) $d['test'], $now, $now]);
     return (int) db()->lastInsertId();
 }
 
@@ -349,14 +359,14 @@ function bill_summary(array $d, array $clients, array $numbers): array
         'client_id' => (int) $d['client_id'], 'client' => $clients[$d['client_id']] ?? '?', 'total' => (int) $d['total'],
         'issue_date' => $d['issue_date'], 'due_date' => $d['due_date'], 'valid_until' => $d['valid_until'], 'paid_at' => $d['paid_at'],
         'parent_id' => $d['parent_id'] ? (int) $d['parent_id'] : null, 'parent_number' => $d['parent_id'] ? ($numbers[$d['parent_id']] ?? null) : null,
-        'expired' => $expired, 'overdue' => $overdue,
+        'expired' => $expired, 'overdue' => $overdue, 'test' => (int) $d['test'] === 1,
     ];
 }
 
 /** Chiffre d'affaires encaissé sur une année (factures payées, hors factures annulées par un avoir). */
 function bill_revenue(int $year): int
 {
-    $st = db()->prepare("SELECT COALESCE(SUM(total), 0) FROM bill_docs WHERE kind = 'invoice' AND status = 'paid' AND substr(paid_at, 1, 4) = ?");
+    $st = db()->prepare("SELECT COALESCE(SUM(total), 0) FROM bill_docs WHERE kind = 'invoice' AND status = 'paid' AND test = 0 AND substr(paid_at, 1, 4) = ?");
     $st->execute([(string) $year]);
     return (int) $st->fetchColumn();
 }
@@ -370,7 +380,7 @@ function bill_view(int $id): array
         'id' => (int) $d['id'], 'kind' => $d['kind'], 'number' => $d['number'], 'status' => $d['status'], 'subtype' => $d['subtype'], 'subject' => $d['subject'],
         'delivery' => $d['delivery'], 'notes' => $d['notes'], 'deposit_percent' => (int) $d['deposit_percent'], 'terms_days' => (int) $d['terms_days'],
         'service_date' => $d['service_date'], 'paid_at' => $d['paid_at'], 'paid_method' => $d['paid_method'], 'client_id' => (int) $d['client_id'],
-        'parent_id' => $d['parent_id'] ? (int) $d['parent_id'] : null, 'parent_number' => $parent['number'] ?? null,
+        'parent_id' => $d['parent_id'] ? (int) $d['parent_id'] : null, 'parent_number' => $parent['number'] ?? null, 'test' => (int) $d['test'] === 1,
     ];
     if ($d['snapshot']) {
         $s = json_decode((string) $d['snapshot'], true);
@@ -379,4 +389,57 @@ function bill_view(int $id): array
     }
     return $base + ['frozen' => false, 'seller' => bill_seller(), 'client' => bill_client((int) $d['client_id']), 'lines' => json_decode((string) $d['lines'], true) ?: [],
         'total' => (int) $d['total'], 'issue_date' => $d['issue_date'], 'valid_until' => null, 'due_date' => null];
+}
+
+// ---------------------------------------------------------------- suppression des documents de test
+
+/** Supprime un document de test et tout ce qui en dépend (factures d'un devis, avoir d'une facture). Renvoie le nombre de documents supprimés. */
+function bill_delete_test_doc(int $id, string $confirm): int
+{
+    $doc = bill_doc($id);
+    if ((int) $doc['test'] !== 1) fail(409, 'Ce document est réel : il ne se supprime pas (conservation légale de 10 ans). Seuls les documents de test se suppriment.');
+    $expected = (string) ($doc['number'] ?? 'BROUILLON');
+    if (trim($confirm) !== $expected) fail(422, "Pour confirmer, tape exactement « $expected ».");
+    $pdo = db();
+    $pdo->exec('BEGIN IMMEDIATE');
+    try {
+        $ids = [$id];
+        for ($i = 0; $i < count($ids); $i++) { // descendants (le client lui-même n'est pas touché)
+            $c = $pdo->prepare('SELECT id FROM bill_docs WHERE parent_id = ?');
+            $c->execute([$ids[$i]]);
+            foreach ($c->fetchAll(PDO::FETCH_COLUMN) as $child) if (!in_array((int) $child, $ids, true)) $ids[] = (int) $child;
+        }
+        foreach (array_reverse($ids) as $x) {
+            $t = $pdo->prepare('SELECT test FROM bill_docs WHERE id = ?');
+            $t->execute([$x]);
+            if ((int) $t->fetchColumn() !== 1) fail(409, 'Un document réel dépend de ce document de test : suppression refusée.');
+            $pdo->prepare('DELETE FROM bill_docs WHERE id = ?')->execute([$x]);
+        }
+        $pdo->exec('COMMIT');
+        return count($ids);
+    } catch (Throwable $e) {
+        $pdo->exec('ROLLBACK');
+        throw $e;
+    }
+}
+
+/** Supprime tous les documents de test, puis les clients de test devenus inutiles. Renvoie [documents, clients]. */
+function bill_purge_tests(string $confirm): array
+{
+    if (trim($confirm) !== BILL_PURGE_PHRASE) fail(422, 'Pour confirmer, tape exactement « ' . BILL_PURGE_PHRASE . ' ».');
+    $pdo = db();
+    $pdo->exec('BEGIN IMMEDIATE');
+    try {
+        $docs = 0;
+        do { // des feuilles vers la racine : jamais un parent avant ses enfants
+            $n = $pdo->exec('DELETE FROM bill_docs WHERE test = 1 AND id NOT IN (SELECT parent_id FROM bill_docs WHERE parent_id IS NOT NULL)');
+            $docs += (int) $n;
+        } while ($n > 0);
+        $clients = (int) $pdo->exec('DELETE FROM bill_clients WHERE test = 1 AND id NOT IN (SELECT client_id FROM bill_docs)');
+        $pdo->exec('COMMIT');
+        return [$docs, $clients];
+    } catch (Throwable $e) {
+        $pdo->exec('ROLLBACK');
+        throw $e;
+    }
 }
