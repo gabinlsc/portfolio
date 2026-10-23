@@ -83,6 +83,22 @@ function migrate(PDO $pdo): void
                 status TEXT NOT NULL DEFAULT 'todo', applied_on TEXT, link TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
                 created INTEGER NOT NULL, updated INTEGER NOT NULL);
             SQL,
+        2 => <<<SQL
+            CREATE TABLE bill_clients (id INTEGER PRIMARY KEY, name TEXT NOT NULL, contact TEXT NOT NULL DEFAULT '', siren TEXT NOT NULL DEFAULT '',
+                vat_id TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', postcode TEXT NOT NULL DEFAULT '', city TEXT NOT NULL DEFAULT '',
+                country TEXT NOT NULL DEFAULT 'France', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '',
+                created INTEGER NOT NULL, updated INTEGER NOT NULL);
+            CREATE TABLE bill_docs (id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('quote', 'invoice', 'credit')),
+                number TEXT UNIQUE, year INTEGER, seq INTEGER, status TEXT NOT NULL DEFAULT 'draft',
+                client_id INTEGER NOT NULL REFERENCES bill_clients(id) ON DELETE RESTRICT, parent_id INTEGER REFERENCES bill_docs(id) ON DELETE RESTRICT,
+                subtype TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', issue_date TEXT, due_date TEXT, valid_until TEXT, service_date TEXT,
+                deposit_percent INTEGER NOT NULL DEFAULT 50, terms_days INTEGER NOT NULL DEFAULT 30, delivery TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
+                lines TEXT NOT NULL DEFAULT '[]', total INTEGER NOT NULL DEFAULT 0, snapshot TEXT, paid_at TEXT, paid_method TEXT NOT NULL DEFAULT '',
+                created INTEGER NOT NULL, updated INTEGER NOT NULL);
+            CREATE UNIQUE INDEX bill_docs_seq ON bill_docs(kind, year, seq) WHERE seq IS NOT NULL;
+            CREATE INDEX bill_docs_client ON bill_docs(client_id);
+            CREATE INDEX bill_docs_parent ON bill_docs(parent_id);
+            SQL,
     ];
     $current = (int) $pdo->query('PRAGMA user_version')->fetchColumn();
     foreach ($steps as $version => $sql) {
