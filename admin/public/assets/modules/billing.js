@@ -348,7 +348,7 @@ const SETTINGS = [
   ['Toi', [['name', 'Nom et prénom'], ['brand', 'Nom commercial']]],
   ['Entreprise', [['siret', 'SIRET (14 chiffres)'], ['siren', 'SIREN (déduit du SIRET)'], ['address', 'Adresse du siège'], ['postcode', 'Code postal'], ['city', 'Ville'], ['email', 'E-mail'], ['phone', 'Téléphone']]],
   ['Banque (affichée sur les factures)', [['bank', 'Banque'], ['iban', 'IBAN'], ['bic', 'BIC']]],
-  ['Délais et plafond', [['pay_days', 'Paiement des factures (jours, 60 max.)'], ['valid_days', 'Validité des devis (jours)'], ['deposit', 'Acompte par défaut (%)'], ['ca_limit', 'Plafond de chiffre d’affaires annuel (€)']]],
+  ['Délais', [['pay_days', 'Paiement des factures (jours, 60 max.)'], ['valid_days', 'Validité des devis (jours)'], ['deposit', 'Acompte par défaut (%)']]],
   ['Mention libre', [['footer', 'Texte ajouté en bas des documents (facultatif)']]],
 ];
 
@@ -397,7 +397,7 @@ function guideView() {
       li('Numérotation chronologique continue, sans trou : faite automatiquement (F-2026-001, F-2026-002…).'),
       li('Mentions de l’entreprise, du client, de la TVA, des pénalités de retard et de l’indemnité de 40 € : ajoutées automatiquement. Le SIREN du client devient obligatoire à partir du 1er septembre 2026.'),
       li('Conservation 10 ans : les documents émis ne se suppriment pas ; fais aussi une copie de sauvegarde régulière de la base (déjà incluse dans les sauvegardes chiffrées du serveur).'),
-      li('Chiffre d’affaires : le tableau suit ce que tu as encaissé dans l’année pour surveiller le plafond de la micro-entreprise (à régler dans les réglages).'))),
+      li('Chiffre d’affaires, livre des recettes, cotisations à déclarer et plafonds : tout est dans l’onglet Compta du menu.'))),
     card('Facturation électronique', h('div', { class: 'stack-sm' },
       p('La réforme impose le passage par une ', h('b', {}, 'plateforme agréée'), ' (PA) pour les factures entre entreprises françaises. D’après les calendriers publiés : depuis le 1er septembre 2026, toute entreprise assujettie à la TVA (micro-entrepreneurs compris) doit pouvoir ', h('b', {}, 'recevoir'), ' des factures électroniques ; à partir du 1er septembre 2027, les micro-entreprises devront aussi les ', h('b', {}, 'émettre'), ' et transmettre leurs données (« e-reporting »).'),
       p('Ce module prépare et numérote tes devis et factures, avec les données exigées. Avant septembre 2027, tu peux envoyer ces factures en PDF. À partir de cette date, il faudra les émettre via la plateforme agréée de ton choix (liste officielle sur impots.gouv.fr) : choisis-en une dès maintenant, elle te servira aussi à recevoir les factures de tes fournisseurs.'),

@@ -6,6 +6,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../billing.php';
+require_once __DIR__ . '/../accounting.php';
 
 function bill_today(): string { return date('Y-m-d'); }
 
@@ -27,7 +28,7 @@ return [
             'real_count' => count(array_filter($docs, fn ($d) => (int) $d['test'] === 0)),
             'docs' => array_map(fn ($d) => bill_summary($d, $names, $numbers), $docs),
             'stats' => [
-                'year' => $year, 'revenue' => bill_revenue($year), 'limit' => (int) $seller['ca_limit'] * 100,
+                'year' => $year, 'revenue' => bill_revenue($year), 'limit' => acct_settings()['ceiling'] * 100,
                 'unpaid' => array_sum(array_map(fn ($d) => (int) $d['total'], $open('invoice', ['issued']))),
                 'quotes_open' => array_sum(array_map(fn ($d) => (int) $d['total'], $open('quote', ['issued']))),
             ],
