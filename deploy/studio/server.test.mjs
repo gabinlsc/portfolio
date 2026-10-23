@@ -41,7 +41,7 @@ test('formulaire : validation des champs', () => {
   assert.match(checkContact({ ...good, phone: 'appelez-moi' }).error, /téléphone/);
   assert.match(checkContact({ ...good, activity: 'Spatial' }).error, /activité/);
   assert.match(checkContact({ ...good, service: 'Gratuit' }).error, /besoin/);
-  for (const service of ['E-commerce', 'Abonnement Sérénité', 'Hébergement et suivi']) assert.equal(checkContact({ ...good, service }).error, undefined, service);
+  for (const service of ['Pack Lancement', 'Vitrine', 'Boutique en ligne', 'Abonnement Sérénité', 'E-commerce', 'Hébergement et suivi']) assert.equal(checkContact({ ...good, service }).error, undefined, service);
   assert.match(checkContact({ ...good, timing: 'Hier' }).error, /délai/);
   assert.equal(checkContact({ ...good, phone: '', message: '' }).ok.message, '');
 });
