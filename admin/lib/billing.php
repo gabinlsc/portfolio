@@ -13,6 +13,7 @@ declare(strict_types=1);
 const BILL_PREFIX = ['quote' => 'D', 'invoice' => 'F', 'credit' => 'A'];
 const BILL_MAX_LINES = 40;
 const BILL_PURGE_PHRASE = 'SUPPRIMER LES TESTS';
+const BILL_RECLASSIFY_PHRASE = 'TOUT EN TEST';
 const BILL_MAX_CENTS = 100_000_000_00; // 100 millions d'euros : garde-fou contre les fautes de frappe
 
 /** Montant en centimes → « 1 234,56 € » (espaces insécables). */
@@ -438,6 +439,55 @@ function bill_purge_tests(string $confirm): array
         $clients = (int) $pdo->exec('DELETE FROM bill_clients WHERE test = 1 AND id NOT IN (SELECT client_id FROM bill_docs)');
         $pdo->exec('COMMIT');
         return [$docs, $clients];
+    } catch (Throwable $e) {
+        $pdo->exec('ROLLBACK');
+        throw $e;
+    }
+}
+
+/**
+ * Reclasse en « test » des documents créés avant l'existence du mode test (et donc considérés comme réels) : un document et toute sa famille
+ * (devis d'origine, factures, avoirs), ou tous les documents réels si $id vaut 0. Ils passent dans la série TEST-… (nouveaux numéros).
+ * Réservé au mode test : une fois en production, les documents réels ne se reclassent plus. Renvoie le nombre de documents reclassés.
+ */
+function bill_reclassify_as_test(int $id, string $confirm): int
+{
+    if (!bill_test_mode()) fail(409, 'Le reclassement n’est possible qu’en mode test : en production, les documents réels se conservent 10 ans.');
+    $pdo = db();
+    if ($id > 0) {
+        $doc = bill_doc($id);
+        if ((int) $doc['test'] === 1) fail(409, 'Ce document est déjà un document de test.');
+        $expected = (string) ($doc['number'] ?? 'BROUILLON');
+    } else {
+        $expected = BILL_RECLASSIFY_PHRASE;
+    }
+    if (trim($confirm) !== $expected) fail(422, "Pour confirmer, tape exactement « $expected ».");
+    $pdo->exec('BEGIN IMMEDIATE');
+    try {
+        if ($id > 0) { // famille : on remonte à la racine, puis on descend
+            $root = $id;
+            while (($p = $pdo->query('SELECT parent_id FROM bill_docs WHERE id = ' . $root)->fetchColumn()) && (int) $p > 0) $root = (int) $p;
+            $family = [$root];
+            for ($i = 0; $i < count($family); $i++) {
+                $c = $pdo->prepare('SELECT id FROM bill_docs WHERE parent_id = ?');
+                $c->execute([$family[$i]]);
+                foreach ($c->fetchAll(PDO::FETCH_COLUMN) as $child) if (!in_array((int) $child, $family, true)) $family[] = (int) $child;
+            }
+            sort($family);
+        } else {
+            $family = array_map('intval', $pdo->query('SELECT id FROM bill_docs WHERE test = 0 ORDER BY id')->fetchAll(PDO::FETCH_COLUMN));
+        }
+        $done = 0;
+        foreach ($family as $x) {
+            $d = bill_doc($x);
+            if ((int) $d['test'] === 1) continue;
+            $number = null; $seq = null; $year = $d['year'];
+            if ($d['number'] !== null) [$seq, $number] = bill_next_number($pdo, (string) $d['kind'], (int) $d['year'], 1);
+            $pdo->prepare('UPDATE bill_docs SET test = 1, number = ?, seq = ?, updated = ? WHERE id = ?')->execute([$number, $seq, time(), $x]);
+            $done++;
+        }
+        $pdo->exec('COMMIT');
+        return $done;
     } catch (Throwable $e) {
         $pdo->exec('ROLLBACK');
         throw $e;

@@ -24,6 +24,7 @@ return [
         return [
             'seller' => $seller, 'missing' => bill_seller_missing($seller), 'clients' => $clientsRaw, 'test_mode' => bill_test_mode(),
             'test_count' => count(array_filter($docs, fn ($d) => (int) $d['test'] === 1)),
+            'real_count' => count(array_filter($docs, fn ($d) => (int) $d['test'] === 0)),
             'docs' => array_map(fn ($d) => bill_summary($d, $names, $numbers), $docs),
             'stats' => [
                 'year' => $year, 'revenue' => bill_revenue($year), 'limit' => (int) $seller['ca_limit'] * 100,
@@ -86,6 +87,10 @@ return [
         $b = body();
         $n = bill_delete_test_doc(int_in($b, 'id', 0, 1) ?: fail(422, 'Document invalide.'), str_in($b, 'confirm', 80, true));
         return ['deleted' => $n];
+    },
+    'POST billing/reclassify' => function () {
+        $b = body();
+        return ['reclassified' => bill_reclassify_as_test(int_in($b, 'id', 0, 0) ?? 0, str_in($b, 'confirm', 80, true))];
     },
     'POST billing/tests/purge' => function () {
         [$docs, $clients] = bill_purge_tests(str_in(body(), 'confirm', 80, true));

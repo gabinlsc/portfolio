@@ -88,7 +88,8 @@ function view(state, load, draw) {
       btn('Ouvrir les réglages', () => { state.tab = 'settings'; draw(); }, { kind: 'primary', iconName: 'settings' })), { color: 'banana' }) : null;
   const testBanner = d.test_mode && state.tab !== 'settings' && state.tab !== 'guide'
     ? card('Mode test activé', h('div', { class: 'stack-sm' }, h('p', {}, 'Les documents et clients créés maintenant sont marqués TEST : numérotation à part (TEST-D-…), émission possible sans SIRET, exclus du chiffre d’affaires et supprimables. Ils n’ont aucune valeur légale.'),
-      h('div', { class: 'btn-row' }, btn('Passer en production', () => goProduction(load), { iconName: 'rocket' }),
+      h('div', { class: 'btn-row' }, btn('Passer en production', () => goProduction(load, d.real_count), { iconName: 'rocket' }),
+        d.real_count ? btn(`Reclasser mes ${d.real_count} document${d.real_count > 1 ? 's' : ''} existant${d.real_count > 1 ? 's' : ''} en test`, () => reclassifyAll(load, d.real_count), { iconName: 'rotate-cw' }) : null,
         d.test_count ? btn(`Supprimer les données de test (${d.test_count})`, () => purgeTests(load), { kind: 'danger', iconName: 'trash-2' }) : null)), { color: 'sky' }) : null;
   const body = { quotes: () => docsView(state, load, 'quote'), invoices: () => docsView(state, load, 'invoice'), clients: () => clientsView(state, load), settings: () => settingsView(state, load), guide: guideView }[state.tab]();
   return h('div', { class: 'stack' }, head, missing, testBanner, state.tab === 'quotes' || state.tab === 'invoices' ? kpis(d.stats) : null, body);
@@ -222,6 +223,13 @@ async function openDoc(state, load, id) {
   if (v.kind === 'invoice' && (v.status === 'issued' || v.status === 'paid')) {
     buttons.push(btn('Créer un avoir (annuler)', async () => { if (await confirmBox('Créer un avoir qui annule cette facture ? Il sera en brouillon, à émettre ensuite.', { ok: 'Créer l’avoir', danger: false })) act('billing/doc/derive', { type: 'credit' }, 'Avoir créé en brouillon ✓', (r) => openDoc(state, load, r.id)); }, { iconName: 'rotate-cw' }));
   }
+  if (!v.test && state.data.test_mode) {
+    buttons.push(btn('Reclasser en test', async () => {
+      const phrase = v.number || 'BROUILLON';
+      const confirm = await tripleCheck({ what: `Reclasser ce document (${phrase}) et ceux qui en dépendent en documents de test ? Ils prendront des numéros TEST-… et pourront être supprimés. Ne le fais pas s’il a été réellement envoyé à un client.`, phrase });
+      if (confirm) act('billing/reclassify', { confirm }, (r) => `${r.reclassified} document(s) reclassé(s) en test ✓`);
+    }, { iconName: 'rotate-cw' }));
+  }
   if (v.test) {
     buttons.push(btn('Supprimer ce document de test', async () => {
       const phrase = v.number || 'BROUILLON';
@@ -281,10 +289,16 @@ function sheet(v) {
 }
 
 // ---------------------------------------------------------------- mode test
-async function goProduction(load) {
+async function goProduction(load, realCount = 0) {
   const phrase = 'PRODUCTION';
-  const confirm = await tripleCheck({ what: 'Passer en production ? Les prochains documents seront réels : numérotation officielle, SIRET obligatoire, impossibles à supprimer. Tes documents de test restent séparés (et supprimables).', phrase });
+  const confirm = await tripleCheck({ what: (realCount ? `Attention : ${realCount} document${realCount > 1 ? 's' : ''} existant${realCount > 1 ? 's' : ''} ${realCount > 1 ? 'resteront' : 'restera'} réel${realCount > 1 ? 's' : ''} (non supprimable${realCount > 1 ? 's' : ''}). Si ce sont des essais, reclasse-les d’abord en tests. ` : '') + 'Passer en production ? Les prochains documents seront réels : numérotation officielle, SIRET obligatoire, impossibles à supprimer. Tes documents de test restent séparés (et supprimables).', phrase });
   if (confirm) attempt(() => api('billing/mode', { body: { test: false, confirm } }), 'Mode production activé ✓').then((r) => r && load());
+}
+
+async function reclassifyAll(load, n) {
+  const phrase = 'TOUT EN TEST';
+  const confirm = await tripleCheck({ what: `Reclasser en tests les ${n} document${n > 1 ? 's' : ''} créé${n > 1 ? 's' : ''} avant le mode test ? Ils prendront des numéros TEST-… et pourront ensuite être supprimés. Ne le fais pas pour un document réellement envoyé à un client : il se conserve 10 ans.`, phrase });
+  if (confirm) attempt(() => api('billing/reclassify', { body: { id: 0, confirm } }), (r) => `${r.reclassified} document(s) reclassé(s) en test ✓`).then((r) => r && load());
 }
 
 async function purgeTests(load) {
@@ -354,8 +368,9 @@ function settingsView(state, load) {
   const modeCard = card('Mode test', h('div', { class: 'stack-sm' },
     h('p', {}, d.test_mode ? 'Le mode test est activé : tu peux t’entraîner sans risque. Les documents créés sont marqués TEST, numérotés à part et supprimables.' : 'Le mode production est activé : les documents créés sont réels, numérotés officiellement et impossibles à supprimer (conservation légale de 10 ans).'),
     h('div', { class: 'btn-row' },
-      d.test_mode ? btn('Passer en production', () => goProduction(load), { kind: 'primary', iconName: 'rocket' })
+      d.test_mode ? btn('Passer en production', () => goProduction(load, d.real_count), { kind: 'primary', iconName: 'rocket' })
         : btn('Réactiver le mode test', () => attempt(() => api('billing/mode', { body: { test: true } }), 'Mode test activé ✓').then((r) => r && load()), { iconName: 'rotate-cw' }),
+      d.test_mode && d.real_count ? btn(`Reclasser mes ${d.real_count} document${d.real_count > 1 ? 's' : ''} existant${d.real_count > 1 ? 's' : ''} en test`, () => reclassifyAll(load, d.real_count), { iconName: 'rotate-cw' }) : null,
       btn(`Supprimer les données de test (${d.test_count})`, () => purgeTests(load), { kind: 'danger', iconName: 'trash-2', title: 'Trois validations demandées' })),
     h('small', { class: 'muted' }, 'La suppression demande trois validations. Elle ne touche jamais les documents réels.')), { color: d.test_mode ? 'sky' : 'mint' });
   return h('div', { class: 'stack' }, modeCard, h('p', { class: 'muted' }, 'Ces informations figurent sur chaque devis et facture émis. Le SIRET te sera donné à l’immatriculation de ton entreprise.'), ...sections, h('div', { class: 'btn-row' }, save));
