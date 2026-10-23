@@ -21,6 +21,10 @@ Données (jamais effacées par les scripts) :
 - `/var/lib/glsc-admin/pub/` : mesures publiées par la sonde (lecture seule pour www-data) ;
 - `/var/lib/glsc-admin/queue/` : demandes de l'admin à la sonde (message Discord, redémarrage d'un jeu en liste blanche).
 
+## Devis & factures
+
+Module `billing` (menu « Devis & factures ») : clients professionnels, devis, factures d'acompte, de solde ou complètes, avoirs. Les documents émis reçoivent un numéro continu (D-AAAA-NNN, F-AAAA-NNN, A-AAAA-NNN) et un instantané figé (vendeur, client, lignes) : ils ne se modifient plus, une facture se corrige par un avoir. TVA non applicable (art. 293 B du CGI). L'aperçu s'imprime en PDF depuis le navigateur. Données dans `app.db` (tables `bill_clients` et `bill_docs`, comprises dans la sauvegarde chiffrée). Code : `lib/billing.php` (règles, testables), `lib/modules/billing.php` (API), `public/assets/modules/billing.js` (interface). Tests : `php admin/tests/billing_test.php`.
+
 ## Sécurité
 
 - Mot de passe + code TOTP (codes rejoués refusés) ou code de secours à usage unique.

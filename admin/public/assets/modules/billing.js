@@ -114,6 +114,7 @@ function editDoc(state, load, init, id) {
   const notes = h('textarea', { class: 'input', rows: 2, maxlength: 1000, 'aria-label': 'Notes', placeholder: 'Mention libre affichée sur le document (facultatif)' }, doc.notes);
   const deposit = h('input', { class: 'input input-sm', type: 'number', min: 0, max: 100, value: doc.deposit_percent, 'aria-label': 'Acompte en pourcentage' });
   const terms = h('input', { class: 'input input-sm', type: 'number', min: 0, max: 365, value: doc.terms_days, 'aria-label': isQuote ? 'Validité en jours' : 'Délai de paiement en jours' });
+  const serviceDate = h('input', { class: 'input', type: 'date', value: doc.service_date || '', 'aria-label': 'Date de la prestation' });
   const totalOut = h('b', {}, eur(0));
   const body = h('tbody', {});
   const refresh = () => { totalOut.textContent = eur(sum(lines)); };
@@ -137,7 +138,7 @@ function editDoc(state, load, init, id) {
   } }, h('option', { value: '' }, 'Ajouter depuis le catalogue…'), CATALOG.map(([group, items], g) => h('optgroup', { label: group }, items.map(([desc, unit], i) => h('option', { value: `${g}:${i}` }, `${desc.split(' : ')[0]} · ${eur(unit)}`)))));
   drawLines();
   const payload = () => ({ id, kind: init.kind, client_id: Number(clientSel.value), subject: subject.value, delivery: delivery.value, notes: notes.value,
-    deposit_percent: Number(deposit.value || 0), terms_days: Number(terms.value || 0), lines: lines.map((l) => ({ desc: l.desc, qty: l.qty, unit: l.unit, unitLabel: l.unitLabel || '' })) });
+    deposit_percent: Number(deposit.value || 0), terms_days: Number(terms.value || 0), service_date: isQuote ? '' : serviceDate.value, lines: lines.map((l) => ({ desc: l.desc, qty: l.qty, unit: l.unit, unitLabel: l.unitLabel || '' })) });
   const error = h('p', { class: 'error', role: 'alert', hidden: true });
   const save = async (andOpen) => {
     try {
@@ -152,7 +153,8 @@ function editDoc(state, load, init, id) {
     h('p', { class: 'row-end' }, 'Total : ', totalOut, h('small', { class: 'muted' }, ' · TVA non applicable')),
     isQuote ? h('div', { class: 'grid grid-3' }, h('label', { class: 'field' }, h('span', {}, 'Acompte à la commande (%)'), deposit), h('label', { class: 'field' }, h('span', {}, 'Validité du devis (jours)'), terms),
       h('label', { class: 'field' }, h('span', {}, 'Délai de réalisation'), delivery))
-      : h('div', { class: 'grid grid-2' }, h('label', { class: 'field' }, h('span', {}, 'Délai de paiement (jours, 60 max.)'), terms)),
+      : h('div', { class: 'grid grid-2' }, h('label', { class: 'field' }, h('span', {}, 'Délai de paiement (jours, 60 max.)'), terms),
+        h('label', { class: 'field' }, h('span', {}, 'Date de la prestation (si différente de l’émission)'), serviceDate)),
     h('label', { class: 'field' }, h('span', {}, 'Note'), notes), error,
     h('div', { class: 'modal-actions' }, btn('Enregistrer le brouillon', () => save(false)), btn('Enregistrer et voir', () => save(true), { kind: 'primary', iconName: 'file-text' })));
   const close = modal({ title: `${id ? 'Modifier' : 'Nouveau'} ${isQuote ? 'devis' : 'facture'} (brouillon)`, body: content, wide: true });
@@ -167,7 +169,7 @@ async function openDoc(state, load, id) {
   const act = (path, payload, msg, then) => attempt(() => api(path, { body: { id, ...payload } }), msg).then(async (r) => { if (r) { close(); await load(); if (then) then(r); } });
   const buttons = [];
   if (v.status === 'draft') {
-    buttons.push(btn('Modifier', () => { close(); editDoc(state, load, { kind: v.kind, client_id: v.client_id, subject: v.subject, lines: v.lines, delivery: v.delivery, notes: v.notes, deposit_percent: v.deposit_percent, terms_days: v.terms_days }, id); }, { iconName: 'pencil' }));
+    buttons.push(btn('Modifier', () => { close(); editDoc(state, load, { kind: v.kind, client_id: v.client_id, subject: v.subject, lines: v.lines, delivery: v.delivery, notes: v.notes, deposit_percent: v.deposit_percent, terms_days: v.terms_days, service_date: v.service_date }, id); }, { iconName: 'pencil' }));
     buttons.push(btn('Émettre (numéroter et figer)', async () => {
       const warn = v.kind !== 'quote' && !v.client.siren ? ' Le SIREN du client n’est pas renseigné : il devient obligatoire sur les factures entre professionnels.' : '';
       if (await confirmBox(`Une fois émis, ce ${KIND[v.kind].toLowerCase()} reçoit son numéro définitif et ne pourra plus être modifié.${warn}`, { ok: 'Émettre', danger: false })) act('billing/doc/issue', {}, (r) => `${r.number} émis ✓`, (r) => openDoc(state, load, id));
@@ -232,6 +234,7 @@ function sheet(v) {
       h('div', { class: 'sheet-title' }, h('h2', {}, docTitle(v).toUpperCase()), h('p', {}, v.number || 'Numéro attribué à l’émission'),
         h('p', {}, `Date : ${dateLong(v.issue_date)}`),
         isQuote && v.valid_until ? h('p', {}, `Valable jusqu’au ${dateLong(v.valid_until)}`) : null,
+        isInvoice && v.service_date ? h('p', {}, `Date de la prestation : ${dateLong(v.service_date)}`) : null,
         isInvoice && v.due_date ? h('p', {}, v.due_date === v.issue_date ? 'Échéance : à réception' : `Échéance : ${dateLong(v.due_date)}`) : null,
         v.parent_number ? h('p', {}, `${isCredit ? 'Facture annulée' : 'Devis'} : ${v.parent_number}`) : null)),
     h('section', { class: 'sheet-client' }, h('small', {}, isQuote ? 'Destinataire' : 'Facturé à'), h('b', {}, c.name), line(c.contact), line(c.address), line(cityLine(c)), line(c.country && c.country !== 'France' ? c.country : ''),
@@ -242,7 +245,7 @@ function sheet(v) {
     dep ? h('p', { class: 'sheet-cond' }, `Acompte de ${v.deposit_percent} % à la commande : ${eur(dep)}. Solde de ${eur(total - dep)} à la livraison, avant la mise en ligne définitive.`) : null,
     isQuote && v.delivery ? h('p', { class: 'sheet-cond' }, `Délai de réalisation : ${v.delivery}.`) : null,
     v.notes ? h('p', { class: 'sheet-cond pre-wrap' }, v.notes) : null,
-    isInvoice && (s.iban || s.bic) ? h('p', { class: 'sheet-cond' }, h('b', {}, 'Règlement par virement : '), [s.bank, s.iban && `IBAN ${s.iban}`, s.bic && `BIC ${s.bic}`].filter(Boolean).join(' · '), v.number ? ` · référence ${v.number}` : '') : null,
+    isInvoice && (s.iban || s.bic) ? h('p', { class: 'sheet-cond' }, h('b', {}, 'Règlement par virement : '), [s.bank, s.iban && `IBAN ${s.iban.replace(/(.{4})/g, '$1 ').trim()}`, s.bic && `BIC ${s.bic}`].filter(Boolean).join(' · '), v.number ? ` · référence ${v.number}` : '') : null,
     isQuote ? h('div', { class: 'sheet-sign' }, h('b', {}, 'Bon pour accord'), h('p', {}, 'Date, nom et signature du client, précédés de la mention « Bon pour accord » :'), h('div', { class: 'sheet-sign-box' }), h('small', {}, 'Le client déclare agir à titre professionnel.')) : null,
     v.paid_at ? h('p', { class: 'sheet-paid' }, `Payée le ${dateLong(v.paid_at)}${v.paid_method ? ` (${v.paid_method})` : ''}. Merci !`) : null,
     h('footer', { class: 'sheet-foot' }, mentions.map((m) => h('p', {}, m))));
