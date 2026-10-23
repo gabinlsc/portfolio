@@ -25,6 +25,17 @@ Données (jamais effacées par les scripts) :
 
 Module `billing` (menu « Devis & factures ») : clients professionnels, devis, factures d'acompte, de solde ou complètes, avoirs. Les documents émis reçoivent un numéro continu (D-AAAA-NNN, F-AAAA-NNN, A-AAAA-NNN) et un instantané figé (vendeur, client, lignes) : ils ne se modifient plus, une facture se corrige par un avoir. TVA non applicable (art. 293 B du CGI). L'aperçu s'imprime en PDF depuis le navigateur. Données dans `app.db` (tables `bill_clients` et `bill_docs`, comprises dans la sauvegarde chiffrée). Code : `lib/billing.php` (règles, testables), `lib/modules/billing.php` (API), `public/assets/modules/billing.js` (interface). Mode test (activé par défaut) : les documents créés sont marqués TEST, numérotés à part (TEST-D-AAAA-NNN), émissibles sans SIRET, exclus du chiffre d'affaires et supprimables avec trois validations (deux confirmations puis saisie du numéro ou de « SUPPRIMER LES TESTS »). Les documents réels ne se suppriment jamais. Tests : `php admin/tests/billing_test.php`.
 
+## Compta
+
+Module `accounting` (menu « Compta ») pour la micro-entreprise, à partir des factures réelles payées du module Devis & factures (les documents de test n'y entrent jamais) :
+- **Tableau de bord** : chiffre d'affaires encaissé, cotisations estimées, dépenses, résultat estimé, à encaisser, graphique mensuel, meilleurs clients, plafond de la micro-entreprise et seuils de franchise de TVA, prochaine déclaration, rappels (CFE, impôt, facturation électronique).
+- **Recettes** : le livre des recettes (obligatoire), généré automatiquement, imprimable en PDF, export CSV. Un avoir émis sur une facture déjà payée apparaît comme un remboursement négatif.
+- **Dépenses** : suivi facultatif par catégorie, export CSV.
+- **Déclarations** : périodes mensuelles ou trimestrielles, cotisations estimées (taux, ACRE, versement libératoire), état (à déclarer, en retard, déclarée, payée) et ce que tu as déclaré et payé.
+- **Exports** : CSV (recettes, factures, dépenses), archive JSON complète (documents figés, clients, dépenses, déclarations) pour la conservation de 10 ans, bilan annuel imprimable.
+- **Réglages** : catégorie d'activité, fréquence, taux et seuils (valeurs 2026 par défaut, toutes modifiables : à vérifier sur autoentrepreneur.urssaf.fr).
+Les e-mails d'envoi des devis et factures et les relances (rappel, relance ferme, mise en demeure) sont dans l'aperçu d'un document de « Devis & factures ». Code : `lib/accounting.php` (calculs, testables), `lib/modules/accounting.php` (API et exports), `public/assets/modules/accounting.js` (interface). Tests : `php admin/tests/accounting_test.php`. Données : tables `bill_expenses` et `bill_declarations` (migration 4), comprises dans la sauvegarde chiffrée.
+
 ## Sécurité
 
 - Mot de passe + code TOTP (codes rejoués refusés) ou code de secours à usage unique.

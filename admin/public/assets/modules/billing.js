@@ -199,6 +199,8 @@ async function openDoc(state, load, id) {
   } else {
     buttons.push(btn('Imprimer / PDF', () => window.print(), { kind: 'primary', iconName: 'printer' }));
     buttons.push(btn('Copier le numéro', () => copy(v.number, 'Numéro copié'), { iconName: 'copy' }));
+    if (v.kind !== 'credit') buttons.push(btn('E-mail d’envoi', () => mailModal(v, 'send'), { iconName: 'send' }));
+    if (v.kind === 'invoice' && v.status === 'issued' && v.due_date && v.due_date < todayIso()) buttons.push(btn('Relancer', () => mailModal(v, 1), { kind: 'primary', iconName: 'send' }));
   }
   if (v.kind === 'quote' && v.status === 'issued') {
     buttons.push(btn('Marquer accepté', () => act('billing/doc/status', { status: 'accepted' }, 'Devis accepté ✓'), { iconName: 'circle-check' }));
@@ -240,6 +242,39 @@ async function openDoc(state, load, id) {
   }
   const actions = h('div', { class: 'btn-row doc-actions' }, buttons);
   const close = modal({ title: v.number ? `${docTitle(v)} ${v.number}` : `${docTitle(v)} (brouillon)`, body: h('div', { class: 'stack' }, actions, sheetBox), wide: true });
+}
+
+// ---------------------------------------------------------------- e-mails types (envoi et relances)
+function mailParts(v, level) {
+  const s = v.seller, c = v.client, num = v.number;
+  const hello = c.contact ? `Bonjour ${c.contact},` : 'Bonjour,';
+  const sign = `Bien cordialement,\n${s.name}\n${s.brand || ''}${s.phone ? ` — ${s.phone}` : ''}${s.email ? ` — ${s.email}` : ''}`.replace(/\n\s+—/, '\n—');
+  const total = eur(v.total);
+  if (level === 'send') {
+    if (v.kind === 'quote') return [`Devis ${num} — ${v.subject || 'votre projet'}`, `${hello}\n\nSuite à notre échange, veuillez trouver ci-joint le devis ${num}${v.subject ? ` pour ${v.subject}` : ''}, d’un montant de ${total} (TVA non applicable, article 293 B du CGI).\n\nIl est valable jusqu’au ${dateLong(v.valid_until)}. Pour l’accepter, retournez-le moi signé avec la mention « Bon pour accord » ; un simple e-mail de confirmation avec cette mention convient aussi.\n\nJe reste à votre disposition pour toute question.\n\n${sign}`];
+    return [`Facture ${num} — ${v.subject || ''}`.trim(), `${hello}\n\nVeuillez trouver ci-joint la facture ${num} d’un montant de ${total}${v.due_date ? `, à régler ${v.due_date === v.issue_date ? 'à réception' : `avant le ${dateLong(v.due_date)}`}` : ''} par virement${s.iban ? ` (coordonnées bancaires sur la facture)` : ''}, en rappelant la référence ${num}.\n\nMerci pour votre confiance.\n\n${sign}`];
+  }
+  const late = v.due_date ? Math.max(0, Math.round((new Date(todayIso() + 'T12:00') - new Date(v.due_date + 'T12:00')) / 86400000)) : 0;
+  const base = `la facture ${num} d’un montant de ${total}, échue le ${dateLong(v.due_date)}${late ? ` (${late} jour${late > 1 ? 's' : ''} de retard)` : ''}`;
+  if (level === 1) return [`Rappel — facture ${num}`, `${hello}\n\nSauf erreur ou oubli de ma part, ${base}, ne m’est pas encore parvenue.\n\nPourriez-vous procéder au règlement par virement en indiquant la référence ${num} ? Si le paiement a été effectué entre-temps, merci de ne pas tenir compte de ce message.\n\n${sign}`];
+  if (level === 2) return [`Relance — facture ${num} impayée`, `${hello}\n\nMalgré mon précédent rappel, ${base}, reste impayée.\n\nJe vous remercie de la régler sous 8 jours. Conformément aux conditions générales de vente, tout retard de paiement entraîne des pénalités au taux d’intérêt légal majoré de 10 points ainsi qu’une indemnité forfaitaire de 40 € pour frais de recouvrement.\n\nSi vous rencontrez une difficulté, contactez-moi : je préfère en discuter.\n\n${sign}`];
+  return [`Mise en demeure de payer — facture ${num}`, `${hello}\n\nMes relances étant restées sans effet, je vous mets en demeure de régler, sous 8 jours à compter de la réception de la présente, ${base}, majorée des pénalités de retard (taux d’intérêt légal majoré de 10 points) et de l’indemnité forfaitaire de recouvrement de 40 €.\n\nÀ défaut de paiement dans ce délai, je me réserve le droit d’engager toute procédure de recouvrement.\n\n(Ce courrier est à envoyer en lettre recommandée avec accusé de réception.)\n\n${sign}`];
+}
+
+function mailModal(v, level) {
+  let cur = level;
+  const subject = h('input', { class: 'input', readonly: true, 'aria-label': 'Objet' });
+  const bodyBox = h('textarea', { class: 'input', rows: 14, 'aria-label': 'Message' });
+  const paint = () => { const [sj, bd] = mailParts(v, cur); subject.value = sj; bodyBox.value = bd; };
+  const mk = () => segmented([[1, 'Rappel amical'], [2, 'Relance ferme'], [3, 'Mise en demeure']], cur, (x) => { cur = x; paint(); const n = mk(); sel.replaceWith(n); sel = n; }, 'Niveau de relance');
+  let sel = level === 'send' ? null : mk();
+  const mail = () => `mailto:${encodeURIComponent(v.client.email || '')}?subject=${encodeURIComponent(subject.value)}&body=${encodeURIComponent(bodyBox.value)}`;
+  paint();
+  modal({ title: level === 'send' ? `E-mail d’envoi — ${v.number}` : `Relance — ${v.number}`, wide: true, body: h('div', { class: 'stack' },
+    sel, h('label', { class: 'field' }, h('span', {}, 'Objet'), subject), h('label', { class: 'field' }, h('span', {}, 'Message (modifiable)'), bodyBox),
+    h('div', { class: 'btn-row' }, btn('Copier le message', () => copy(bodyBox.value, 'Message copié'), { kind: 'primary', iconName: 'copy' }), btn('Copier l’objet', () => copy(subject.value, 'Objet copié'), { iconName: 'copy' }),
+      h('a', { class: 'btn', href: mail() }, icon('send'), h('span', {}, 'Ouvrir dans ma messagerie'))),
+    h('small', { class: 'muted' }, v.client.email ? `Destinataire : ${v.client.email}. Pense à joindre le PDF (Imprimer / PDF).` : 'Pense à joindre le PDF (Imprimer / PDF).')) });
 }
 
 /** Le document tel qu'il s'imprime : identité du vendeur, client, lignes, total, mentions légales. */
@@ -348,7 +383,7 @@ const SETTINGS = [
   ['Toi', [['name', 'Nom et prénom'], ['brand', 'Nom commercial']]],
   ['Entreprise', [['siret', 'SIRET (14 chiffres)'], ['siren', 'SIREN (déduit du SIRET)'], ['address', 'Adresse du siège'], ['postcode', 'Code postal'], ['city', 'Ville'], ['email', 'E-mail'], ['phone', 'Téléphone']]],
   ['Banque (affichée sur les factures)', [['bank', 'Banque'], ['iban', 'IBAN'], ['bic', 'BIC']]],
-  ['Délais et plafond', [['pay_days', 'Paiement des factures (jours, 60 max.)'], ['valid_days', 'Validité des devis (jours)'], ['deposit', 'Acompte par défaut (%)'], ['ca_limit', 'Plafond de chiffre d’affaires annuel (€)']]],
+  ['Délais', [['pay_days', 'Paiement des factures (jours, 60 max.)'], ['valid_days', 'Validité des devis (jours)'], ['deposit', 'Acompte par défaut (%)']]],
   ['Mention libre', [['footer', 'Texte ajouté en bas des documents (facultatif)']]],
 ];
 
@@ -397,7 +432,7 @@ function guideView() {
       li('Numérotation chronologique continue, sans trou : faite automatiquement (F-2026-001, F-2026-002…).'),
       li('Mentions de l’entreprise, du client, de la TVA, des pénalités de retard et de l’indemnité de 40 € : ajoutées automatiquement. Le SIREN du client devient obligatoire à partir du 1er septembre 2026.'),
       li('Conservation 10 ans : les documents émis ne se suppriment pas ; fais aussi une copie de sauvegarde régulière de la base (déjà incluse dans les sauvegardes chiffrées du serveur).'),
-      li('Chiffre d’affaires : le tableau suit ce que tu as encaissé dans l’année pour surveiller le plafond de la micro-entreprise (à régler dans les réglages).'))),
+      li('Chiffre d’affaires, livre des recettes, cotisations à déclarer et plafonds : tout est dans l’onglet Compta du menu.'))),
     card('Facturation électronique', h('div', { class: 'stack-sm' },
       p('La réforme impose le passage par une ', h('b', {}, 'plateforme agréée'), ' (PA) pour les factures entre entreprises françaises. D’après les calendriers publiés : depuis le 1er septembre 2026, toute entreprise assujettie à la TVA (micro-entrepreneurs compris) doit pouvoir ', h('b', {}, 'recevoir'), ' des factures électroniques ; à partir du 1er septembre 2027, les micro-entreprises devront aussi les ', h('b', {}, 'émettre'), ' et transmettre leurs données (« e-reporting »).'),
       p('Ce module prépare et numérote tes devis et factures, avec les données exigées. Avant septembre 2027, tu peux envoyer ces factures en PDF. À partir de cette date, il faudra les émettre via la plateforme agréée de ton choix (liste officielle sur impots.gouv.fr) : choisis-en une dès maintenant, elle te servira aussi à recevoir les factures de tes fournisseurs.'),

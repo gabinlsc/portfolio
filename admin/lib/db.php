@@ -106,6 +106,15 @@ function migrate(PDO $pdo): void
             DROP INDEX bill_docs_seq;
             CREATE UNIQUE INDEX bill_docs_seq ON bill_docs(kind, year, seq, test) WHERE seq IS NOT NULL;
             SQL,
+        // 4 : comptabilité (dépenses facultatives, suivi des déclarations de cotisations)
+        4 => <<<SQL
+            CREATE TABLE bill_expenses (id INTEGER PRIMARY KEY, date TEXT NOT NULL, supplier TEXT NOT NULL DEFAULT '', label TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'autre', amount INTEGER NOT NULL, method TEXT NOT NULL DEFAULT '', ref TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL, updated INTEGER NOT NULL);
+            CREATE INDEX bill_expenses_date ON bill_expenses(date);
+            CREATE TABLE bill_declarations (period TEXT PRIMARY KEY, declared_at TEXT, revenue_declared INTEGER, paid_at TEXT, amount_paid INTEGER,
+                note TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL);
+            SQL,
     ];
     $current = (int) $pdo->query('PRAGMA user_version')->fetchColumn();
     foreach ($steps as $version => $sql) {

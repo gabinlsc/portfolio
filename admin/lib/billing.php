@@ -89,7 +89,7 @@ function bill_set_test_mode(bool $on): void { set_setting('billing_test_mode', $
 const BILL_SELLER_DEFAULTS = [
     'name' => 'Gabin Lescoat', 'brand' => 'StudioGLSC', 'siren' => '', 'siret' => '', 'address' => '', 'postcode' => '', 'city' => '',
     'email' => 'pro@glsc.fr', 'phone' => '+33 7 67 20 44 24', 'iban' => '', 'bic' => '', 'bank' => '',
-    'pay_days' => '30', 'valid_days' => '30', 'deposit' => '50', 'ca_limit' => '77700', 'footer' => '',
+    'pay_days' => '30', 'valid_days' => '30', 'deposit' => '50', 'footer' => '',
 ];
 
 function bill_seller(): array
@@ -128,7 +128,6 @@ function bill_save_seller(array $b): array
     $out['pay_days'] = (string) int_in($b, 'pay_days', 30, 0, 60);                // 60 jours : plafond légal entre professionnels
     $out['valid_days'] = (string) int_in($b, 'valid_days', 30, 1, 365);
     $out['deposit'] = (string) int_in($b, 'deposit', 50, 0, 100);
-    $out['ca_limit'] = (string) int_in($b, 'ca_limit', 77700, 0, 10_000_000);
     foreach ($out as $k => $v) set_setting('billing_' . $k, $v);
     return bill_seller();
 }
