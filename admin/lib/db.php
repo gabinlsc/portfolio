@@ -99,6 +99,13 @@ function migrate(PDO $pdo): void
             CREATE INDEX bill_docs_client ON bill_docs(client_id);
             CREATE INDEX bill_docs_parent ON bill_docs(parent_id);
             SQL,
+        // 3 : mode test (les documents et clients existants restent « réels » : test = 0)
+        3 => <<<SQL
+            ALTER TABLE bill_clients ADD COLUMN test INTEGER NOT NULL DEFAULT 0;
+            ALTER TABLE bill_docs ADD COLUMN test INTEGER NOT NULL DEFAULT 0;
+            DROP INDEX bill_docs_seq;
+            CREATE UNIQUE INDEX bill_docs_seq ON bill_docs(kind, year, seq, test) WHERE seq IS NOT NULL;
+            SQL,
     ];
     $current = (int) $pdo->query('PRAGMA user_version')->fetchColumn();
     foreach ($steps as $version => $sql) {

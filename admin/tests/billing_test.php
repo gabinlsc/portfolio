@@ -38,6 +38,7 @@ fails(fn () => bill_clean_lines([['desc' => '', 'qty' => 1, 'unit' => 100]]), 42
 check(bill_clean_lines([['desc' => '', 'qty' => 1, 'unit' => 0]]) === [], 'ligne vide ignorée');
 
 // ---- vendeur
+bill_set_test_mode(false); // le déroulé principal se fait en production ; le mode test est vérifié en fin de fichier
 fails(fn () => bill_save_seller(['siret' => '73282932000075']), 422, 'SIRET invalide refusé');
 check(bill_seller_missing(bill_seller()) !== [], 'vendeur incomplet : il manque le SIRET et l’adresse');
 bill_save_seller(['name' => 'Gabin Lescoat', 'brand' => 'StudioGLSC', 'siret' => '732 829 320 00074', 'address' => '1 rue Test', 'postcode' => '56100', 'city' => 'Lorient', 'email' => 'pro@glsc.fr']);
@@ -110,5 +111,86 @@ $tmp = bill_save_draft($draft, $today); bill_delete_draft($tmp);
 check(!db()->query('SELECT 1 FROM bill_docs WHERE id = ' . $tmp)->fetch(), 'brouillon supprimable');
 try { db()->prepare('DELETE FROM bill_clients WHERE id = ?')->execute([$client]); check(false, 'client avec documents : suppression bloquée'); }
 catch (PDOException $e) { check(true, 'client avec documents : suppression bloquée par la base'); }
+
+
+// ---- mode test : numérotation à part, émission sans SIRET, exclu du chiffre d'affaires, suppression avec confirmation
+$realCount = (int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn();
+$realRevenue = bill_revenue(2026);
+bill_set_test_mode(true);
+check(bill_test_mode(), 'mode test activé');
+db()->prepare("DELETE FROM settings WHERE key = 'billing_siret'")->execute(); // vendeur sans SIRET : seuls les tests peuvent s'émettre
+$tClient = (function () { $n = time(); db()->prepare('INSERT INTO bill_clients(name, test, created, updated) VALUES(?, 1, ?, ?)')->execute(['Client de test', $n, $n]); return (int) db()->lastInsertId(); })();
+$tdraft = ['kind' => 'quote', 'client_id' => $tClient, 'subject' => 'Essai', 'lines' => [['desc' => 'Ligne de test', 'qty' => 1, 'unit' => 10000]]];
+$tq = bill_save_draft($tdraft, '2026-12-10');
+check((int) bill_doc($tq)['test'] === 1, 'document créé en mode test : marqué test');
+check(bill_issue($tq, '2026-12-10')['number'] === 'TEST-D-2026-001', 'émission sans SIRET en mode test : TEST-D-2026-001 (série à part)');
+bill_set_test_mode(false);
+$real = bill_save_draft(array_merge($tdraft, ['client_id' => $client]), '2026-12-10');
+fails(fn () => bill_issue($real, '2026-12-10'), 422, 'document réel : SIRET obligatoire');
+check((int) bill_doc($real)['test'] === 0, 'document créé hors mode test : réel');
+bill_save_seller(['name' => 'Gabin Lescoat', 'brand' => 'StudioGLSC', 'siret' => '732 829 320 00074', 'address' => '1 rue Test', 'postcode' => '56100', 'city' => 'Lorient', 'email' => 'pro@glsc.fr']);
+check(bill_issue($real, '2026-12-10')['number'] === 'D-2026-004', 'la série réelle continue (D-2026-004) malgré les tests');
+$tinv = bill_derive_invoice($tq, 'deposit', '2026-12-11');
+check((int) bill_doc($tinv)['test'] === 1, 'la facture d’un devis de test est un test');
+bill_issue($tinv, '2026-12-11');
+check(bill_doc($tinv)['number'] === 'TEST-F-2026-001', 'facture de test : TEST-F-2026-001');
+bill_set_status($tinv, 'paid', '2026-12-12', 'virement');
+check(bill_revenue(2026) === $realRevenue, 'les tests ne comptent pas dans le chiffre d’affaires');
+fails(fn () => bill_delete_test_doc($real, 'D-2026-004'), 409, 'document réel : suppression refusée');
+fails(fn () => bill_delete_test_doc($tq, 'mauvais'), 422, 'suppression sans la bonne confirmation refusée');
+check(bill_delete_test_doc($tq, 'TEST-D-2026-001') === 2, 'suppression du devis de test : emporte aussi sa facture (2 documents)');
+check(!db()->query('SELECT 1 FROM bill_docs WHERE id = ' . $tinv)->fetch(), 'la facture de test a disparu');
+check((int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn() === $realCount + 1, 'les documents réels sont intacts');
+bill_set_test_mode(true);
+$a = bill_save_draft($tdraft, '2026-12-13'); bill_issue($a, '2026-12-13'); $b2 = bill_derive_invoice($a, 'full', '2026-12-13'); bill_issue($b2, '2026-12-13'); bill_derive_credit($b2, '2026-12-14');
+bill_save_draft($tdraft, '2026-12-14');
+fails(fn () => bill_purge_tests('oui'), 422, 'purge sans la phrase exacte refusée');
+[$nd, $nc] = bill_purge_tests(BILL_PURGE_PHRASE);
+check($nd === 4 && $nc === 1, "purge : 4 documents de test et 1 client de test supprimés ($nd, $nc)");
+check((int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 1')->fetchColumn() === 0, 'plus aucun document de test');
+check((int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn() === $realCount + 1, 'documents réels toujours intacts après la purge');
+check(bill_issue(bill_save_draft(array_merge($tdraft, ['client_id' => $client]), '2026-12-15'), '2026-12-15')['number'] === 'TEST-D-2026-001', 'après la purge, la série de test repart à 001');
+
+
+// ---- reclassement en test (documents créés avant le mode test) + migration d'une base déjà déployée (étape 2, sans colonne test)
+$base2 = sys_get_temp_dir() . '/glsc-billing-legacy-' . bin2hex(random_bytes(4));
+mkdir("$base2/app", 0777, true);
+$legacy = new PDO("sqlite:$base2/app/app.db");
+$legacy->exec("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE bill_clients (id INTEGER PRIMARY KEY, name TEXT NOT NULL, contact TEXT NOT NULL DEFAULT '', siren TEXT NOT NULL DEFAULT '', vat_id TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', postcode TEXT NOT NULL DEFAULT '', city TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT 'France', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL, updated INTEGER NOT NULL);
+    CREATE TABLE bill_docs (id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('quote', 'invoice', 'credit')), number TEXT UNIQUE, year INTEGER, seq INTEGER, status TEXT NOT NULL DEFAULT 'draft', client_id INTEGER NOT NULL REFERENCES bill_clients(id) ON DELETE RESTRICT, parent_id INTEGER REFERENCES bill_docs(id) ON DELETE RESTRICT, subtype TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', issue_date TEXT, due_date TEXT, valid_until TEXT, service_date TEXT, deposit_percent INTEGER NOT NULL DEFAULT 50, terms_days INTEGER NOT NULL DEFAULT 30, delivery TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', lines TEXT NOT NULL DEFAULT '[]', total INTEGER NOT NULL DEFAULT 0, snapshot TEXT, paid_at TEXT, paid_method TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL, updated INTEGER NOT NULL);
+    CREATE UNIQUE INDEX bill_docs_seq ON bill_docs(kind, year, seq) WHERE seq IS NOT NULL;
+    INSERT INTO bill_clients(id, name, created, updated) VALUES(1, 'Ancien client', 1, 1);
+    INSERT INTO bill_docs(kind, number, year, seq, status, client_id, issue_date, total, created, updated) VALUES('quote', 'D-2026-001', 2026, 1, 'issued', 1, '2026-10-20', 50000, 1, 1);
+    INSERT INTO bill_docs(kind, number, year, seq, status, client_id, parent_id, subtype, issue_date, total, created, updated) VALUES('invoice', 'F-2026-001', 2026, 1, 'issued', 1, 1, 'full', '2026-10-21', 50000, 1, 1);
+    PRAGMA user_version = 2;");
+$legacy = null;
+$script = $base2 . '/run.php';
+file_put_contents($script, <<<'PHP'
+<?php
+require $argv[1] . '/lib/bootstrap.php';
+require $argv[1] . '/lib/billing.php';
+$out = [];
+$out['cols'] = array_column(db()->query("PRAGMA table_info(bill_docs)")->fetchAll(), 'name');
+$out['real'] = (int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn();
+$out['numbers'] = db()->query('SELECT number FROM bill_docs ORDER BY id')->fetchAll(PDO::FETCH_COLUMN);
+bill_set_test_mode(true);
+$n = db()->prepare('INSERT INTO bill_docs(kind, number, year, seq, status, client_id, issue_date, total, test, created, updated) VALUES(?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1)');
+$n->execute(['quote', 'TEST-D-2026-001', 2026, 1, 'issued', 1, '2026-10-22', 100]); // un test existe déjà dans la série TEST
+try { bill_reclassify_as_test(2, 'mauvais'); $out['badconfirm'] = false; } catch (HttpError $e) { $out['badconfirm'] = $e->status === 422; }
+$out['moved'] = bill_reclassify_as_test(2, 'F-2026-001');            // la facture entraîne son devis d'origine
+$out['after'] = db()->query('SELECT number, test FROM bill_docs ORDER BY id')->fetchAll();
+$out['real_after'] = (int) db()->query('SELECT COUNT(*) FROM bill_docs WHERE test = 0')->fetchColumn();
+bill_set_test_mode(false);
+try { bill_reclassify_as_test(0, BILL_RECLASSIFY_PHRASE); $out['prod_blocked'] = false; } catch (HttpError $e) { $out['prod_blocked'] = $e->status === 409; }
+echo json_encode($out);
+PHP);
+$res = json_decode((string) shell_exec('GLSC_ADMIN_VAR=' . escapeshellarg($base2) . ' GLSC_ADMIN_ETC=' . escapeshellarg("$base2/etc") . ' php ' . escapeshellarg($script) . ' ' . escapeshellarg(dirname(__DIR__)) . ' 2>&1'), true);
+check(is_array($res), 'migration d’une base déjà déployée : le script s’exécute');
+check(in_array('test', $res['cols'], true) && $res['real'] === 2 && $res['numbers'] === ['D-2026-001', 'F-2026-001'], 'migration étape 3 : colonne test ajoutée, documents existants conservés et réels');
+check($res['badconfirm'] === true, 'reclassement : mauvaise confirmation refusée');
+check($res['moved'] === 2 && $res['real_after'] === 0, 'reclassement d’une facture : la famille (devis + facture) passe en test');
+check(array_column($res['after'], 'number') === ['TEST-D-2026-002', 'TEST-F-2026-001', 'TEST-D-2026-001'], 'reclassement : nouveaux numéros dans la série TEST, sans collision avec un test existant (' . implode(', ', array_column($res['after'], 'number')) . ')');
+check($res['prod_blocked'] === true, 'reclassement impossible en production');
 
 echo "\nTous les tests passent ($ok).\n";
