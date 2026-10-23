@@ -23,7 +23,7 @@ Données (jamais effacées par les scripts) :
 
 ## Devis & factures
 
-Module `billing` (menu « Devis & factures ») : clients professionnels, devis, factures d'acompte, de solde ou complètes, avoirs. Les documents émis reçoivent un numéro continu (D-AAAA-NNN, F-AAAA-NNN, A-AAAA-NNN) et un instantané figé (vendeur, client, lignes) : ils ne se modifient plus, une facture se corrige par un avoir. TVA non applicable (art. 293 B du CGI). L'aperçu s'imprime en PDF depuis le navigateur. Données dans `app.db` (tables `bill_clients` et `bill_docs`, comprises dans la sauvegarde chiffrée). Code : `lib/billing.php` (règles, testables), `lib/modules/billing.php` (API), `public/assets/modules/billing.js` (interface). Tests : `php admin/tests/billing_test.php`.
+Module `billing` (menu « Devis & factures ») : clients professionnels, devis, factures d'acompte, de solde ou complètes, avoirs. Les documents émis reçoivent un numéro continu (D-AAAA-NNN, F-AAAA-NNN, A-AAAA-NNN) et un instantané figé (vendeur, client, lignes) : ils ne se modifient plus, une facture se corrige par un avoir. TVA non applicable (art. 293 B du CGI). L'aperçu s'imprime en PDF depuis le navigateur. Données dans `app.db` (tables `bill_clients` et `bill_docs`, comprises dans la sauvegarde chiffrée). Code : `lib/billing.php` (règles, testables), `lib/modules/billing.php` (API), `public/assets/modules/billing.js` (interface). Mode test (activé par défaut) : les documents créés sont marqués TEST, numérotés à part (TEST-D-AAAA-NNN), émissibles sans SIRET, exclus du chiffre d'affaires et supprimables avec trois validations (deux confirmations puis saisie du numéro ou de « SUPPRIMER LES TESTS »). Les documents réels ne se suppriment jamais. Tests : `php admin/tests/billing_test.php`.
 
 ## Sécurité
 

@@ -366,6 +366,7 @@ function guideView() {
   const p = (...c) => h('p', {}, ...c);
   const li = (...c) => h('li', {}, ...c);
   return h('div', { class: 'stack' },
+    card('Mode test', p('Au début, le mode test est activé : tu peux t’entraîner sans risque. Les documents créés sont marqués TEST (numéros TEST-D-…), sans valeur légale, exclus du chiffre d’affaires, et tu peux les supprimer (trois validations demandées). Quand tu es prêt à émettre pour de vrai, clique « Passer en production » : les documents réels sont numérotés à partir de 001 et ne se suppriment plus.'), { color: 'sky' }),
     card('Faire un devis en 5 minutes', h('ol', { class: 'stack-sm' },
       li('Onglet ', h('b', {}, 'Clients'), ' : ajoute le client (raison sociale, adresse, SIREN). Tu peux préremplir nom, e-mail et téléphone depuis une demande reçue sur le site.'),
       li('Onglet ', h('b', {}, 'Devis'), ' : « Nouveau devis », choisis le client, ajoute les lignes depuis le catalogue (prix du site), ajuste, puis « Enregistrer et voir ».'),
