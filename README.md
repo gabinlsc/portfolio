@@ -11,7 +11,7 @@ Sites statiques de [glsc.fr](https://glsc.fr), dans un style néo-brutaliste car
 | `old/` | [old.glsc.fr](https://old.glsc.fr) — Archives | `/var/www/old.glsc.fr/` |
 | `status/` | [status.glsc.fr](https://status.glsc.fr) — Statut des services | `/var/www/status.glsc.fr/` |
 | `deploy/games/` | [plus4](https://plus4.glsc.fr), [president](https://president.glsc.fr), [petitbac](https://petitbac.glsc.fr), [vortex](https://vortex.glsc.fr).glsc.fr — jeux en ligne (uno.glsc.fr redirige vers plus4) | `/opt/glsc-games/` (Docker) |
-| `admin/` | [admin.glsc.fr](https://admin.glsc.fr) — espace privé, et [click.glsc.fr](https://click.glsc.fr) — liens courts | `/var/www/admin.glsc.fr/`, `/opt/glsc-admin/` |
+| `admin/` | [admin.glsc.fr](https://admin.glsc.fr) — espace privé (la tuile « Espace pro » du Hub mène à [pro.glsc.fr](https://pro.glsc.fr), le portail du dépôt `gabinlsc/pro`), et [click.glsc.fr](https://click.glsc.fr) — liens courts | `/var/www/admin.glsc.fr/`, `/opt/glsc-admin/` |
 
 Fichiers communs copiés dans chaque racine : `assets/_glsc/` (polices, icônes, CSS et JS des pages), `errors/404.html`, `seo/<site>/robots.txt` et `sitemap.xml`.
 
