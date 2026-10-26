@@ -15,6 +15,7 @@ const DEPLOY_REPOS = [
     'gabinlsc/petitbac' => 'petitbac',
     'gabinlsc/vortex-fps' => 'vortex',
     'gabinlsc/compta' => 'compta', // Compta by glsc (site statique, déployé par le deploy.sh de son propre dépôt)
+    'gabinlsc/pro' => 'pro', // Portail pro.glsc.fr (site statique, déployé par le deploy.sh de son propre dépôt)
 ];
 const DEPLOY_TARGETS = [
     'portfolio' => 'Sites, status et admin (deploy3 + deploy5 admin)',
@@ -24,6 +25,7 @@ const DEPLOY_TARGETS = [
     'petitbac' => 'Petit Bac (image reconstruite)',
     'vortex' => 'Vortex (image reconstruite)',
     'compta' => 'Compta by glsc (site statique)',
+    'pro' => 'Portail pro.glsc.fr (site statique)',
 ];
 /** Fichiers du portfolio qui demandent de reconstruire les jeux (deploy5 complet). */
 const DEPLOY_GAMES_FILES = '#^(deploy/games/|deploy/nginx/game-|deploy/nginx/glsc-games\.conf$|deploy/deploy4\.sh$)#';
