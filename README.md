@@ -40,6 +40,7 @@ Une fois deploy5 lancé une première fois, chaque push sur `main` met le serveu
 | --- | --- |
 | `portfolio` | deploy3 puis deploy5 `GLSC_ONLY_ADMIN=1` (sites, status, admin) ; deploy5 complet si `deploy/games/`, `deploy/deploy4.sh` ou un modèle nginx de jeu change |
 | `plus4`, `president`, `petitbac`, `vortex-fps` | deploy4 `GLSC_ONLY_GAME=<jeu>` : seul ce jeu est reconstruit et relancé |
+| `compta` | `deploy/deploy-compta.sh` : télécharge `gabinlsc/compta@main` et lance son `deploy.sh` (sauvegarde, échange atomique, vérification, retour arrière automatique ; code 3 si l'ancienne version est remise). Domaine : `GLSC_COMPTA_DOMAIN` (défaut `compta.glsc.fr`). Premier lancement : voir `docs/deploiement.md` du dépôt compta |
 
 - GitHub appelle `https://admin.glsc.fr/hooks/github` (webhook signé par HMAC-SHA256, secret dans `/etc/glsc-admin/github-webhook.secret`). PHP vérifie la signature et ne fait que déposer une demande dans `/var/lib/glsc-admin/deploy/`.
 - `glsc-deploy.path` réveille `glsc-deploy.service` (root), qui télécharge le dépôt et lance uniquement les scripts prévus pour la cible (liste blanche). Plusieurs pushes rapprochés sur un même dépôt ne donnent qu'un déploiement.

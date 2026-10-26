@@ -1790,6 +1790,7 @@ DEPLOY_PLANS = {  # cible → scripts du dépôt portfolio à lancer, avec leurs
     "president": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "president"})],
     "petitbac": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "petitbac"})],
     "vortex": [("deploy/deploy4.sh", {"GLSC_ONLY_GAME": "vortex"})],
+    "compta": [("deploy/deploy-compta.sh", {})],  # récupère et lance le deploy.sh du dépôt gabinlsc/compta ; code 3 = ancienne version remise
 }
 DEPLOY_STEP_TIMEOUT = 40 * 60
 # adresses qui doivent répondre après un déploiement du portfolio ; sinon on revient à la dernière version qui marchait
@@ -1822,7 +1823,7 @@ def deploy_requests(args):
                 pass
     if "portfolio-full" in wanted:
         wanted.pop("portfolio", None)
-    order = ["portfolio-full", "portfolio", "uno", "president", "petitbac", "vortex"]
+    order = ["portfolio-full", "portfolio", "uno", "president", "petitbac", "vortex", "compta"]
     return [(t, wanted[t]) for t in order if t in wanted]
 
 
