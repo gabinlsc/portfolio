@@ -47,6 +47,15 @@
       "description": "studio.glsc.fr"
     },
     {
+      "id": "pro",
+      "name": "Espace pro GLSC",
+      "group": "Sites web",
+      "type": "http",
+      "url": "https://pro.glsc.fr/",
+      "link": "https://pro.glsc.fr",
+      "description": "pro.glsc.fr"
+    },
+    {
       "id": "archives",
       "name": "Archives",
       "group": "Sites web",
