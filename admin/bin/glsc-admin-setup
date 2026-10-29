@@ -68,7 +68,7 @@ if ($mode === '--all' || $mode === '--password') {
 // ---------------------------------------------------------------- 2FA
 if ($mode === '--all' || $mode === '--2fa') {
     $secret = base32_encode(random_bytes(20));
-    $issuer = $gst ? 'StudioGLSC' : 'GLSC%20Admin';
+    $issuer = $gst ? 'Admin%20pro' : 'GLSC%20Admin';
     $uri = "otpauth://totp/$issuer:gabin?secret=" . $secret . "&issuer=$issuer&digits=6&period=30";
     $out("Scanne ce QR code avec ton appli d'authentification (Google Authenticator, Aegis, 2FAS…) :\n\n");
     $qr = trim((string) @shell_exec('command -v qrencode'));

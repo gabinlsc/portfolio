@@ -9,9 +9,9 @@ Installé et mis à jour par `deploy/deploy5.sh`.
 |---|---|---|
 | `public/` | point d'entrée `index.php` et interface (`assets/`) | `/var/www/admin.glsc.fr/` |
 | `click/` | point d'entrée de click.glsc.fr (liens courts) | `/var/www/click.glsc.fr/` |
-| `gst/` | point d'entrée de gst.glsc.fr (espace StudioGLSC, voir plus bas) | `/var/www/gst.glsc.fr/` |
+| `gst/` | point d'entrée de gst.glsc.fr (admin pro (StudioGLSC), voir plus bas) | `/var/www/gst.glsc.fr/` |
 | `lib/` | tout le code PHP : connexion, API (`lib/modules/*.php`), pages | `/opt/glsc-admin/lib/` |
-| `bin/glsc-admin-setup` | crée ou change mot de passe, 2FA et codes de secours (`--gst` pour l'espace StudioGLSC) | `/usr/local/sbin/` |
+| `bin/glsc-admin-setup` | crée ou change mot de passe, 2FA et codes de secours (`--gst` pour l'admin pro (StudioGLSC)) | `/usr/local/sbin/` |
 | `bin/glsc-gst-import` | copie unique des devis, factures et réglages de l'admin vers gst | `/usr/local/sbin/` |
 | `collector/` | sonde root : logs nginx, santé, Docker, SSH, GitHub, alertes Discord | `/opt/glsc-admin/` |
 | `systemd/` | `glsc-admin-collect.timer` (chaque minute), `glsc-admin-queue.path` (demandes de l'admin) | `/etc/systemd/system/` |
@@ -23,7 +23,7 @@ Données (jamais effacées par les scripts) :
 - `/var/lib/glsc-admin/pub/` : mesures publiées par la sonde (lecture seule pour www-data) ;
 - `/var/lib/glsc-admin/queue/` : demandes de l'admin à la sonde (message Discord, redémarrage d'un jeu en liste blanche).
 
-## gst.glsc.fr : espace StudioGLSC
+## gst.glsc.fr : admin pro (StudioGLSC)
 
 Même code que l'admin (`GLSC_ADMIN_INSTANCE=gst`, posé par `gst/index.php`), mais un espace à part, aux couleurs du kit de marque StudioGLSC (`public/assets/gst.css`, thème clair et sombre) :
 
@@ -31,16 +31,16 @@ Même code que l'admin (`GLSC_ADMIN_INSTANCE=gst`, posé par `gst/index.php`), m
 - **Données séparées** : `/var/lib/glsc-gst/app/app.db` (même schéma, migrations identiques, sans le kanban ni les liens d'exemple). Comprise dans la sauvegarde chiffrée avec `/etc/glsc-gst`.
 - **Modules** : `billing` (Devis & factures), `accounting` (Compta), `studio` (demandes et projets clients) et `gst` (accueil : ce qui demande une action). Aucune autre route de l'admin n'existe sur gst (le routeur ne charge que ces modules), ni fichiers partagés, ni webhook GitHub.
 - **Partagé en lecture avec l'admin** : jeton du service studio (`/etc/glsc-admin/studio-token`), mesures de la sonde (`/var/lib/glsc-admin/pub`) et file d'alertes Discord.
-- **Première mise en service** : enregistrement DNS A `gst.glsc.fr`, relancer deploy5 (ou laisser le déploiement automatique), puis `glsc-admin-setup --gst`, `glsc-gst-import --dry-run` et `glsc-gst-import`. L'import refuse de tourner si gst contient déjà des données et ne modifie jamais la base de l'admin. Les modules de l'admin restent en place pendant la transition (le menu propose un lien « Espace StudioGLSC »).
+- **Première mise en service** : enregistrement DNS A `gst.glsc.fr`, relancer deploy5 (ou laisser le déploiement automatique), puis `glsc-admin-setup --gst`, `glsc-gst-import --dry-run` et `glsc-gst-import`. L'import refuse de tourner si gst contient déjà des données et ne modifie jamais la base de l'admin. Dans l'admin, Devis & factures, Compta et StudioGLSC ne sont plus au menu (lien « Admin pro » à la place) ; leurs pages restent joignables par `#/billing`, `#/accounting` et `#/studio` jusqu'au retrait du code, après validation de l'import. Les alertes Discord de demandes et de messages clients mènent à gst.glsc.fr.
 - Tests : `php admin/tests/gst_test.php`.
 
 ## Devis & factures
 
-Module `billing` (menu « Devis & factures ») : clients professionnels, devis, factures d'acompte, de solde ou complètes, avoirs. Les documents émis reçoivent un numéro continu (D-AAAA-NNN, F-AAAA-NNN, A-AAAA-NNN) et un instantané figé (vendeur, client, lignes) : ils ne se modifient plus, une facture se corrige par un avoir. TVA non applicable (art. 293 B du CGI). L'aperçu s'imprime en PDF depuis le navigateur. Données dans `app.db` (tables `bill_clients` et `bill_docs`, comprises dans la sauvegarde chiffrée). Code : `lib/billing.php` (règles, testables), `lib/modules/billing.php` (API), `public/assets/modules/billing.js` (interface). Mode test (activé par défaut) : les documents créés sont marqués TEST, numérotés à part (TEST-D-AAAA-NNN), émissibles sans SIRET, exclus du chiffre d'affaires et supprimables avec trois validations (deux confirmations puis saisie du numéro ou de « SUPPRIMER LES TESTS »). Les documents réels ne se suppriment jamais. Tests : `php admin/tests/billing_test.php`.
+Module `billing` (menu « Devis & factures » de gst.glsc.fr ; plus dans le menu de l'admin, mais encore joignable par `#/billing` tant que l'import n'est pas validé) : clients professionnels, devis, factures d'acompte, de solde ou complètes, avoirs. Les documents émis reçoivent un numéro continu (D-AAAA-NNN, F-AAAA-NNN, A-AAAA-NNN) et un instantané figé (vendeur, client, lignes) : ils ne se modifient plus, une facture se corrige par un avoir. TVA non applicable (art. 293 B du CGI). L'aperçu s'imprime en PDF depuis le navigateur. Données dans `app.db` (tables `bill_clients` et `bill_docs`, comprises dans la sauvegarde chiffrée). Code : `lib/billing.php` (règles, testables), `lib/modules/billing.php` (API), `public/assets/modules/billing.js` (interface). Mode test (activé par défaut) : les documents créés sont marqués TEST, numérotés à part (TEST-D-AAAA-NNN), émissibles sans SIRET, exclus du chiffre d'affaires et supprimables avec trois validations (deux confirmations puis saisie du numéro ou de « SUPPRIMER LES TESTS »). Les documents réels ne se suppriment jamais. Tests : `php admin/tests/billing_test.php`.
 
 ## Compta
 
-Module `accounting` (menu « Compta ») pour la micro-entreprise, à partir des factures réelles payées du module Devis & factures (les documents de test n'y entrent jamais) :
+Module `accounting` (menu « Compta » de gst.glsc.fr) pour la micro-entreprise, à partir des factures réelles payées du module Devis & factures (les documents de test n'y entrent jamais) :
 - **Tableau de bord** : chiffre d'affaires encaissé, cotisations estimées, dépenses, résultat estimé, à encaisser, graphique mensuel, meilleurs clients, plafond de la micro-entreprise et seuils de franchise de TVA, prochaine déclaration, rappels (CFE, impôt, facturation électronique).
 - **Recettes** : le livre des recettes (obligatoire), généré automatiquement, imprimable en PDF, export CSV. Un avoir émis sur une facture déjà payée apparaît comme un remboursement négatif.
 - **Dépenses** : suivi facultatif par catégorie, export CSV.

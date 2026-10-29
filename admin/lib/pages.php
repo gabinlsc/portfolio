@@ -22,7 +22,7 @@ function is_gst(): bool
 /** Nom affiché de l'instance. */
 function site_name(): string
 {
-    return is_gst() ? 'StudioGLSC' : 'Admin GLSC';
+    return is_gst() ? 'Admin pro' : 'Admin GLSC';
 }
 
 function page_head(string $title, bool $csrf = false): void
@@ -54,7 +54,7 @@ function page_head(string $title, bool $csrf = false): void
 
 function page_app(): void
 {
-    page_head(site_name() === 'StudioGLSC' ? 'StudioGLSC · Espace pro' : 'Admin · GLSC', true);
+    page_head(is_gst() ? 'Admin pro · StudioGLSC' : 'Admin · GLSC', true);
     ?>
 <body class="app">
   <div id="app" aria-live="polite"><p class="boot">Chargement…</p></div>
@@ -78,9 +78,9 @@ function page_login(): void
 <?php else: ?>
     <div class="login-logo" aria-hidden="true">G</div>
 <?php endif; ?>
-    <h1><?= $gst ? 'Espace StudioGLSC' : 'Espace privé' ?></h1>
+    <h1><?= $gst ? 'Admin pro' : 'Espace privé' ?></h1>
     <?php if (!$configured): ?>
-      <p class="login-help"><?= $gst ? 'L’espace StudioGLSC n’est pas encore configuré' : 'L’admin n’est pas encore configurée' ?>. Sur le serveur, lance :</p>
+      <p class="login-help"><?= $gst ? 'L’admin pro n’est pas encore configurée' : 'L’admin n’est pas encore configurée' ?>. Sur le serveur, lance :</p>
       <pre class="code"><?= $gst ? 'glsc-admin-setup --gst' : 'glsc-admin-setup' ?></pre>
     <?php else: ?>
       <form id="login" class="stack" autocomplete="on">

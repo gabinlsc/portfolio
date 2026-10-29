@@ -5,7 +5,7 @@ import { h, clear, icon, toast } from './lib.js';
 const NAV = [
   { group: null, items: [['dashboard', 'Accueil', 'layout-dashboard']] },
   { group: 'Organisation', items: [['kanban', 'Kanban', 'kanban'], ['notes', 'Notes & liens', 'sticky-note'], ['school', 'Alternance', 'graduation-cap']] },
-  { group: 'Sites & stats', items: [['traffic', 'Trafic', 'chart-column'], ['studio', 'StudioGLSC', 'briefcase'], ['billing', 'Devis & factures', 'file-text'], ['accounting', 'Compta', 'wallet'], ['cvstats', 'Stats CV & Projets', 'eye'], ['short', 'Liens courts', 'link']] },
+  { group: 'Sites & stats', items: [['traffic', 'Trafic', 'chart-column'], ['cvstats', 'Stats CV & Projets', 'eye'], ['short', 'Liens courts', 'link']] },
   { group: 'Serveur', items: [['health', 'Santé', 'activity'], ['security', 'Sécurité', 'shield'], ['games', 'Jeux en direct', 'gamepad-2'], ['players', 'Joueurs', 'users'], ['github', 'GitHub & déploiements', 'github']] },
   { group: 'Outils', items: [['files', 'Fichiers', 'upload'], ['vault', 'Coffre', 'lock'], ['tools', 'Mini-outils', 'wrench']] },
   { group: null, items: [['settings', 'Réglages', 'settings']] },
@@ -18,14 +18,17 @@ const NAV_GST = [
   { group: 'Activité', items: [['studio', 'Demandes & projets', 'briefcase']] },
   { group: 'Gestion', items: [['billing', 'Devis & factures', 'file-text'], ['accounting', 'Compta', 'wallet']] },
 ];
-const LINKS = GST ? [['studio.glsc.fr', 'https://studio.glsc.fr'], ['Portail pro', 'https://pro.glsc.fr']] : [['Espace StudioGLSC', 'https://gst.glsc.fr']];
+const LINKS = GST ? [['studio.glsc.fr', 'https://studio.glsc.fr'], ['Portail pro', 'https://pro.glsc.fr']] : [['Admin pro (devis, factures, compta)', 'https://gst.glsc.fr']];
 const HOME = GST ? 'home' : 'dashboard';
-const SITE = GST ? 'StudioGLSC' : 'Admin GLSC';
+const SITE = GST ? 'Admin pro' : 'Admin GLSC';
 const NAV_ACTIVE = GST ? NAV_GST : NAV;
 // logo StudioGLSC du kit de marque (fichiers d'origine, version claire ou sombre selon le thème)
 const logoGst = () => h('span', { class: 'logo-pair', role: 'img', 'aria-label': 'StudioGLSC' },
   h('img', { class: 'logo-img logo-light', src: '/assets/gst-logo.svg', alt: '' }), h('img', { class: 'logo-img logo-dark', src: '/assets/gst-logo-sombre.svg', alt: '' }));
-const PAGES = Object.fromEntries(NAV_ACTIVE.flatMap((g) => g.items.map(([id, label, ic]) => [id, { label, ic }])));
+// Devis & factures, Compta et StudioGLSC vivent désormais sur gst.glsc.fr ; leurs pages restent joignables ici par l'adresse (#/billing, #/accounting, #/studio)
+// tant que l'import vers gst n'est pas validé, mais n'apparaissent plus dans le menu.
+const LEGACY = { studio: ['StudioGLSC', 'briefcase'], billing: ['Devis & factures', 'file-text'], accounting: ['Compta', 'wallet'] };
+const PAGES = Object.fromEntries([...NAV_ACTIVE.flatMap((g) => g.items.map(([id, label, ic]) => [id, { label, ic }])), ...(GST ? [] : Object.entries(LEGACY).map(([id, [label, ic]]) => [id, { label, ic }]))]);
 
 const app = document.getElementById('app');
 let cleanup = null;
