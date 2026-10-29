@@ -27,7 +27,7 @@ export async function render(root) {
 
   root.append(h('div', { class: 'stack' },
     h('div', { class: 'gst-hero' },
-      h('div', {}, h('h1', {}, `${hello} Gabin`), h('p', {}, 'Votre activité StudioGLSC : demandes, devis, factures et compta.')),
+      h('div', {}, h('h1', {}, `${hello} Gabin`), h('p', {}, 'Votre activité pro : demandes, devis, factures et compta.')),
       h('a', { class: 'btn', href: '#/billing' }, icon('file-text'), h('span', {}, 'Devis & factures'))),
     d.test_mode ? card('Mode test activé', h('p', {}, 'Les documents créés maintenant portent la série TEST- et ne comptent pas dans la compta.'), { color: 'peach' }) : null,
     s.down ? card('Service des demandes indisponible', h('p', {}, s.down), { color: 'coral' }) : null,

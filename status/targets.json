@@ -75,7 +75,7 @@
     },
     {
       "id": "gst",
-      "name": "Espace StudioGLSC",
+      "name": "Admin pro",
       "group": "Sites web",
       "type": "http",
       "url": "https://gst.glsc.fr/",

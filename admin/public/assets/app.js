@@ -18,9 +18,9 @@ const NAV_GST = [
   { group: 'Activité', items: [['studio', 'Demandes & projets', 'briefcase']] },
   { group: 'Gestion', items: [['billing', 'Devis & factures', 'file-text'], ['accounting', 'Compta', 'wallet']] },
 ];
-const LINKS = GST ? [['studio.glsc.fr', 'https://studio.glsc.fr'], ['Portail pro', 'https://pro.glsc.fr']] : [['Espace StudioGLSC (devis, factures, compta)', 'https://gst.glsc.fr']];
+const LINKS = GST ? [['studio.glsc.fr', 'https://studio.glsc.fr'], ['Portail pro', 'https://pro.glsc.fr']] : [['Admin pro (devis, factures, compta)', 'https://gst.glsc.fr']];
 const HOME = GST ? 'home' : 'dashboard';
-const SITE = GST ? 'StudioGLSC' : 'Admin GLSC';
+const SITE = GST ? 'Admin pro' : 'Admin GLSC';
 const NAV_ACTIVE = GST ? NAV_GST : NAV;
 // logo StudioGLSC du kit de marque (fichiers d'origine, version claire ou sombre selon le thème)
 const logoGst = () => h('span', { class: 'logo-pair', role: 'img', 'aria-label': 'StudioGLSC' },
