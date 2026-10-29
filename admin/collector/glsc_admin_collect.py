@@ -1273,12 +1273,12 @@ def process_studio_events(args, state, settings, now):
     if requests_ and settings.get("alert_studio_request", "1") == "1":
         for e in requests_[:5]:
             fields = [("Besoin", str(e.get("service", "?"))[:60], True), ("Activité", str(e.get("activity", "?"))[:60], True), ("Délai", str(e.get("timing", "?"))[:60], True)]
-            discord(hook, "📨 Nouvelle demande de devis", "Un visiteur a rempli le formulaire de studio.glsc.fr. Le détail est dans l'admin → StudioGLSC.", 0x5B8DEF, fields, url="https://admin.glsc.fr")
+            discord(hook, "📨 Nouvelle demande de devis", "Un visiteur a rempli le formulaire de studio.glsc.fr. Le détail est dans l'espace StudioGLSC.", 0x5B8DEF, fields, url="https://gst.glsc.fr")
         if len(requests_) > 5:
-            discord(hook, "📨 Autres demandes", f"{len(requests_) - 5} demande(s) de plus : voir l'admin.", 0x5B8DEF)
+            discord(hook, "📨 Autres demandes", f"{len(requests_) - 5} demande(s) de plus : voir l'espace StudioGLSC.", 0x5B8DEF)
     if (messages or files) and settings.get("alert_studio_project", "1") == "1":
         bits = ([f"{messages} message(s)"] if messages else []) + ([f"{files} fichier(s)"] if files else [])
-        discord(hook, "💬 Un client a répondu sur son suivi de projet", " et ".join(bits) + " reçu(s). À lire dans l'admin → StudioGLSC.", 0x5B8DEF, url="https://admin.glsc.fr")
+        discord(hook, "💬 Un client a répondu sur son suivi de projet", " et ".join(bits) + " reçu(s). À lire dans l'espace StudioGLSC.", 0x5B8DEF, url="https://gst.glsc.fr")
     return len(requests_) + messages + files
 
 
