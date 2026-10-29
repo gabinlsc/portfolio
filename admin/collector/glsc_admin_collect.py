@@ -64,7 +64,7 @@ SCAN_PATH = re.compile(
     r"/server-status|/config\.(json|php|yml)|/setup\.php|/install\.php|/shell|/backup|\.sql$|\.bak$|\.old$|/telescope|/debug|/console|"
     r"/geoserver|/manager/html|/jenkins|/druid|/hudson|\.php7?$)", re.I)
 PAGE_SKIP = re.compile(r"^/(_glsc/|api/|socket\.io|assets/|f/)")
-NO_PAGE_HOSTS = {"admin.glsc.fr", "click.glsc.fr"}
+NO_PAGE_HOSTS = {"admin.glsc.fr", "click.glsc.fr", "gst.glsc.fr"}
 
 
 def log(*a):
@@ -1656,9 +1656,10 @@ def queue(args):
 # ---------------------------------------------------------------- sauvegardes chiffrées
 BACKUP_ETC = os.environ.get("GLSC_BACKUP_ETC", "/etc/glsc-backup")
 BACKUP_DIR = os.environ.get("GLSC_BACKUP_DIR", "/var/backups/glsc")
+GST_VAR = os.environ.get("GLSC_GST_VAR", "/var/lib/glsc-gst")  # espace StudioGLSC (gst.glsc.fr) : factures à conserver
 BACKUP_KEEP = 14  # archives gardées en local ; ailleurs : 60 jours (rclone)
 BACKUP_PATHS = [  # tout ce qu'on perdrait avec le serveur ; les bases SQLite sont copiées à part (copie cohérente)
-    "/etc/glsc-admin", "/etc/glsc-status", "/etc/glsc-backup/remote", "/var/lib/glsc-status", "/var/lib/glsc-games",
+    "/etc/glsc-admin", "/etc/glsc-gst", "/etc/glsc-status", "/etc/glsc-backup/remote", "/var/lib/glsc-status", "/var/lib/glsc-games",
     "/opt/glsc-games/compose.yml", "/etc/nginx/sites-available", "/etc/nginx/conf.d", "/etc/nginx/glsc-404.inc",
     "/etc/letsencrypt", "/etc/systemd/system/glsc-*", "/etc/fail2ban/jail.d", "/etc/ssh/sshd_config.d",
 ]
@@ -1722,10 +1723,11 @@ def backup(args):
     try:
         with tempfile.TemporaryDirectory(prefix="snap-", dir=BACKUP_DIR) as snap:
             # bases SQLite : copie cohérente même si PHP ou la sonde écrivent en ce moment
-            for sub in ("app", "collector"):
-                for db in glob.glob(os.path.join(args.var, sub, "*.db")):
+            sources = [(args.var, "app", "app"), (args.var, "collector", "collector"), (GST_VAR, "app", "gst-app")]
+            for base, sub, label in sources:
+                for db in glob.glob(os.path.join(base, sub, "*.db")):
                     con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=10)
-                    dst = sqlite3.connect(os.path.join(snap, f"{sub}-{os.path.basename(db)}"))
+                    dst = sqlite3.connect(os.path.join(snap, f"{label}-{os.path.basename(db)}"))
                     con.backup(dst)
                     dst.close()
                     con.close()
@@ -1734,6 +1736,8 @@ def backup(args):
             with tarfile.open(fileobj=proc.stdin, mode="w|gz") as tar:
                 tar.add(snap, arcname="bases")
                 tar.add(os.path.join(args.var, "app"), arcname="admin-app", filter=lambda t: None if t.name.endswith(skip) else t)
+                if os.path.isdir(os.path.join(GST_VAR, "app")):
+                    tar.add(os.path.join(GST_VAR, "app"), arcname="gst-app", filter=lambda t: None if t.name.endswith(skip) else t)
                 for spec in BACKUP_PATHS:
                     for path in glob.glob(spec):
                         tar.add(path, arcname=path.lstrip("/"))

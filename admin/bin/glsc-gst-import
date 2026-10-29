@@ -1,0 +1,71 @@
+#!/usr/bin/env php
+<?php
+/**
+ * glsc-gst-import — copie les devis, factures, clients, dépenses, déclarations et réglages de facturation/compta
+ * de l'admin (/var/lib/glsc-admin) vers l'espace StudioGLSC (/var/lib/glsc-gst).
+ *
+ *   glsc-gst-import            copie (refuse si gst contient déjà des données)
+ *   glsc-gst-import --dry-run  affiche seulement ce qui serait copié
+ *
+ * Ne modifie ni ne supprime rien dans la base de l'admin : elle reste une sauvegarde. À lancer en root (ou www-data) une seule fois.
+ */
+declare(strict_types=1);
+
+$dry = in_array('--dry-run', $argv, true);
+if (!$dry && function_exists('posix_geteuid') && posix_geteuid() !== 0 && !getenv('GLSC_GST_VAR')) {
+    fwrite(STDERR, "Lance-moi en root (sudo glsc-gst-import).\n");
+    exit(1);
+}
+
+putenv('GLSC_ADMIN_INSTANCE=gst');
+require (getenv('GLSC_ADMIN_LIB') ?: '/opt/glsc-admin/lib') . '/bootstrap.php';
+
+$src = rtrim(getenv('GLSC_ADMIN_VAR') ?: '/var/lib/glsc-admin', '/') . '/app/app.db';
+if (!is_readable($src)) {
+    fwrite(STDERR, "Base de l'admin introuvable : $src\n");
+    exit(1);
+}
+$gstDir = dirname(glsc_path('app_db'));
+if (!is_dir($gstDir)) mkdir($gstDir, 0700, true);
+
+$pdo = db();  // crée la base de gst et applique les migrations
+$tables = ['bill_clients', 'bill_docs', 'bill_expenses', 'bill_declarations'];
+foreach ($tables as $t) {
+    if ((int) $pdo->query("SELECT COUNT(*) FROM $t")->fetchColumn() > 0) {
+        fwrite(STDERR, "gst contient déjà des données ($t) : import refusé pour ne rien écraser.\n");
+        exit(1);
+    }
+}
+
+$pdo->exec('ATTACH DATABASE ' . $pdo->quote($src) . ' AS src');
+$version = (int) $pdo->query('PRAGMA src.user_version')->fetchColumn();
+$ours = (int) $pdo->query('PRAGMA main.user_version')->fetchColumn();
+if ($version !== $ours) {
+    fwrite(STDERR, "Versions de base différentes (admin : $version, gst : $ours). Ouvre d'abord l'admin pour qu'elle se mette à jour, puis relance.\n");
+    exit(1);
+}
+
+$counts = [];
+foreach ($tables as $t) $counts[$t] = (int) $pdo->query("SELECT COUNT(*) FROM src.$t")->fetchColumn();
+$settings = (int) $pdo->query("SELECT COUNT(*) FROM src.settings WHERE key LIKE 'billing\\_%' ESCAPE '\\' OR key LIKE 'acct\\_%' ESCAPE '\\'")->fetchColumn();
+foreach ($counts as $t => $n) echo sprintf("  %-18s %d ligne(s)\n", $t, $n);
+echo "  réglages           $settings\n";
+if ($dry) { echo "(simulation : rien n'a été copié)\n"; exit(0); }
+
+$pdo->exec('BEGIN');
+try {
+    foreach ($tables as $t) $pdo->exec("INSERT INTO main.$t SELECT * FROM src.$t");
+    $pdo->exec("INSERT OR REPLACE INTO main.settings(key, value) SELECT key, value FROM src.settings WHERE key LIKE 'billing\\_%' ESCAPE '\\' OR key LIKE 'acct\\_%' ESCAPE '\\'");
+    $pdo->exec('COMMIT');
+} catch (Throwable $e) {
+    $pdo->exec('ROLLBACK');
+    fwrite(STDERR, 'Import annulé : ' . $e->getMessage() . "\n");
+    exit(1);
+}
+$pdo->exec('DETACH DATABASE src');
+$db = glsc_path('app_db');
+if (function_exists('posix_getpwnam') && ($pw = posix_getpwnam('www-data'))) {
+    foreach ([$db, "$db-wal", "$db-shm"] as $f) if (file_exists($f)) { @chown($f, 'www-data'); @chgrp($f, 'www-data'); }
+    @chown($gstDir, 'www-data');
+}
+echo "\n✔ Copié dans $db. La base de l'admin n'a pas été modifiée.\n";

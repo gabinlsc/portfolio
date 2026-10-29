@@ -42,7 +42,7 @@ function requestsView(state, load, draw) {
     ? shown.map((r) => requestCard(r, load))
     : [emptyState(d.requests.length ? 'Aucune demande dans ce filtre.' : 'Aucune demande pour l’instant. Elles apparaissent ici dès que le formulaire de studio.glsc.fr est relié au service.')];
   return h('div', { class: 'stack' }, h('div', { class: 'row-between' }, filter,
-    h('small', { class: 'muted' }, `Conservées ${d.retentionDays} jours, puis supprimées automatiquement.`)), ...list);
+    d.retentionDays ? h('small', { class: 'muted' }, `Conservées ${d.retentionDays} jours, puis supprimées automatiquement.`) : null), ...list);
 }
 
 function requestCard(r, load) {
