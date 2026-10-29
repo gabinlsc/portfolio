@@ -122,7 +122,7 @@ function migrate(PDO $pdo): void
         $pdo->beginTransaction();
         try {
             $pdo->exec($sql);
-            if ($version === 1) seed($pdo);
+            if ($version === 1 && glsc_instance() === 'admin') seed($pdo);
             $pdo->exec('PRAGMA user_version = ' . $version);
             $pdo->commit();
         } catch (Throwable $e) {

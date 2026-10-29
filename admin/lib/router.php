@@ -6,6 +6,7 @@
  *   *    /api/<module>/<action>          API JSON (connecté, CSRF sur tout sauf GET)
  *   GET  /f/<jeton>   téléchargement public d'un fichier partagé
  *   POST /hooks/github                 webhook GitHub (signé) → déploiement automatique
+ * Sur gst.glsc.fr (GLSC_ADMIN_INSTANCE=gst) : mêmes pages et même connexion, mais ni fichiers partagés ni webhook.
  */
 declare(strict_types=1);
 
@@ -18,7 +19,10 @@ function api_routes(): array
     static $routes = null;
     if ($routes !== null) return $routes;
     $routes = [];
+    // l'espace StudioGLSC (gst.glsc.fr) n'expose que ses propres modules : rien du reste de l'admin
+    $only = glsc_instance() === 'gst' ? ['billing', 'accounting', 'studio', 'gst'] : null;
     foreach (glob(__DIR__ . '/modules/*.php') as $file) {
+        if ($only !== null && !in_array(basename($file, '.php'), $only, true)) continue;
         $routes += (require $file);
     }
     return $routes;
@@ -31,12 +35,12 @@ function handle_request(): void
     $path = '/' . trim((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH), '/');
 
     try {
-        if (preg_match('#^/f/([A-Za-z0-9_-]{20,64})$#', $path, $m)) {
+        if (preg_match('#^/f/([A-Za-z0-9_-]{20,64})$#', $path, $m) && glsc_instance() === 'admin') {
             api_routes(); // charge les modules (dont file_public)
             file_public($m[1], $method);
             return;
         }
-        if ($path === '/hooks/github' && $method === 'POST') {
+        if ($path === '/hooks/github' && $method === 'POST' && glsc_instance() === 'admin') {
             api_routes(); // charge les modules (dont hook_github)
             hook_github();
         }

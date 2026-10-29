@@ -100,7 +100,9 @@ function lock_remaining(): int
 function login(string $password, string $code): ?string
 {
     $cfg = auth_config();
-    if (!$cfg) return 'Admin pas encore configurée : lance « glsc-admin-setup » sur le serveur.';
+    if (!$cfg) return glsc_instance() === 'gst'
+        ? 'Espace StudioGLSC pas encore configuré : lance « glsc-admin-setup --gst » sur le serveur.'
+        : 'Admin pas encore configurée : lance « glsc-admin-setup » sur le serveur.';
     if (($wait = lock_remaining()) > 0) {
         return sprintf('Trop d’essais. Réessaie dans %d min.', (int) ceil($wait / 60));
     }
@@ -141,7 +143,7 @@ function login(string $password, string $code): ?string
     session_regenerate_id(true);
     $_SESSION = ['uid' => 1, 'login_at' => time(), 'seen' => time(), 'ua' => hash('sha256', user_agent()), 'csrf' => bin2hex(random_bytes(32))];
     admin_log("connexion ($method)");
-    notify('login', '🔑 Connexion à l’admin', sprintf("Depuis %s (%s)%s", client_ip(), device_of(user_agent()),
+    notify('login', glsc_instance() === 'gst' ? '🔑 Connexion à l’espace StudioGLSC' : '🔑 Connexion à l’admin', sprintf("Depuis %s (%s)%s", client_ip(), device_of(user_agent()),
         $method === 'code de secours' ? "\nAvec un code de secours : pense à en régénérer." : ''));
     return null;
 }

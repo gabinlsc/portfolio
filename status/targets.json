@@ -74,6 +74,15 @@
       "description": "click.glsc.fr"
     },
     {
+      "id": "gst",
+      "name": "Espace StudioGLSC",
+      "group": "Sites web",
+      "type": "http",
+      "url": "https://gst.glsc.fr/",
+      "link": "https://gst.glsc.fr",
+      "description": "gst.glsc.fr"
+    },
+    {
       "id": "uno",
       "name": "+4",
       "group": "Jeux",

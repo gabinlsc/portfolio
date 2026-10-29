@@ -2,13 +2,14 @@
 # deploy5 — tout ce que fait deploy4 (sites, status, jeux), plus l'espace privé :
 #   admin.glsc.fr  hub privé (kanban, trafic, santé, sécurité, jeux, fichiers, coffre…) avec mot de passe + 2FA
 #   click.glsc.fr  liens courts créés depuis l'admin
+#   gst.glsc.fr    espace StudioGLSC (devis, factures, compta, demandes clients), identifiants et données à part
 #
 # Usage (en root sur le VPS) :
 #   curl -fsSL https://raw.githubusercontent.com/gabinlsc/portfolio/main/deploy/deploy5.sh | bash
 #   GLSC_ONLY_ADMIN=1 … | bash     → saute deploy4 (mise à jour rapide de l'admin seule)
 #   GLSC_NO_FAIL2BAN=1 … | bash    → n'installe pas fail2ban
 #
-# Prérequis : enregistrements DNS « A » admin.glsc.fr et click.glsc.fr vers le VPS (sans AAAA).
+# Prérequis : enregistrements DNS « A » admin.glsc.fr, click.glsc.fr et gst.glsc.fr vers le VPS (sans AAAA).
 # Relançable à volonté. Les données de l'admin (/var/lib/glsc-admin) ne sont jamais effacées.
 
 set -euo pipefail
@@ -22,11 +23,14 @@ trap 'rm -rf "$WORK"' EXIT
 OPT=/opt/glsc-admin
 ETC=/etc/glsc-admin
 VAR=/var/lib/glsc-admin
+GST_ETC=/etc/glsc-gst
+GST_VAR=/var/lib/glsc-gst
 WEB=/var/www/admin.glsc.fr
+GST_WEB=/var/www/gst.glsc.fr
 CLICK=/var/www/click.glsc.fr
 ACME_ROOT=/var/www/letsencrypt
 NGX=/etc/nginx
-SITES=("admin.glsc.fr|admin" "click.glsc.fr|click")
+SITES=("admin.glsc.fr|admin" "click.glsc.fr|click" "gst.glsc.fr|gst")
 
 ok()   { printf '  \033[32m✔\033[0m %s\n' "$*"; }
 info() { printf '\n\033[1m%s\033[0m\n' "$*"; }
@@ -51,10 +55,10 @@ else
   SRC="$(find "$WORK" -mindepth 1 -maxdepth 1 -type d | head -1)"
 fi
 for f in deploy/deploy4.sh admin/lib/router.php admin/lib/click.php admin/public/index.php admin/public/assets/app.js \
-         admin/public/assets/admin.css admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py admin/collector/glsc_cards.py admin/bin/glsc-recap admin/bin/glsc-backup-setup \
+         admin/public/assets/admin.css admin/public/assets/gst.css admin/public/assets/favicon-gst.svg admin/gst/index.php admin/bin/glsc-gst-import admin/click/index.php admin/bin/glsc-admin-setup admin/collector/glsc_admin_collect.py admin/collector/glsc_cards.py admin/bin/glsc-recap admin/bin/glsc-backup-setup \
          admin/systemd/glsc-admin-collect.service admin/systemd/glsc-admin-collect.timer admin/systemd/glsc-admin-queue.path \
          admin/systemd/glsc-admin-queue.service admin/systemd/glsc-deploy.path admin/systemd/glsc-deploy.service admin/systemd/glsc-backup.service admin/systemd/glsc-backup.timer deploy/nginx/glsc-log.conf deploy/nginx/glsc-admin-php.inc.tpl \
-         deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css \
+         deploy/nginx/admin.glsc.fr.conf.tpl deploy/nginx/click.glsc.fr.conf.tpl deploy/nginx/gst.glsc.fr.conf.tpl deploy/nginx/acme-only.conf.tpl assets/_glsc/fonts.css \
          deploy/install-404.sh deploy/nginx/glsc-404.inc errors/404.html deploy/games/cards/fonts/fredoka-latin-700-normal.ttf; do
   [ -s "$SRC/$f" ] || die "Archive incomplète : $f manquant. Rien n'a été modifié."
 done
@@ -106,6 +110,7 @@ install -m 644 "$SRC/admin/collector/glsc_cards.py" "$OPT/glsc_cards.py"
 install -d -m 755 "$OPT/cards/fonts"
 install -m 644 "$SRC"/deploy/games/cards/fonts/*.ttf "$OPT/cards/fonts/"
 install -m 755 "$SRC/admin/bin/glsc-admin-setup" /usr/local/sbin/glsc-admin-setup
+install -m 755 "$SRC/admin/bin/glsc-gst-import" /usr/local/sbin/glsc-gst-import   # copie unique des devis/factures de l'admin vers gst
 install -m 755 "$SRC/admin/bin/glsc-recap" /usr/local/sbin/glsc-recap   # récap Discord à la demande
 install -m 755 "$SRC/admin/bin/glsc-backup-setup" /usr/local/sbin/glsc-backup-setup   # sauvegardes chiffrées
 ok "code dans $OPT, commande glsc-admin-setup installée"
@@ -115,7 +120,7 @@ publish_root() {   # publish_root <dossier> <source index.php>
   tmp="$(mktemp -d "$(dirname "$dir")/.glsc-XXXX")"
   install -m 644 "$SRC/$2" "$tmp/index.php"
   mkdir -p "$tmp/assets"
-  if [ "$dir" = "$WEB" ]; then cp -r "$SRC/admin/public/assets/." "$tmp/assets/"; else install -m 644 "$SRC/admin/public/assets/admin.css" "$SRC/admin/public/assets/favicon.svg" "$tmp/assets/"; fi
+  if [ "$dir" = "$WEB" ] || [ "$dir" = "$GST_WEB" ]; then cp -r "$SRC/admin/public/assets/." "$tmp/assets/"; else install -m 644 "$SRC/admin/public/assets/admin.css" "$SRC/admin/public/assets/favicon.svg" "$tmp/assets/"; fi
   mkdir -p "$tmp/_glsc"
   cp -r "$SRC/assets/_glsc/fonts" "$SRC/assets/_glsc/fonts.css" "$tmp/_glsc/"
   find "$tmp" -type d -exec chmod 755 {} + ; find "$tmp" -type f -exec chmod 644 {} +
@@ -125,16 +130,21 @@ publish_root() {   # publish_root <dossier> <source index.php>
 }
 publish_root "$WEB" admin/public/index.php
 publish_root "$CLICK" admin/click/index.php
-ok "pages : $WEB et $CLICK"
+publish_root "$GST_WEB" admin/gst/index.php
+ok "pages : $WEB, $CLICK et $GST_WEB"
 
 # ---------------------------------------------------------------- 4. données et identifiants
 info "4/8 Données"
 install -d -m 750 -o root -g www-data "$VAR" "$VAR/pub" "$ETC"
+# espace StudioGLSC : identifiants et base à part (jamais effacés non plus)
+install -d -m 750 -o root -g www-data "$GST_ETC"
+install -d -m 700 -o www-data -g www-data "$GST_VAR" "$GST_VAR/app"
 install -d -m 700 -o www-data -g www-data "$VAR/app" "$VAR/app/files" "$VAR/queue"
 install -d -m 770 -o root -g www-data "$VAR/deploy"        # demandes de déploiement (écrites par PHP, lues par root)
 install -d -m 750 -o root -g www-data "$VAR/pub/deploy-logs"
 install -d -m 700 -o root -g root "$VAR/collector"
 [ -f "$ETC/auth.json" ] && { chown root:www-data "$ETC/auth.json"; chmod 640 "$ETC/auth.json"; }
+[ -f "$GST_ETC/auth.json" ] && { chown root:www-data "$GST_ETC/auth.json"; chmod 640 "$GST_ETC/auth.json"; }
 sha_json="$(curl -fsS --max-time 8 -H 'Accept: application/vnd.github+json' https://api.github.com/repos/gabinlsc/portfolio/commits/main 2>/dev/null || true)"
 if [ -n "$sha_json" ]; then
   printf '%s' "$sha_json" | python3 -c 'import json,sys,time
@@ -165,7 +175,7 @@ fi
 touch /var/log/nginx/glsc-access.log
 
 # ---------------------------------------------------------------- 6. sites HTTPS
-info "6/8 admin.glsc.fr et click.glsc.fr (HTTPS)"
+info "6/8 admin.glsc.fr, click.glsc.fr et gst.glsc.fr (HTTPS)"
 install -d -m 755 "$ACME_ROOT"
 LOCAL_IPS=" $(hostname -I 2>/dev/null) $(curl -4 -s --max-time 5 https://ifconfig.me 2>/dev/null || true) "
 for entry in "${SITES[@]}"; do
@@ -251,13 +261,17 @@ elif [ -r /dev/tty ] && { : </dev/tty; } 2>/dev/null; then
 else
   warn "pas de terminal interactif : lance maintenant « glsc-admin-setup » pour créer tes identifiants"
 fi
-for url in https://admin.glsc.fr/ https://click.glsc.fr/; do
+if [ ! -s "$GST_ETC/auth.json" ]; then
+  warn "gst.glsc.fr n'a pas encore d'identifiants : lance « glsc-admin-setup --gst » (mot de passe + 2FA propres à l'espace StudioGLSC),"
+  warn "puis « glsc-gst-import --dry-run » et « glsc-gst-import » pour y copier tes devis et factures existants."
+fi
+for url in https://admin.glsc.fr/ https://click.glsc.fr/ https://gst.glsc.fr/; do
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$url" || true)"
   case "$code" in 200|302) ok "$code  $url" ;; *) warn "$code  $url" ;; esac
 done
 # la 404 commune doit répondre partout (« s'est perdue » est dans errors/404.html)
 for host in glsc.fr cv.glsc.fr share.glsc.fr old.glsc.fr games.glsc.fr status.glsc.fr \
-            plus4.glsc.fr president.glsc.fr petitbac.glsc.fr vortex.glsc.fr admin.glsc.fr click.glsc.fr; do
+            plus4.glsc.fr president.glsc.fr petitbac.glsc.fr vortex.glsc.fr admin.glsc.fr click.glsc.fr gst.glsc.fr; do
   url="https://$host/cette-page-n-existe-pas.png"
   code="$(curl -s -o "$WORK/404" -w '%{http_code}' --max-time 8 "$url" || true)"
   if [ "$code" = 404 ] && grep -q "s'est perdue" "$WORK/404"; then ok "404 commune  $host"; else warn "404 : code $code  $host"; fi
@@ -265,7 +279,8 @@ done
 
 info "Terminé. Sauvegardes : $BACKUP"
 echo "  Admin       : https://admin.glsc.fr  (mot de passe + code 2FA)"
-echo "  Identifiants: glsc-admin-setup [--password | --2fa | --recovery]"
+echo "  StudioGLSC  : https://gst.glsc.fr  (glsc-admin-setup --gst, puis glsc-gst-import)"
+echo "  Identifiants: glsc-admin-setup [--gst] [--password | --2fa | --recovery]"
 echo "  Sonde       : journalctl -u glsc-admin-collect -n 30"
 echo "  Sauvegardes : glsc-backup-setup [--status | --rclone remote:dossier | --discord]"
 echo "  Récap       : glsc-recap (7 derniers jours) · glsc-recap --semaine · glsc-recap --apercu"

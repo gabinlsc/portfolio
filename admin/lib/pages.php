@@ -14,29 +14,47 @@ function asset(string $path): string
     return e($path . '?v=' . $v);
 }
 
+function is_gst(): bool
+{
+    return glsc_instance() === 'gst';
+}
+
+/** Nom affiché de l'instance. */
+function site_name(): string
+{
+    return is_gst() ? 'StudioGLSC' : 'Admin GLSC';
+}
+
 function page_head(string $title, bool $csrf = false): void
 {
+    $gst = is_gst();
     ?><!doctype html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex, nofollow" />
-  <meta name="theme-color" content="#FFFDF0" />
+  <meta name="theme-color" content="<?= $gst ? '#2447D6' : '#FFFDF0' ?>" />
+  <meta name="glsc-instance" content="<?= $gst ? 'gst' : 'admin' ?>" />
 <?php if ($csrf): ?>
   <meta name="csrf-token" content="<?= e(csrf_token()) ?>" />
 <?php endif; ?>
   <title><?= e($title) ?></title>
-  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/assets/<?= $gst ? 'favicon-gst.svg' : 'favicon.svg' ?>" type="image/svg+xml" />
+<?php if ($gst): ?>
+  <link rel="stylesheet" href="<?= asset('/assets/admin.css') ?>" />
+  <link rel="stylesheet" href="<?= asset('/assets/gst.css') ?>" />
+<?php else: ?>
   <link rel="stylesheet" href="<?= asset('/_glsc/fonts.css') ?>" />
   <link rel="stylesheet" href="<?= asset('/assets/admin.css') ?>" />
+<?php endif; ?>
 </head>
 <?php
 }
 
 function page_app(): void
 {
-    page_head('Admin · GLSC', true);
+    page_head(site_name() === 'StudioGLSC' ? 'StudioGLSC · Espace pro' : 'Admin · GLSC', true);
     ?>
 <body class="app">
   <div id="app" aria-live="polite"><p class="boot">Chargement…</p></div>
@@ -49,15 +67,16 @@ function page_app(): void
 function page_login(): void
 {
     $configured = auth_config() !== null;
-    page_head('Connexion · Admin GLSC', true);
+    page_head('Connexion · ' . site_name(), true);
+    $gst = is_gst();
     ?>
 <body class="login-page">
   <main class="login-card">
-    <div class="login-logo" aria-hidden="true">G</div>
-    <h1>Espace privé</h1>
+    <div class="login-logo" aria-hidden="true"><?= $gst ? 'S' : 'G' ?></div>
+    <h1><?= $gst ? 'Espace StudioGLSC' : 'Espace privé' ?></h1>
     <?php if (!$configured): ?>
-      <p class="login-help">L’admin n’est pas encore configurée. Sur le serveur, lance :</p>
-      <pre class="code">glsc-admin-setup</pre>
+      <p class="login-help"><?= $gst ? 'L’espace StudioGLSC n’est pas encore configuré' : 'L’admin n’est pas encore configurée' ?>. Sur le serveur, lance :</p>
+      <pre class="code"><?= $gst ? 'glsc-admin-setup --gst' : 'glsc-admin-setup' ?></pre>
     <?php else: ?>
       <form id="login" class="stack" autocomplete="on">
         <label class="field"><span>Mot de passe</span>
@@ -70,7 +89,7 @@ function page_login(): void
         <button class="btn btn-primary" type="submit">Se connecter</button>
       </form>
     <?php endif; ?>
-    <p class="login-foot"><a href="https://glsc.fr">← glsc.fr</a></p>
+    <p class="login-foot"><?= $gst ? '<a href="https://studio.glsc.fr">← studio.glsc.fr</a>' : '<a href="https://glsc.fr">← glsc.fr</a>' ?></p>
   </main>
   <script src="<?= asset('/assets/login.js') ?>"></script>
 </body>
@@ -80,7 +99,7 @@ function page_login(): void
 
 function page_message(string $title, string $text): void
 {
-    page_head($title . ' · Admin GLSC');
+    page_head($title . ' · ' . site_name());
     ?>
 <body class="login-page">
   <main class="login-card">
