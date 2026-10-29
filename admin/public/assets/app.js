@@ -22,6 +22,9 @@ const LINKS = GST ? [['studio.glsc.fr', 'https://studio.glsc.fr'], ['Portail pro
 const HOME = GST ? 'home' : 'dashboard';
 const SITE = GST ? 'StudioGLSC' : 'Admin GLSC';
 const NAV_ACTIVE = GST ? NAV_GST : NAV;
+// logo StudioGLSC du kit de marque (fichiers d'origine, version claire ou sombre selon le thème)
+const logoGst = () => h('span', { class: 'logo-pair', role: 'img', 'aria-label': 'StudioGLSC' },
+  h('img', { class: 'logo-img logo-light', src: '/assets/gst-logo.svg', alt: '' }), h('img', { class: 'logo-img logo-dark', src: '/assets/gst-logo-sombre.svg', alt: '' }));
 const PAGES = Object.fromEntries(NAV_ACTIVE.flatMap((g) => g.items.map(([id, label, ic]) => [id, { label, ic }])));
 
 const app = document.getElementById('app');
@@ -38,12 +41,12 @@ function shell() {
 
   const logout = h('button', { class: 'btn btn-ghost nav-logout', type: 'button', onclick: doLogout }, icon('log-out'), h('span', {}, 'Déconnexion'));
   const side = h('aside', { class: 'side', id: 'side' },
-    h('a', { class: 'brand', href: '#/' + HOME }, h('span', { class: 'brand-logo', 'aria-hidden': 'true' }, GST ? 'S' : 'G'), GST ? h('span', {}, 'StudioGLSC', h('small', {}, 'Espace pro')) : h('span', {}, 'Admin', h('small', {}, 'glsc.fr'))),
+    h('a', { class: 'brand', href: '#/' + HOME }, ...(GST ? [logoGst()] : [h('span', { class: 'brand-logo', 'aria-hidden': 'true' }, 'G'), h('span', {}, 'Admin', h('small', {}, 'glsc.fr'))])),
     nav, logout);
 
   const burger = h('button', { class: 'icon-btn burger', type: 'button', 'aria-label': 'Ouvrir le menu', 'aria-controls': 'side', 'aria-expanded': 'false',
     onclick: () => toggleNav() }, icon('menu'));
-  const top = h('header', { class: 'topbar' }, burger, h('a', { class: 'brand brand-sm', href: '#/' + HOME }, h('span', { class: 'brand-logo', 'aria-hidden': 'true' }, GST ? 'S' : 'G'), GST ? 'StudioGLSC' : 'Admin'));
+  const top = h('header', { class: 'topbar' }, burger, h('a', { class: 'brand brand-sm', href: '#/' + HOME }, ...(GST ? [logoGst()] : [h('span', { class: 'brand-logo', 'aria-hidden': 'true' }, 'G'), 'Admin'])));
   const main = h('main', { class: 'main', id: 'main', tabindex: '-1' });
   const scrim = h('div', { class: 'scrim', onclick: () => toggleNav(false) });
   clear(app, top, side, scrim, main);

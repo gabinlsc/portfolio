@@ -1,22 +1,25 @@
 /* gst.glsc.fr — espace StudioGLSC : habillage « pro » (kit de marque StudioGLSC) posé par-dessus admin.css.
    Même structure et mêmes composants que l'admin ; seuls les jetons et quelques détails changent
    (bleu #2447D6, encre #0B1220, fond #F6F7F9, bordures fines, ombres douces, thème sombre « nuit »).
-   Inter est utilisée si elle est installée, sinon la police système. */
+   Polices du kit : Inter Display 700 (titres), Inter 400/500/600 (textes). Logos : fichiers du kit, jamais redessinés. */
+@font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: swap; src: url("fonts/inter-400.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-style: normal; font-display: swap; src: url("fonts/inter-500.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: swap; src: url("fonts/inter-600.woff2") format("woff2"); }
+@font-face { font-family: "Inter Display"; font-weight: 700; font-style: normal; font-display: swap; src: url("fonts/inter-display-700.woff2") format("woff2"); }
 :root {
   --cream: #F6F7F9; --paper: #FFFFFF; --ink: #0B1220; --muted: #566074; --line: #E1E5ED;
-  --blue: #2447D6; --blue-deep: #1B37B0; --blue-pale: #E9EEFE;
+  --blue: #2447D6; --blue-deep: #1B37B0; --blue-pale: #E9EEFE; --line-strong: #CFD5E1;
   --banana: #E9EEFE; --mint: #DDF3EA; --lilac: #ECE9FB; --sky: #E3EEFC; --coral: #FDE5E1; --peach: #FDEEDC; --red: #C63A2F;
-  --font-display: Inter, 'Inter Display', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Inter Display', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-body: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --bd: 1px solid var(--line);
-  --sh-sm: 0 1px 2px rgb(11 18 32 / .06); --sh: 0 2px 10px rgb(11 18 32 / .07); --sh-lg: 0 10px 30px rgb(11 18 32 / .12);
+  --sh-sm: 0 1px 2px rgb(11 18 32 / .06), 0 1px 1px rgb(11 18 32 / .04); --sh: 0 10px 30px -12px rgb(11 18 32 / .18), 0 2px 6px rgb(11 18 32 / .05); --sh-lg: 0 30px 60px -28px rgb(27 55 176 / .35), 0 12px 24px -14px rgb(11 18 32 / .18);
   --radius: 14px;
   --side: 256px;
   color-scheme: light;
 }
 body { background-image: none; letter-spacing: -.003em; }
-h1, h2, h3 { letter-spacing: -.02em; }
-h1 { font-weight: 700; } h2 { font-weight: 650; } h3 { font-weight: 600; }
+h1, h2, h3, .big, .kpi b, .kpi-card b { font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .main:focus, .main:focus-visible { outline: none; }
 .up { color: #107A57; } .down { color: var(--red); }
@@ -25,7 +28,7 @@ h1 { font-weight: 700; } h2 { font-weight: 650; } h3 { font-weight: 600; }
 
 /* boutons : pleins, sans ombre dure ni mouvement */
 .btn {
-  border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--sh-sm); font-weight: 600; font-size: .92rem;
+  min-height: 44px; border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: var(--sh-sm); font-weight: 600; font-size: .92rem;
   transition: background .15s, border-color .15s, box-shadow .15s;
 }
 .btn:hover:not(:disabled) { transform: none; box-shadow: var(--sh); border-color: #C9D0DE; }
@@ -50,13 +53,12 @@ h1 { font-weight: 700; } h2 { font-weight: 650; } h3 { font-weight: 600; }
 .code { border: 0; background: var(--ink); color: #BFD0FF; border-radius: 10px; }
 mark, .short-slug b { background: var(--blue-pale); color: var(--blue-deep); }
 
-/* connexion */
-.login-page { background: linear-gradient(160deg, #1B37B0 0%, #2447D6 55%, #4B6BE8 100%); }
-.login-card { border: 0; border-radius: 20px; box-shadow: 0 24px 60px rgb(7 14 48 / .35); }
-.login-logo, .brand-logo {
-  background: var(--blue); color: #fff; border: 0; border-radius: 12px; box-shadow: 0 6px 16px rgb(36 71 214 / .35);
-  transform: none; font: 700 1.5rem var(--font-display);
-}
+/* connexion : fond de page du kit, logo horizontal du kit, aucune ombre ni halo sur le logo */
+.login-page { background: var(--cream); }
+.login-card { border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--sh); }
+.logo-img { display: block; height: 44px; width: auto; }
+.brand .logo-img { height: 34px; }
+.logo-dark { display: none; }
 .login-card h1 { font-size: 1.6rem; }
 .login-foot a { color: var(--blue); }
 .code-input { letter-spacing: .3em; }
@@ -100,7 +102,7 @@ mark, .short-slug b { background: var(--blue-pale); color: var(--blue-deep); }
 .table th { font-weight: 600; color: var(--muted); }
 
 /* page d'accueil StudioGLSC */
-.gst-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.5rem; border-radius: 16px; background: linear-gradient(135deg, #1B37B0, #2447D6 60%, #4B6BE8); color: #fff; }
+.gst-hero { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.5rem; border-radius: 16px; background: var(--blue); color: #fff; }
 .gst-hero h1 { color: #fff; }
 .gst-hero p { color: rgb(255 255 255 / .82); margin-top: .25rem; }
 .gst-hero .btn { background: #fff; color: #1B37B0; border-color: #fff; }
@@ -113,9 +115,9 @@ mark, .short-slug b { background: var(--blue-pale); color: var(--blue-deep); }
 /* thème sombre « nuit » */
 @media (prefers-color-scheme: dark) {
   :root {
-    --cream: #0A0F1C; --paper: #111827; --ink: #E7ECF6; --muted: #98A3B8; --line: #232D42;
-    --blue: #6C8BFF; --blue-deep: #8EA6FF; --blue-pale: #172145;
-    --banana: #172145; --mint: #10281F; --lilac: #1E1A3A; --sky: #12203A; --coral: #3A1712; --peach: #33220F; --red: #FF8A7C;
+    --cream: #0A0F1C; --paper: #111829; --ink: #EDF0F7; --muted: #9AA6BD; --line: #202A42; --line-strong: #2C3857;
+    --blue: #2447D6; --blue-deep: #1B37B0; --blue-pale: #16213F;
+    --banana: #16213F; --mint: #10281F; --lilac: #1E1A3A; --sky: #12203A; --coral: #3A1712; --peach: #33220F; --red: #FF8A7C;
     --sh-sm: 0 1px 2px rgb(0 0 0 / .4); --sh: 0 2px 12px rgb(0 0 0 / .45); --sh-lg: 0 14px 40px rgb(0 0 0 / .6);
     color-scheme: dark;
   }
@@ -138,7 +140,8 @@ mark, .short-slug b { background: var(--blue-pale); color: var(--blue-deep); }
   .code { background: #060A14; color: #BFD0FF; }
   .gst-todo:hover { background: var(--blue-pale); }
   .login-card { box-shadow: 0 24px 60px rgb(0 0 0 / .55); }
-  .login-logo, .brand-logo { background: #2447D6; }
+  .logo-light { display: none; }
+  .logo-dark { display: block; }
   .s-sky { stroke: #6C8BFF; } .s-mint { stroke: #5FD3A6; } .s-coral { stroke: #FF8A7C; }
 }
 

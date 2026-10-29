@@ -72,7 +72,12 @@ function page_login(): void
     ?>
 <body class="login-page">
   <main class="login-card">
-    <div class="login-logo" aria-hidden="true"><?= $gst ? 'S' : 'G' ?></div>
+<?php if ($gst): ?>
+    <img class="logo-img logo-light" src="/assets/gst-logo.svg" alt="StudioGLSC" />
+    <img class="logo-img logo-dark" src="/assets/gst-logo-sombre.svg" alt="" />
+<?php else: ?>
+    <div class="login-logo" aria-hidden="true">G</div>
+<?php endif; ?>
     <h1><?= $gst ? 'Espace StudioGLSC' : 'Espace privé' ?></h1>
     <?php if (!$configured): ?>
       <p class="login-help"><?= $gst ? 'L’espace StudioGLSC n’est pas encore configuré' : 'L’admin n’est pas encore configurée' ?>. Sur le serveur, lance :</p>
